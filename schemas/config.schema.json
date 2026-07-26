@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json",
   "title": "ship-my-flutter configuration",
+  "$comment": "This schema provides structure, defaults, and conservative editor checks. The CLI validator is authoritative for shell syntax, cross-field rules, and platform-independent path safety.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "platforms"],
@@ -56,6 +57,7 @@
             "project_path": {
               "type": "string",
               "minLength": 1,
+              "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
               "default": ".",
               "description": "Flutter project root relative to the repository."
             },
@@ -75,12 +77,13 @@
               "default": "flutter build ipa --release",
               "description": "One POSIX shell command invocation. Chaining, pipelines, redirections, comments, and command substitution are rejected because ship-my-flutter appends version, build number, export-options, and configured flavor arguments to this invocation.",
               "not": {
-                "pattern": "(^|\\s)--(build-name|build-number|export-options-plist|flavor)(\\s|=|$)"
+                "pattern": "--(build-name|build-number|export-options-plist|flavor)"
               }
             },
             "artifact_path": {
               "type": "string",
               "minLength": 1,
+              "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
               "default": "build/ios/ipa",
               "description": "IPA file or directory relative to project_path."
             },

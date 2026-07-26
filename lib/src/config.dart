@@ -208,9 +208,7 @@ void _validateBuildCommand(String command) {
     '--export-options-plist',
     '--flavor',
   ]) {
-    if (RegExp(
-      '(?:^|\\s)${RegExp.escape(flag)}(?:\\s|=|\$)',
-    ).hasMatch(command)) {
+    if (command.contains(flag)) {
       _fail(
         'platforms.ios.build_command must not set $flag because '
         'ship-my-flutter appends it automatically',
@@ -240,6 +238,12 @@ void _validateSingleShellInvocation(String command) {
       continue;
     }
     if (quote == '"') {
+      if (character == '`' ||
+          (character == r'$' &&
+              index + 1 < command.length &&
+              command[index + 1] == '(')) {
+        _invalidBuildCommandShape();
+      }
       if (character == '"') quote = null;
       continue;
     }

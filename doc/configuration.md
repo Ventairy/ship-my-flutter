@@ -7,7 +7,9 @@ editor validation and autocomplete.
 
 Configuration is strict. Unknown fields, unsafe relative paths, invalid
 combinations, and managed build arguments are rejected before release work
-begins.
+begins. The schema provides structural validation, defaults, and conservative
+editor checks. `dart run ship_my_flutter validate` is authoritative for shell
+quoting, cross-field rules, and path safety on every supported host platform.
 
 ## Complete example
 

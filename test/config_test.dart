@@ -182,6 +182,8 @@ void main() {
           'flutter build ipa\nprintf done',
           r'flutter build ipa $(printf extra)',
           'flutter build ipa `printf extra`',
+          r'flutter build ipa "--dart-define=VALUE=$(printf extra)"',
+          'flutter build ipa "--dart-define=VALUE=`printf extra`"',
         ]) {
           final config = validConfig();
           iosConfig(config)['build_command'] = command;
@@ -219,8 +221,11 @@ void main() {
     test('rejects release arguments managed by ship-my-flutter', () {
       for (final flag in <String>[
         '--build-name 9.9.9',
+        "'--build-name=9.9.9'",
         '--build-number=99',
+        '"--build-number=99"',
         '--export-options-plist custom.plist',
+        r'--dart-define=FORBIDDEN=--export-options-plist',
         '--flavor production',
       ]) {
         final config = validConfig();

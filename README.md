@@ -341,6 +341,10 @@ platforms:
     artifact_path: build/ios/ipa
 ```
 
+Keep it to one command invocation, such as `flutter build` or a Dart wrapper
+that accepts those appended arguments. Put chaining, preparation, logging, and
+verification in `hooks.before_candidate`.
+
 See [Configuration](doc/configuration.md) for hook context, managed arguments,
 artifact validation, and schema version 1 migration.
 
