@@ -56,7 +56,7 @@ This creates:
 .ship-my-flutter/
 ├── candidates/
 ├── changelog.json
-├── config.json
+├── config.yaml
 ├── manifest.json
 └── store-release-notes.json
 .github/workflows/ship-my-flutter.yml
@@ -118,31 +118,30 @@ See [Apple bootstrap](docs/apple-bootstrap.md) for the one-time App Store Connec
 
 ### 4. Configure TestFlight and submission behavior
 
-The generated `.ship-my-flutter/config.json` is ready for a standard Flutter app. Add TestFlight group names if builds should be assigned automatically:
+The generated `.ship-my-flutter/config.yaml` includes a JSON Schema directive
+for editor validation and autocomplete. It is ready for a standard Flutter app;
+add TestFlight group names if builds should be assigned automatically:
 
-```json
-{
-  "schemaVersion": 1,
-  "targetBranch": "main",
-  "releaseBranchPrefix": "ship-my-flutter",
-  "hooks": {},
-  "platforms": {
-    "ios": {
-      "enabled": true,
-      "projectPath": ".",
-      "bundleId": "com.example.myapp",
-      "buildArgs": [],
-      "testflight": {
-        "groups": ["Internal"],
-        "waitTimeoutMinutes": 45
-      },
-      "appStore": {
-        "mode": "upload-only",
-        "releaseType": "manual"
-      }
-    }
-  }
-}
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
+
+schemaVersion: 1
+targetBranch: main
+releaseBranchPrefix: ship-my-flutter
+hooks: {}
+platforms:
+  ios:
+    enabled: true
+    projectPath: .
+    bundleId: com.example.myapp
+    buildArgs: []
+    testflight:
+      groups:
+        - Internal
+      waitTimeoutMinutes: 45
+    appStore:
+      mode: upload-only
+      releaseType: manual
 ```
 
 - `submit-for-review` creates or reuses the App Store version, attaches the tested build, applies localized notes, and submits it.
@@ -178,12 +177,9 @@ Omitting a version is allowed; ship-my-flutter will not invent notes. Apple may 
 
 Set a repository script as `hooks.beforeReleasePr`:
 
-```json
-{
-  "hooks": {
-    "beforeReleasePr": "tool/generate-store-notes"
-  }
-}
+```yaml
+hooks:
+  beforeReleasePr: tool/generate-store-notes
 ```
 
 The executable receives:

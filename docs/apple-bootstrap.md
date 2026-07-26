@@ -32,7 +32,9 @@ Download an App Store distribution profile for the main bundle ID and each embed
 
 ## 5. Create TestFlight groups
 
-Create internal or external groups before adding their exact names to `config.json`. Internal testers must be eligible App Store Connect users. External builds can require Beta App Review and beta metadata.
+Create internal or external groups before adding their exact names to
+`config.yaml`. Internal testers must be eligible App Store Connect users.
+External builds can require Beta App Review and beta metadata.
 
 ## 6. Add GitHub secrets
 

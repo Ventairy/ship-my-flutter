@@ -19,7 +19,7 @@ project-specific checks you depend on.
 
 The initializer defaults to `upload-only`. After the first end-to-end candidate
 works and App Store metadata is complete, opt in to `submit-for-review` in
-`config.json`.
+`config.yaml`.
 
 ## Commit routing while a PR is open
 

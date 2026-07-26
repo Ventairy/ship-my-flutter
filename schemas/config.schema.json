@@ -13,15 +13,20 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "const": 1,
+      "description": "Configuration contract version."
     },
     "targetBranch": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "default": "main",
+      "description": "Branch whose commits feed release pull requests."
     },
     "releaseBranchPrefix": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "default": "ship-my-flutter",
+      "description": "Prefix for generated platform release branches."
     },
     "hooks": {
       "type": "object",
@@ -29,7 +34,8 @@
       "properties": {
         "beforeReleasePr": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Repository-relative executable run after the next version and changelog are prepared."
         }
       }
     },
@@ -50,22 +56,30 @@
           ],
           "properties": {
             "enabled": {
-              "type": "boolean"
+              "type": "boolean",
+              "default": true,
+              "description": "Enable iOS release planning and delivery."
             },
             "projectPath": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "default": ".",
+              "description": "Flutter project root relative to the repository."
             },
             "bundleId": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "description": "App Store bundle identifier. Explicit configuration is recommended."
             },
             "scheme": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "default": "Runner",
+              "description": "Xcode scheme or Flutter flavor to build."
             },
             "buildArgs": {
               "type": "array",
+              "description": "Additional arguments appended to flutter build ipa.",
               "items": {
                 "type": "string",
                 "not": {
@@ -80,6 +94,7 @@
               "properties": {
                 "groups": {
                   "type": "array",
+                  "description": "Exact existing TestFlight group names that should receive the build.",
                   "items": {
                     "type": "string",
                     "minLength": 1
@@ -88,7 +103,9 @@
                 "waitTimeoutMinutes": {
                   "type": "integer",
                   "minimum": 5,
-                  "maximum": 180
+                  "maximum": 180,
+                  "default": 45,
+                  "description": "Maximum time to wait for Apple build processing."
                 }
               }
             },
@@ -99,15 +116,18 @@
               "properties": {
                 "mode": {
                   "enum": ["submit-for-review", "upload-only"],
-                  "default": "upload-only"
+                  "default": "upload-only",
+                  "description": "Whether merging uploads only or also submits the tested build for App Review."
                 },
                 "releaseType": {
                   "enum": ["manual", "automatic", "scheduled"],
-                  "default": "manual"
+                  "default": "manual",
+                  "description": "Release behavior after Apple approves the submission."
                 },
                 "earliestReleaseDate": {
                   "type": "string",
-                  "format": "date-time"
+                  "format": "date-time",
+                  "description": "ISO 8601 release time required when releaseType is scheduled."
                 }
               },
               "allOf": [

@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { git } from "../src/git.js";
 import { initialize } from "../src/init.js";
-import { readJson, writeJson } from "../src/json.js";
+import { readJson, readYaml, writeJson, writeYaml } from "../src/json.js";
 import { planGitHubRelease } from "../src/orchestrator.js";
 import type { ShipConfig, ShipManifest } from "../src/types.js";
 
@@ -114,10 +114,10 @@ describe("workflow routing", () => {
 
   it("does nothing when iOS delivery is disabled", async () => {
     const root = await repository();
-    const configPath = path.join(root, ".ship-my-flutter", "config.json");
-    const config = await readJson<ShipConfig>(configPath);
+    const configPath = path.join(root, ".ship-my-flutter", "config.yaml");
+    const config = await readYaml<ShipConfig>(configPath);
     config.platforms.ios.enabled = false;
-    await writeJson(configPath, config);
+    await writeYaml(configPath, config);
     await expect(
       planGitHubRelease({
         root,

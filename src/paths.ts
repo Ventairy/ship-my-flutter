@@ -17,7 +17,7 @@ export function resolveShipPaths(root = process.cwd()): ShipPaths {
   return {
     root,
     directory,
-    config: path.join(directory, "config.json"),
+    config: path.join(directory, "config.yaml"),
     manifest: path.join(directory, "manifest.json"),
     changelog: path.join(directory, "changelog.json"),
     storeReleaseNotes: path.join(directory, "store-release-notes.json"),

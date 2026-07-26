@@ -1,6 +1,10 @@
 # Configuration
 
-`.ship-my-flutter/config.json` uses schema version 1. Editors can use [`schemas/config.schema.json`](../schemas/config.schema.json) for validation and completion.
+`.ship-my-flutter/config.yaml` uses schema version 1 and starts with a
+`yaml-language-server` directive linked to
+[`schemas/config.schema.json`](../schemas/config.schema.json). Editors with YAML
+language-server support provide validation and autocomplete without additional
+workspace configuration.
 
 ## Top-level fields
 
@@ -66,10 +70,9 @@ Every key must match the profile’s embedded application identifier, and every 
 
 Example with a Dart environment file:
 
-```json
-{
-  "buildArgs": ["--dart-define-from-file=config/production.json"]
-}
+```yaml
+buildArgs:
+  - --dart-define-from-file=config/production.json
 ```
 
 The config file is part of the source fingerprint when tracked by Git, so changing it invalidates the candidate.

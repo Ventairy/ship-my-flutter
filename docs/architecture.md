@@ -13,7 +13,7 @@ The action bundle is self-contained. A consumer does not install Node dependenci
 
 | File                        | Purpose                                                       |
 | --------------------------- | ------------------------------------------------------------- |
-| `config.json`               | Stable user choices and platform configuration                |
+| `config.yaml`               | Schema-linked user choices and platform configuration         |
 | `manifest.json`             | Current independent platform version and bootstrap baseline   |
 | `changelog.json`            | Machine-readable release history and Conventional Commit data |
 | `store-release-notes.json`  | User-owned localized store copy                               |

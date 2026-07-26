@@ -59,7 +59,7 @@ export async function resolveBundleId(
   const bundleId = matches.at(-1)?.[1]?.trim();
   if (!bundleId || bundleId.includes("$(")) {
     throw new ShipError(
-      "Could not detect PRODUCT_BUNDLE_IDENTIFIER. Set platforms.ios.bundleId in .ship-my-flutter/config.json.",
+      "Could not detect PRODUCT_BUNDLE_IDENTIFIER. Set platforms.ios.bundleId in .ship-my-flutter/config.yaml.",
       "BUNDLE_ID_REQUIRED",
     );
   }

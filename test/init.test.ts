@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { git } from "../src/git.js";
 import { initialize } from "../src/init.js";
-import { fileExists, readJson } from "../src/json.js";
+import { fileExists, readJson, readYaml } from "../src/json.js";
 import type { ShipConfig, ShipManifest } from "../src/types.js";
 
 const temporaryDirectories: string[] = [];
@@ -43,10 +43,12 @@ describe("initializer", () => {
       baselineSha,
       pendingRelease: false,
     });
-    const config = await readJson<ShipConfig>(
-      path.join(root, ".ship-my-flutter", "config.json"),
-    );
+    const configPath = path.join(root, ".ship-my-flutter", "config.yaml");
+    const config = await readYaml<ShipConfig>(configPath);
     expect(config.platforms.ios.appStore.mode).toBe("upload-only");
+    expect(await fs.readFile(configPath, "utf8")).toContain(
+      "# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json",
+    );
     expect(
       await fileExists(
         path.join(root, ".ship-my-flutter", "candidates", ".gitkeep"),
