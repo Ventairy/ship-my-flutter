@@ -53,7 +53,27 @@ This creates:
 
 Commit those files before merging new release-worthy work. The initializer records the current commit as the release baseline, so existing repository history is not released accidentally.
 
-### 2. Add six GitHub Actions secrets
+### 2. Allow the workflow to open release PRs
+
+In the Flutter repository, open **Settings → Actions → General → Workflow
+permissions** and enable **Allow GitHub Actions to create and approve pull
+requests**. Organization policy can lock this setting; if it does, ask an
+organization owner to enable it or give the plan step a GitHub App installation
+token (preferred) or narrowly scoped personal access token:
+
+```yaml
+- uses: Ventairy/ship-my-flutter-action@v1
+  with:
+    phase: plan
+    github-token: ${{ secrets.SHIP_MY_FLUTTER_GITHUB_TOKEN }}
+```
+
+For a fine-grained personal access token, grant access only to the Flutter
+repository and give it Pull requests and Issues read/write access. The
+workflow's existing `contents: write` permission continues to own the release
+branch push. Treat the alternative token as a release secret.
+
+### 3. Add six Apple GitHub Actions secrets
 
 | Secret                                 | Value                                                                  |
 | -------------------------------------- | ---------------------------------------------------------------------- |
@@ -83,7 +103,7 @@ For an app with extensions, set `IOS_PROVISIONING_PROFILES_BASE64` to a JSON obj
 
 See [Apple bootstrap](docs/apple-bootstrap.md) for the one-time App Store Connect setup and required roles.
 
-### 3. Configure TestFlight and submission behavior
+### 4. Configure TestFlight and submission behavior
 
 The generated `.ship-my-flutter/config.json` is ready for a standard Flutter app. Add TestFlight group names if builds should be assigned automatically:
 

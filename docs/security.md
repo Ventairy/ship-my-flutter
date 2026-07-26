@@ -32,15 +32,26 @@ The generated workflow grants each job only what its phase uses:
 - Candidate: `contents: write` only, to commit the TestFlight receipt.
 - Promote: `contents: write` only, to create the platform tag and GitHub Release.
 
-All other permissions default to read or none. No organization-wide token is required. The default repository `GITHUB_TOKEN` is sufficient because candidate delivery runs in the same workflow that creates the PR; the design does not depend on a token-generated push triggering another workflow.
+All other permissions default to read or none. No organization-wide token is
+required when the repository or organization allows GitHub Actions to create
+pull requests. The default repository `GITHUB_TOKEN` is otherwise sufficient
+because candidate delivery runs in the same workflow that creates the PR; the
+design does not depend on a token-generated push triggering another workflow.
+
+If repository or organization policy disables PR creation for `GITHUB_TOKEN`,
+pass a GitHub App installation token or narrowly scoped personal access token
+to the plan action's `github-token` input. The alternative token performs the
+GitHub API operations; the checkout credential and job-level `contents: write`
+permission still push the release branch.
 
 GitHub creates runs for other `pull_request` workflows when the release PR is
 opened or updated with `GITHUB_TOKEN`, but holds those runs for a maintainer with
 write access to select **Approve workflows to run**. Repositories that require
-those independent checks to start automatically may pass a GitHub App
-installation token (preferred) or a narrowly scoped personal access token to
-the plan action's `github-token` input. Treat that credential as a release
-secret and grant only the repository permissions used by the plan phase.
+those independent checks to start automatically must use a GitHub App
+installation token (preferred) or narrowly scoped personal access token for
+both the checkout that pushes the release branch and the plan action's
+`github-token` input. Treat that credential as a release secret and grant only
+the repository permissions used by the plan phase.
 
 ## Promotion integrity
 
