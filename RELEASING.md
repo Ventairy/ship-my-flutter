@@ -6,9 +6,17 @@ step.
 
 ## Release PR
 
-Every push to `main` runs `.github/workflows/release-please.yml`.
-Release Please reads Conventional Commits after the current release baseline
-and opens or updates one release PR.
+After CI passes for a push to `main`, `.github/workflows/release-please.yml`
+runs. Release Please reads Conventional Commits after the current release
+baseline and opens or updates one release PR.
+
+Add a repository secret named `RELEASE_PLEASE_TOKEN` before enabling releases.
+Use a GitHub App installation token or a narrowly scoped fine-grained personal
+access token that can read repository metadata and write contents, issues,
+pull requests, and Actions. The default `GITHUB_TOKEN` is deliberately not
+used: GitHub otherwise requires the broader repository setting that also lets
+Actions approve pull requests. Without the secret, the workflow succeeds with
+a warning and performs no release mutation.
 
 The release PR updates these synchronized version surfaces:
 
@@ -17,10 +25,8 @@ The release PR updates these synchronized version surfaces:
 - `CHANGELOG.md`;
 - `.release-please-manifest.json`.
 
-The CI workflow is dispatched for the generated release branch because a pull
-request created with the repository `GITHUB_TOKEN` does not trigger another
-`pull_request` workflow. Do not merge the release PR until that exact branch
-passes the complete hosted gate.
+The CI workflow is dispatched for the generated release branch. Do not merge
+the release PR until that exact branch passes the complete hosted gate.
 
 Before merging:
 
