@@ -12,7 +12,12 @@ ship-my-flutter handles high-value signing material. Its defaults are intentiona
 - Installed profiles created by the action, private API key, keychain, and temporary directory are removed in `finally` cleanup. A matching profile that existed before the action is retained.
 - Child-process failures omit command arguments so passwords cannot be copied into error messages. The action never intentionally logs secret values.
 - Generated checkouts do not persist a Git credential. The action supplies its token only to the individual Git fetch or push that needs it.
-- Release hooks must resolve inside the repository and be tracked by Git.
+- Hooks and `build_command` are arbitrary repository-owned POSIX shell code.
+  They are trusted at the same boundary as the workflow and application source.
+  Credential variables are removed before they run, but maintainers must still
+  review command changes before exposing release secrets.
+- `artifact_path` must stay under `project_path`; resolved symlinks are checked
+  again after the build.
 
 GitHub should restrict release environments, secret access, and workflow modification to trusted maintainers. Do not run the candidate phase for untrusted fork code with secrets.
 Prefer a dedicated ephemeral macOS runner when using self-hosted infrastructure.
@@ -21,8 +26,8 @@ Prefer a dedicated ephemeral macOS runner when using self-hosted infrastructure.
 
 - The action vendors the reviewed Dart core source, then generates and commits
   its deployment lockfile from that source's `pubspec.yaml`.
-- The Dart and Flutter setup actions are pinned to full commit SHAs.
-- Generated workflows pin GitHub-owned setup actions to full commit SHAs.
+- The Action's Dart setup and the generated workflow's Flutter setup are pinned
+  to full commit SHAs.
 - The Action resolves the vendored package with `--enforce-lockfile`, which
   checks the locked hosted-package content hashes before execution.
 - The core's strict analyzer, tests, and pub dry run plus the Action's locked

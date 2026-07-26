@@ -2,22 +2,23 @@ import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> validConfig() => <String, Object?>{
-  'schemaVersion': 1,
-  'targetBranch': 'main',
-  'releaseBranchPrefix': 'ship-my-flutter',
+  'schema_version': 2,
+  'target_branch': 'main',
+  'release_branch_prefix': 'ship-my-flutter',
   'hooks': <String, Object?>{},
   'platforms': <String, Object?>{
     'ios': <String, Object?>{
       'enabled': true,
-      'projectPath': '.',
-      'buildArgs': <Object?>[],
+      'project_path': '.',
+      'build_command': 'flutter build ipa --release',
+      'artifact_path': 'build/ios/ipa',
       'testflight': <String, Object?>{
         'groups': <Object?>[],
-        'waitTimeoutMinutes': 45,
+        'wait_timeout_minutes': 45,
       },
-      'appStore': <String, Object?>{
+      'app_store': <String, Object?>{
         'mode': 'submit-for-review',
-        'releaseType': 'manual',
+        'release_type': 'manual',
       },
     },
   },
@@ -67,7 +68,7 @@ void main() {
         () {
           final config = validConfig();
           final appStore =
-              iosConfig(config)['appStore']! as Map<String, Object?>;
+              iosConfig(config)['app_store']! as Map<String, Object?>;
           appStore['unexpected'] = true;
           return config;
         },
@@ -89,7 +90,7 @@ void main() {
 
     test('defaults omitted App Store behavior to upload only', () {
       final config = validConfig();
-      iosConfig(config).remove('appStore');
+      iosConfig(config).remove('app_store');
       final appStore = validateConfig(config).ios.appStore;
       expect(appStore.mode, ReleaseMode.uploadOnly);
       expect(appStore.releaseType, StoreReleaseType.manual);
@@ -97,13 +98,17 @@ void main() {
 
     test('rejects paths that escape the repository', () {
       final config = validConfig();
-      iosConfig(config)['projectPath'] = '../another-app';
+      iosConfig(config)['project_path'] = '../another-app';
       expect(() => validateConfig(config), throwsA(isA<ShipError>()));
+
+      final artifactConfig = validConfig();
+      iosConfig(artifactConfig)['artifact_path'] = '../outside/app.ipa';
+      expect(() => validateConfig(artifactConfig), throwsA(isA<ShipError>()));
     });
 
     test('rejects unsupported App Store modes', () {
       final config = validConfig();
-      final appStore = iosConfig(config)['appStore']! as Map<String, Object?>;
+      final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
       appStore['mode'] = 'publish-now';
       expect(
         () => validateConfig(config),
@@ -120,50 +125,87 @@ void main() {
     test('requires a date only for scheduled App Store releases', () {
       final missingDate = validConfig();
       final scheduled =
-          iosConfig(missingDate)['appStore']! as Map<String, Object?>;
-      scheduled['releaseType'] = 'scheduled';
+          iosConfig(missingDate)['app_store']! as Map<String, Object?>;
+      scheduled['release_type'] = 'scheduled';
       expect(
         () => validateConfig(missingDate),
         throwsA(
           isA<ShipError>().having(
             (ShipError error) => error.message,
             'message',
-            contains('required when releaseType is scheduled'),
+            contains('required when release_type is scheduled'),
           ),
         ),
       );
 
       final unexpectedDate = validConfig();
       final manual =
-          iosConfig(unexpectedDate)['appStore']! as Map<String, Object?>;
-      manual['earliestReleaseDate'] = '2026-08-01T12:00:00.000Z';
+          iosConfig(unexpectedDate)['app_store']! as Map<String, Object?>;
+      manual['earliest_release_date'] = '2026-08-01T12:00:00.000Z';
       expect(
         () => validateConfig(unexpectedDate),
         throwsA(
           isA<ShipError>().having(
             (ShipError error) => error.message,
             'message',
-            contains('only valid when releaseType is scheduled'),
+            contains('only valid when release_type is scheduled'),
           ),
         ),
       );
     });
 
-    test('does not allow custom arguments to override release identity', () {
+    test('accepts project-owned shell commands and hooks', () {
       final config = validConfig();
-      iosConfig(config)['buildArgs'] = <Object?>['--build-number=99'];
+      iosConfig(config)['build_command'] =
+          'fvm dart run release:build_ios && test -f "\$OUTPUT"';
+      final hooks = config['hooks']! as Map<String, Object?>;
+      hooks['before_release_pr'] = 'fvm dart run release:notes';
+      hooks['before_candidate'] = 'fvm dart run release:prepare';
+
+      final parsed = validateConfig(config);
+
+      expect(parsed.ios.buildCommand, contains('release:build_ios'));
+      expect(parsed.hooks.beforeReleasePr, contains('release:notes'));
+      expect(parsed.hooks.beforeCandidate, contains('release:prepare'));
+    });
+
+    test('rejects release arguments managed by ship-my-flutter', () {
+      for (final flag in <String>[
+        '--build-name 9.9.9',
+        '--build-number=99',
+        '--export-options-plist custom.plist',
+        '--flavor production',
+      ]) {
+        final config = validConfig();
+        iosConfig(config)['build_command'] = 'flutter build ipa $flag';
+        expect(
+          () => validateConfig(config),
+          throwsA(
+            isA<ShipError>().having(
+              (ShipError error) => error.message,
+              'message',
+              contains('appends it automatically'),
+            ),
+          ),
+        );
+      }
+    });
+
+    test('rejects the camelCase version 1 configuration contract', () {
+      final config = validConfig()
+        ..remove('schema_version')
+        ..['schemaVersion'] = 1;
+
       expect(
         () => validateConfig(config),
         throwsA(
           isA<ShipError>().having(
             (ShipError error) => error.message,
             'message',
-            contains('managed by ship-my-flutter'),
+            contains('Migrate camelCase configuration keys to snake_case'),
           ),
         ),
       );
-      iosConfig(config)['buildArgs'] = <Object?>['--pub'];
-      expect(() => validateConfig(config), throwsA(isA<ShipError>()));
     });
 
     test('rejects iOS prerelease versions', () {

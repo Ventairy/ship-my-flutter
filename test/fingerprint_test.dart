@@ -5,24 +5,26 @@ import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
 String configYaml({
-  List<String> buildArgs = const <String>[],
+  String buildCommand = 'flutter build ipa',
   List<String> groups = const <String>[],
   String mode = 'upload-only',
   String releaseType = 'manual',
+  String? beforeCandidate,
 }) =>
     '''
+${beforeCandidate == null ? 'hooks: {}' : 'hooks:\n  before_candidate: "$beforeCandidate"'}
 platforms:
   ios:
-    projectPath: .
-    bundleId: dev.example.app
-    buildArgs:
-${buildArgs.map((String value) => '      - "$value"').join('\n')}
+    project_path: .
+    bundle_id: dev.example.app
+    build_command: "$buildCommand"
+    artifact_path: build/ios/ipa
     testflight:
       groups:
 ${groups.map((String value) => '        - "$value"').join('\n')}
-    appStore:
+    app_store:
       mode: $mode
-      releaseType: $releaseType
+      release_type: $releaseType
 ''';
 
 void main() {
@@ -65,9 +67,14 @@ void main() {
       );
       expect(await sourceFingerprint(root.path), before);
 
-      await File(paths.config).writeAsString(
-        configYaml(buildArgs: const <String>['--dart-define=ENV=production']),
-      );
+      await File(
+        paths.config,
+      ).writeAsString(configYaml(buildCommand: 'fvm flutter build ipa'));
+      expect(await sourceFingerprint(root.path), isNot(before));
+
+      await File(
+        paths.config,
+      ).writeAsString(configYaml(beforeCandidate: 'dart run release:prepare'));
       expect(await sourceFingerprint(root.path), isNot(before));
 
       await File(

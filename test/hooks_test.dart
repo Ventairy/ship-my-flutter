@@ -4,28 +4,16 @@ import 'package:path/path.dart' as p;
 import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
+import 'support/recording_process.dart';
+
 void main() {
-  test('runs a repository-owned executable with release context', () async {
+  test('runs a release PR shell command with release context', () async {
     final root = await Directory.systemTemp.createTemp('smf-hook-');
     addTearDown(() => root.delete(recursive: true));
-    final hookPath = p.join(root.path, 'release-hook.sh');
-    await File(hookPath).writeAsString(
-      <String>[
-        '#!/bin/sh',
-        'test "\$SHIP_MY_FLUTTER_PLATFORM" = "ios"',
-        'test "\$SHIP_MY_FLUTTER_CURRENT_VERSION" = "1.0.0"',
-        'test "\$SHIP_MY_FLUTTER_VERSION" = "1.1.0"',
-        '',
-      ].join('\n'),
-    );
-    await const SystemProcessRunner().run('/bin/chmod', <String>[
-      '700',
-      hookPath,
-    ]);
-    await git(root.path, const <String>['init', '-b', 'main']);
-    await git(root.path, const <String>['add', 'release-hook.sh']);
+    final runner = RecordingProcessRunner();
+    const command = 'fvm dart run release:generate_store_release_notes';
     const config = ShipConfig(
-      hooks: HooksConfig(beforeReleasePr: 'release-hook.sh'),
+      hooks: HooksConfig(beforeReleasePr: command),
       ios: IosConfig(),
     );
     const plan = ReleasePlan(
@@ -38,75 +26,66 @@ void main() {
       changes: <ConventionalChange>[],
     );
 
-    await runBeforeReleasePrHook(root.path, config, plan);
-  });
-
-  test('rejects a hook symlink that resolves outside the repository', () async {
-    final root = await Directory.systemTemp.createTemp('smf-hook-root-');
-    final outside = await Directory.systemTemp.createTemp('smf-hook-outside-');
-    addTearDown(() async {
-      await root.delete(recursive: true);
-      await outside.delete(recursive: true);
-    });
-    final externalHook = p.join(outside.path, 'release-hook.sh');
-    await File(externalHook).writeAsString('#!/bin/sh\nexit 0\n');
-    await Link(p.join(root.path, 'release-hook.sh')).create(externalHook);
-    const config = ShipConfig(
-      hooks: HooksConfig(beforeReleasePr: 'release-hook.sh'),
-      ios: IosConfig(),
-    );
-    const plan = ReleasePlan(
-      platform: Platform.ios,
-      currentVersion: '1.0.0',
-      nextVersion: '1.1.0',
-      bump: Bump.minor,
-      baseSha: 'base',
-      headSha: 'head',
-      changes: <ConventionalChange>[],
+    await runBeforeReleasePrHook(
+      root.path,
+      config,
+      plan,
+      processRunner: runner,
     );
 
-    await expectLater(
-      runBeforeReleasePrHook(root.path, config, plan),
-      throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
-          'code',
-          'UNSAFE_HOOK',
-        ),
-      ),
+    final invocation = runner.invocations.single;
+    expect(invocation.executable, '/bin/bash');
+    expect(invocation.arguments.last, command);
+    expect(invocation.options.workingDirectory, root.path);
+    expect(
+      invocation.options.environment,
+      containsPair('SHIP_MY_FLUTTER_VERSION', '1.1.0'),
     );
   });
 
-  test('rejects an untracked repository hook', () async {
-    final root = await Directory.systemTemp.createTemp('smf-hook-untracked-');
+  test('runs before_candidate from the repository root', () async {
+    final root = await Directory.systemTemp.createTemp('smf-hook-');
     addTearDown(() => root.delete(recursive: true));
-    await git(root.path, const <String>['init', '-b', 'main']);
-    await File(
-      p.join(root.path, 'release-hook.sh'),
-    ).writeAsString('#!/bin/sh\nexit 0\n');
+    final runner = RecordingProcessRunner();
     const config = ShipConfig(
-      hooks: HooksConfig(beforeReleasePr: 'release-hook.sh'),
-      ios: IosConfig(),
-    );
-    const plan = ReleasePlan(
-      platform: Platform.ios,
-      currentVersion: '1.0.0',
-      nextVersion: '1.1.0',
-      bump: Bump.minor,
-      baseSha: 'base',
-      headSha: 'head',
-      changes: <ConventionalChange>[],
+      hooks: HooksConfig(beforeCandidate: 'fvm dart run release:prepare_ios'),
+      ios: IosConfig(projectPath: 'apps/mobile'),
     );
 
-    await expectLater(
-      runBeforeReleasePrHook(root.path, config, plan),
-      throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
-          'code',
-          'UNSAFE_HOOK',
-        ),
-      ),
+    await runBeforeCandidateHook(
+      root.path,
+      config,
+      '2.3.0',
+      processRunner: runner,
     );
+
+    final invocation = runner.invocations.single;
+    expect(invocation.options.workingDirectory, root.path);
+    expect(
+      invocation.options.environment,
+      containsPair('SHIP_MY_FLUTTER_PROJECT_PATH', 'apps/mobile'),
+    );
+    expect(
+      invocation.options.environment,
+      containsPair('SHIP_MY_FLUTTER_VERSION', '2.3.0'),
+    );
+  });
+
+  test('supports ordinary shell composition', () async {
+    final root = await Directory.systemTemp.createTemp('smf-hook-');
+    addTearDown(() => root.delete(recursive: true));
+    final output = p.join(root.path, 'result.txt');
+    const config = ShipConfig(
+      hooks: HooksConfig(
+        beforeCandidate:
+            'printf first > result.txt && printf second >> '
+            'result.txt',
+      ),
+      ios: IosConfig(),
+    );
+
+    await runBeforeCandidateHook(root.path, config, '1.0.0');
+
+    expect(await File(output).readAsString(), 'firstsecond');
   });
 }

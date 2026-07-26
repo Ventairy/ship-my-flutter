@@ -1,62 +1,66 @@
-import 'dart:io';
-
-import 'package:path/path.dart' as p;
-
-import 'error.dart';
-import 'git.dart';
 import 'model.dart';
 import 'paths.dart';
 import 'process_runner.dart';
 
+/// Runs the configured release-PR hook with non-secret planning context.
 Future<void> runBeforeReleasePrHook(
   String root,
   ShipConfig config,
   ReleasePlan plan, {
   ProcessRunner processRunner = const SystemProcessRunner(),
 }) async {
-  final hook = config.hooks.beforeReleasePr;
-  if (hook == null) return;
+  final command = config.hooks.beforeReleasePr;
+  if (command == null) return;
 
-  final repositoryRoot = p.normalize(p.absolute(root));
-  final commandPath = p.normalize(p.absolute(root, hook));
-  final entityType = await FileSystemEntity.type(commandPath);
-  invariant(
-    entityType == FileSystemEntityType.file,
-    'beforeReleasePr must reference a file inside the repository',
-    'UNSAFE_HOOK',
-  );
-  final (realRepositoryRoot, realCommandPath) = await (
-    Directory(repositoryRoot).resolveSymbolicLinks(),
-    File(commandPath).resolveSymbolicLinks(),
-  ).wait;
-  invariant(
-    p.isWithin(realRepositoryRoot, realCommandPath),
-    'beforeReleasePr must stay inside the repository',
-    'UNSAFE_HOOK',
-  );
-  final relativeCommandPath = p.relative(commandPath, from: repositoryRoot);
-  invariant(
-    (await git(repositoryRoot, <String>[
-      'ls-files',
-      '--error-unmatch',
-      relativeCommandPath,
-    ], allowFailure: true)).isNotEmpty,
-    'beforeReleasePr must reference a tracked repository file',
-    'UNSAFE_HOOK',
-  );
   final paths = resolveShipPaths(root);
-  await processRunner.run(
-    commandPath,
-    const <String>[],
-    options: RunOptions(
-      workingDirectory: root,
-      environment: <String, String>{
-        'SHIP_MY_FLUTTER_PLATFORM': plan.platform.value,
-        'SHIP_MY_FLUTTER_CURRENT_VERSION': plan.currentVersion,
-        'SHIP_MY_FLUTTER_VERSION': plan.nextVersion,
-        'SHIP_MY_FLUTTER_CHANGELOG_PATH': paths.changelog,
-        'SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH': paths.storeReleaseNotes,
-      },
-    ),
+  await _runRepositoryCommand(
+    root: root,
+    command: command,
+    environment: <String, String>{
+      'SHIP_MY_FLUTTER_PLATFORM': plan.platform.value,
+      'SHIP_MY_FLUTTER_CURRENT_VERSION': plan.currentVersion,
+      'SHIP_MY_FLUTTER_VERSION': plan.nextVersion,
+      'SHIP_MY_FLUTTER_CHANGELOG_PATH': paths.changelog,
+      'SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH': paths.storeReleaseNotes,
+    },
+    processRunner: processRunner,
+  );
+}
+
+/// Runs the configured candidate hook before source fingerprinting.
+Future<void> runBeforeCandidateHook(
+  String root,
+  ShipConfig config,
+  String version, {
+  ProcessRunner processRunner = const SystemProcessRunner(),
+}) async {
+  final command = config.hooks.beforeCandidate;
+  if (command == null) return;
+
+  final paths = resolveShipPaths(root);
+  await _runRepositoryCommand(
+    root: root,
+    command: command,
+    environment: <String, String>{
+      'SHIP_MY_FLUTTER_PLATFORM': Platform.ios.value,
+      'SHIP_MY_FLUTTER_VERSION': version,
+      'SHIP_MY_FLUTTER_PROJECT_PATH': config.ios.projectPath,
+      'SHIP_MY_FLUTTER_CHANGELOG_PATH': paths.changelog,
+      'SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH': paths.storeReleaseNotes,
+    },
+    processRunner: processRunner,
+  );
+}
+
+Future<void> _runRepositoryCommand({
+  required String root,
+  required String command,
+  required Map<String, String> environment,
+  required ProcessRunner processRunner,
+}) async {
+  await runShellCommand(
+    command,
+    options: RunOptions(workingDirectory: root, environment: environment),
+    processRunner: processRunner,
   );
 }

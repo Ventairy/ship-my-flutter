@@ -5,24 +5,24 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schemaVersion",
-    "targetBranch",
-    "releaseBranchPrefix",
+    "schema_version",
+    "target_branch",
+    "release_branch_prefix",
     "hooks",
     "platforms"
   ],
   "properties": {
-    "schemaVersion": {
-      "const": 1,
+    "schema_version": {
+      "const": 2,
       "description": "Configuration contract version."
     },
-    "targetBranch": {
+    "target_branch": {
       "type": "string",
       "minLength": 1,
       "default": "main",
       "description": "Branch whose commits feed release pull requests."
     },
-    "releaseBranchPrefix": {
+    "release_branch_prefix": {
       "type": "string",
       "minLength": 1,
       "default": "ship-my-flutter",
@@ -32,10 +32,15 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "beforeReleasePr": {
+        "before_release_pr": {
           "type": "string",
           "minLength": 1,
-          "description": "Repository-relative executable run after the next version and changelog are prepared."
+          "description": "POSIX shell command run after the next version and changelog are prepared."
+        },
+        "before_candidate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "POSIX shell command run before candidate source is fingerprinted and built."
         }
       }
     },
@@ -49,10 +54,11 @@
           "additionalProperties": false,
           "required": [
             "enabled",
-            "projectPath",
-            "buildArgs",
+            "project_path",
+            "build_command",
+            "artifact_path",
             "testflight",
-            "appStore"
+            "app_store"
           ],
           "properties": {
             "enabled": {
@@ -60,13 +66,13 @@
               "default": true,
               "description": "Enable iOS release planning and delivery."
             },
-            "projectPath": {
+            "project_path": {
               "type": "string",
               "minLength": 1,
               "default": ".",
               "description": "Flutter project root relative to the repository."
             },
-            "bundleId": {
+            "bundle_id": {
               "type": "string",
               "minLength": 1,
               "description": "App Store bundle identifier. Explicit configuration is recommended."
@@ -74,22 +80,27 @@
             "scheme": {
               "type": "string",
               "minLength": 1,
-              "description": "Actual custom Flutter flavor/Xcode scheme. Omit for a standard unflavored Runner app."
+              "description": "Xcode scheme used for bundle identifier detection and exposed to the build command."
             },
-            "buildArgs": {
-              "type": "array",
-              "description": "Additional arguments appended to flutter build ipa.",
-              "items": {
-                "type": "string",
-                "not": {
-                  "pattern": "^--(build-name|build-number|export-options-plist|release|debug|profile|flavor|pub|no-pub)(=|$)"
-                }
+            "build_command": {
+              "type": "string",
+              "minLength": 1,
+              "default": "flutter build ipa --release",
+              "description": "POSIX shell build invocation. ship-my-flutter appends version, build number, export-options, and configured flavor arguments.",
+              "not": {
+                "pattern": "(^|\\s)--(build-name|build-number|export-options-plist|flavor)(\\s|=|$)"
               }
+            },
+            "artifact_path": {
+              "type": "string",
+              "minLength": 1,
+              "default": "build/ios/ipa",
+              "description": "IPA file or directory relative to project_path."
             },
             "testflight": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["groups", "waitTimeoutMinutes"],
+              "required": ["groups", "wait_timeout_minutes"],
               "properties": {
                 "groups": {
                   "type": "array",
@@ -99,7 +110,7 @@
                     "minLength": 1
                   }
                 },
-                "waitTimeoutMinutes": {
+                "wait_timeout_minutes": {
                   "type": "integer",
                   "minimum": 5,
                   "maximum": 180,
@@ -108,55 +119,55 @@
                 }
               }
             },
-            "appStore": {
+            "app_store": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["mode", "releaseType"],
+              "required": ["mode", "release_type"],
               "properties": {
                 "mode": {
                   "enum": ["submit-for-review", "upload-only"],
                   "default": "upload-only",
                   "description": "Whether merging uploads only or also submits the tested build for App Review."
                 },
-                "releaseType": {
+                "release_type": {
                   "enum": ["manual", "automatic", "scheduled"],
                   "default": "manual",
                   "description": "Release behavior after Apple approves the submission."
                 },
-                "earliestReleaseDate": {
+                "earliest_release_date": {
                   "type": "string",
                   "format": "date-time",
-                  "description": "ISO 8601 release time required when releaseType is scheduled."
+                  "description": "ISO 8601 release time required for a scheduled release."
                 }
               },
               "allOf": [
                 {
                   "if": {
                     "properties": {
-                      "releaseType": {
+                      "release_type": {
                         "const": "scheduled"
                       }
                     },
-                    "required": ["releaseType"]
+                    "required": ["release_type"]
                   },
                   "then": {
-                    "required": ["earliestReleaseDate"]
+                    "required": ["earliest_release_date"]
                   }
                 },
                 {
                   "if": {
                     "properties": {
-                      "releaseType": {
+                      "release_type": {
                         "not": {
                           "const": "scheduled"
                         }
                       }
                     },
-                    "required": ["releaseType"]
+                    "required": ["release_type"]
                   },
                   "then": {
                     "not": {
-                      "required": ["earliestReleaseDate"]
+                      "required": ["earliest_release_date"]
                     }
                   }
                 }

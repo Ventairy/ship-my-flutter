@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$HooksConfig {
 
- String? get beforeReleasePr;
+ String? get beforeReleasePr; String? get beforeCandidate;
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $HooksConfigCopyWith<HooksConfig> get copyWith => _$HooksConfigCopyWithImpl<Hook
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HooksConfig&&(identical(other.beforeReleasePr, beforeReleasePr) || other.beforeReleasePr == beforeReleasePr));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HooksConfig&&(identical(other.beforeReleasePr, beforeReleasePr) || other.beforeReleasePr == beforeReleasePr)&&(identical(other.beforeCandidate, beforeCandidate) || other.beforeCandidate == beforeCandidate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeReleasePr);
+int get hashCode => Object.hash(runtimeType,beforeReleasePr,beforeCandidate);
 
 @override
 String toString() {
-  return 'HooksConfig(beforeReleasePr: $beforeReleasePr)';
+  return 'HooksConfig(beforeReleasePr: $beforeReleasePr, beforeCandidate: $beforeCandidate)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $HooksConfigCopyWith<$Res>  {
   factory $HooksConfigCopyWith(HooksConfig value, $Res Function(HooksConfig) _then) = _$HooksConfigCopyWithImpl;
 @useResult
 $Res call({
- String? beforeReleasePr
+ String? beforeReleasePr, String? beforeCandidate
 });
 
 
@@ -62,9 +62,10 @@ class _$HooksConfigCopyWithImpl<$Res>
 
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? beforeReleasePr = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? beforeReleasePr = freezed,Object? beforeCandidate = freezed,}) {
   return _then(_self.copyWith(
 beforeReleasePr: freezed == beforeReleasePr ? _self.beforeReleasePr : beforeReleasePr // ignore: cast_nullable_to_non_nullable
+as String?,beforeCandidate: freezed == beforeCandidate ? _self.beforeCandidate : beforeCandidate // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -150,10 +151,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? beforeReleasePr)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? beforeReleasePr,  String? beforeCandidate)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _HooksConfig() when $default != null:
-return $default(_that.beforeReleasePr);case _:
+return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
   return orElse();
 
 }
@@ -171,10 +172,10 @@ return $default(_that.beforeReleasePr);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? beforeReleasePr)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? beforeReleasePr,  String? beforeCandidate)  $default,) {final _that = this;
 switch (_that) {
 case _HooksConfig():
-return $default(_that.beforeReleasePr);case _:
+return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -191,10 +192,10 @@ return $default(_that.beforeReleasePr);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? beforeReleasePr)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? beforeReleasePr,  String? beforeCandidate)?  $default,) {final _that = this;
 switch (_that) {
 case _HooksConfig() when $default != null:
-return $default(_that.beforeReleasePr);case _:
+return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
   return null;
 
 }
@@ -206,10 +207,11 @@ return $default(_that.beforeReleasePr);case _:
 
 
 class _HooksConfig implements HooksConfig {
-  const _HooksConfig({this.beforeReleasePr});
+  const _HooksConfig({this.beforeReleasePr, this.beforeCandidate});
   
 
 @override final  String? beforeReleasePr;
+@override final  String? beforeCandidate;
 
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -221,16 +223,16 @@ _$HooksConfigCopyWith<_HooksConfig> get copyWith => __$HooksConfigCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HooksConfig&&(identical(other.beforeReleasePr, beforeReleasePr) || other.beforeReleasePr == beforeReleasePr));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HooksConfig&&(identical(other.beforeReleasePr, beforeReleasePr) || other.beforeReleasePr == beforeReleasePr)&&(identical(other.beforeCandidate, beforeCandidate) || other.beforeCandidate == beforeCandidate));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeReleasePr);
+int get hashCode => Object.hash(runtimeType,beforeReleasePr,beforeCandidate);
 
 @override
 String toString() {
-  return 'HooksConfig(beforeReleasePr: $beforeReleasePr)';
+  return 'HooksConfig(beforeReleasePr: $beforeReleasePr, beforeCandidate: $beforeCandidate)';
 }
 
 
@@ -241,7 +243,7 @@ abstract mixin class _$HooksConfigCopyWith<$Res> implements $HooksConfigCopyWith
   factory _$HooksConfigCopyWith(_HooksConfig value, $Res Function(_HooksConfig) _then) = __$HooksConfigCopyWithImpl;
 @override @useResult
 $Res call({
- String? beforeReleasePr
+ String? beforeReleasePr, String? beforeCandidate
 });
 
 
@@ -258,9 +260,10 @@ class __$HooksConfigCopyWithImpl<$Res>
 
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? beforeReleasePr = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? beforeReleasePr = freezed,Object? beforeCandidate = freezed,}) {
   return _then(_HooksConfig(
 beforeReleasePr: freezed == beforeReleasePr ? _self.beforeReleasePr : beforeReleasePr // ignore: cast_nullable_to_non_nullable
+as String?,beforeCandidate: freezed == beforeCandidate ? _self.beforeCandidate : beforeCandidate // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

@@ -30,6 +30,8 @@ void main() {
     expect(manifest.ios.baselineSha, baselineSha);
     expect(manifest.ios.pendingRelease, isFalse);
     final config = await loadConfig(root.path);
+    expect(config.schemaVersion, 2);
+    expect(config.ios.buildCommand, 'flutter build ipa --release');
     expect(config.ios.appStore.mode, ReleaseMode.uploadOnly);
     final configText = await File(
       resolveShipPaths(root.path).config,
@@ -52,6 +54,8 @@ void main() {
       p.join(root.path, '.github', 'workflows', 'ship-my-flutter.yml'),
     ).readAsString();
     expect(workflow, contains('Ventairy/ship-my-flutter-action@v1'));
+    expect(workflow, contains('subosito/flutter-action@'));
+    expect(workflow, contains("hashFiles('.fvmrc')"));
     expect(workflow, contains('runs-on: macos-26'));
     expect(
       RegExp('persist-credentials: false').allMatches(workflow),

@@ -6,5 +6,8 @@ part 'hooks_config.freezed.dart';
 @freezed
 abstract class HooksConfig with _$HooksConfig {
   /// Creates hook configuration.
-  const factory HooksConfig({String? beforeReleasePr}) = _HooksConfig;
+  const factory HooksConfig({
+    String? beforeReleasePr,
+    String? beforeCandidate,
+  }) = _HooksConfig;
 }

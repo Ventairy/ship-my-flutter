@@ -25,7 +25,7 @@ The initializer defaults to `upload-only`. After the first end-to-end candidate
 works and App Store metadata is complete, opt in to `submit-for-review` in
 `config.yaml`.
 
-To submit the already-tested candidate, change `appStore.mode` on the target
+To submit the already-tested candidate, change `app_store.mode` on the target
 branch, commit and push it, and wait for the release PR to synchronize and its
 candidate job to finish again. Delivery-only configuration is excluded from the
 source fingerprint, so the job revalidates and reuses the processed build when

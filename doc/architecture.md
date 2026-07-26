@@ -17,7 +17,9 @@ inputs, secret masking, repository context, process execution, failures, and
 outputs. Every release decision and side effect lives in Dart, so local CLI,
 custom workflows, and the turnkey Action cannot drift into separate products.
 The Action installs a pinned Dart SDK and resolves the vendored package with
-its enforced lockfile. A consumer does not install Fastlane or a Node package.
+its enforced lockfile. The consumer owns the Flutter/FVM toolchain used for
+project hooks and IPA creation. A consumer does not install Fastlane or a Node
+package.
 
 ## State owned by the app repository
 
@@ -50,17 +52,21 @@ The release branch is merged with the latest target branch instead of being recr
 
 The candidate job:
 
-1. Resolves the bundle ID and App Store Connect app.
-2. Computes a fingerprint over tracked build inputs.
-3. Reuses an existing valid receipt when the fingerprint matches.
-4. Queries Apple for the next build number.
-5. Creates a temporary keychain and installs every supplied provisioning profile.
-6. enforces the Flutter app's tracked pub lockfile, then runs
-   `flutter build ipa --no-pub` with independent iOS version/build values.
-7. uploads through Apple’s `altool` API-key flow.
-8. refuses upload if the build changed tracked or unignored repository inputs, then waits for Apple to report `VALID`.
-9. applies TestFlight “What’s New” localizations and beta groups.
-10. commits a receipt to the release PR.
+1. Runs the optional repository-owned `before_candidate` preparation hook.
+2. Rejects tracked or unignored changes left by that hook.
+3. Resolves the bundle ID and App Store Connect app.
+4. Computes a fingerprint over tracked build inputs.
+5. Reuses an existing valid receipt when the fingerprint matches.
+6. Queries Apple for the next build number.
+7. Creates a temporary keychain and installs every supplied provisioning
+   profile.
+8. Runs the project-owned `build_command`, appending the immutable iOS version,
+   build number, export options, and configured flavor.
+9. Resolves the configured `artifact_path` and rejects path/symlink escapes.
+10. Refuses upload if the build changed tracked or unignored repository inputs.
+11. Uploads through Apple’s `altool` API-key flow and waits for `VALID`.
+12. Applies TestFlight “What’s New” localizations and beta groups.
+13. Commits a receipt to the release PR.
 
 The fingerprint deliberately ignores the changelog, store notes, candidate
 receipts, and delivery-only settings such as TestFlight groups or App Store

@@ -7,25 +7,26 @@ const String configSchemaUrl =
 String generatedConfigYaml({String? bundleId}) {
   final bundleLine = bundleId == null
       ? ''
-      : '    bundleId: ${jsonEncode(bundleId)}\n';
+      : '    bundle_id: ${jsonEncode(bundleId)}\n';
   return '''
 # yaml-language-server: \$schema=$configSchemaUrl
 
-schemaVersion: 1
-targetBranch: main
-releaseBranchPrefix: ship-my-flutter
+schema_version: 2
+target_branch: main
+release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:
     enabled: true
-    projectPath: .
-$bundleLine    buildArgs: []
+    project_path: .
+$bundleLine    build_command: flutter build ipa --release
+    artifact_path: build/ios/ipa
     testflight:
       groups: []
-      waitTimeoutMinutes: 45
-    appStore:
+      wait_timeout_minutes: 45
+    app_store:
       mode: upload-only
-      releaseType: manual
+      release_type: manual
 ''';
 }
 
@@ -75,6 +76,11 @@ jobs:
           ref: ${{ needs.plan.outputs.branch }}
           fetch-depth: 0
           persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: ${{ hashFiles('.fvmrc') != '' && '.fvmrc' || '' }}
+          cache: true
+          pub-cache: true
       - uses: Ventairy/ship-my-flutter-action@v1
         with:
           phase: candidate

@@ -11,6 +11,16 @@ The project follows Semantic Versioning and Conventional Commits.
 - Refactored immutable release state and Apple/GitHub response models with
   Freezed and json_serializable while preserving public constructors and wire
   formats.
+- Migrated `config.yaml` to schema version 2 with Flutter-style snake_case keys.
+- Made IPA creation project-owned through `build_command` and `artifact_path`;
+  ship-my-flutter now appends immutable version, build number, signing export
+  options, and flavor arguments.
+
+### Added
+
+- Shell-command `before_release_pr` and `before_candidate` lifecycle hooks for
+  release-note generation, codegen, environment preparation, and custom
+  workflows.
 
 ## 0.1.0 - 2026-07-26
 

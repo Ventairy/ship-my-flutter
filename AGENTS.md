@@ -90,7 +90,7 @@ redesign.
   the iOS changelog or determine its bump.
 - Unscoped commits and non-platform feature scopes apply to every enabled
   platform.
-- Platform branches use `<releaseBranchPrefix>/<platform>`.
+- Platform branches use `<release_branch_prefix>/<platform>`.
 - Platform tags use `<platform>-v<version>`.
 - `pubspec.yaml` is the package/application manifest, not a shared platform
   release manifest.
@@ -345,7 +345,7 @@ Configuration is strict:
 - constrain repository-relative paths to the repository;
 - reject symlink/path escapes;
 - never allow secrets in build arguments or persisted state;
-- preserve `schemaVersion` and provide an explicit migration strategy before a
+- preserve `schema_version` and provide an explicit migration strategy before a
   breaking schema change.
 
 `manifest.json`, `changelog.json`, `store-release-notes.json`, and candidate
@@ -380,10 +380,10 @@ When adding or changing a command:
 The internal `action` command is a machine adapter. Do not encourage consumers
 to depend on undocumented protocol details.
 
-Repository hooks execute untrusted repository-owned code from the release
-checkout. Pass only the documented non-secret context and strip credential
-environment variables before invoking hooks, Git, Flutter, Dart, Xcode, or
-other subprocesses.
+Repository hooks and the build command execute repository-owned code from the
+release checkout. Pass only the documented non-secret context and strip
+credential environment variables before invoking hooks, Git, Flutter, Dart,
+Xcode, or other subprocesses.
 
 ---
 
@@ -397,8 +397,13 @@ other subprocesses.
 - Encode owner, repository, branch, label, and tag values at API boundaries.
 - Validate GitHub response shapes before creating domain objects.
 - Preserve the caller's starting branch after temporary release-branch work.
-- Keep subprocess invocation argument-based; do not construct shell command
-  strings from repository or user input.
+- Keep internal subprocess invocation argument-based; do not construct shell
+  commands from API responses, credentials, or machine-generated input.
+- `hooks.before_release_pr`, `hooks.before_candidate`, and
+  `platforms.ios.build_command` are explicit trusted exceptions. Run these
+  repository-owned POSIX shell commands with fail-fast settings, pass
+  calculated values through environment variables, and never interpolate
+  secret or remote values into their source.
 - Fail with the command's relevant stderr while excluding secret-bearing
   arguments.
 - Do not introduce shell scripts for release-domain behavior. Implement

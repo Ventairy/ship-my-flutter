@@ -16,6 +16,32 @@ abstract interface class ProcessRunner {
   });
 }
 
+/// Runs a trusted repository-owned command through a fail-fast POSIX shell.
+///
+/// The command inherits the credential-stripped environment enforced by
+/// [SystemProcessRunner]. Use this only for explicit consumer configuration,
+/// not for remote or machine-generated values.
+Future<RunResult> runShellCommand(
+  String command, {
+  RunOptions options = const RunOptions(),
+  ProcessRunner processRunner = const SystemProcessRunner(),
+}) {
+  if (Platform.isWindows) {
+    throw const ShipError(
+      'Repository commands require a POSIX shell.',
+      'SHELL_UNSUPPORTED',
+    );
+  }
+  return processRunner.run('/bin/bash', <String>[
+    '--noprofile',
+    '--norc',
+    '-euo',
+    'pipefail',
+    '-c',
+    command,
+  ], options: options);
+}
+
 final class SystemProcessRunner implements ProcessRunner {
   const SystemProcessRunner({this.parentEnvironment});
 
@@ -95,12 +121,24 @@ final class SystemProcessRunner implements ProcessRunner {
       exitCode: exitCode,
     );
     if (exitCode != 0 && !options.allowFailure) {
+      final diagnostics = stderrValue.trim().isNotEmpty
+          ? stderrValue.trim()
+          : stdoutValue.trim();
+      final detail = diagnostics.isEmpty
+          ? ''
+          : '\n${_truncateDiagnostics(diagnostics)}';
       throw ShipError(
-        '$executable failed with exit code $exitCode',
+        '$executable failed with exit code $exitCode$detail',
         'COMMAND_FAILED',
         cause: result,
       );
     }
     return result;
   }
+}
+
+String _truncateDiagnostics(String value) {
+  const maximumCharacters = 4000;
+  if (value.length <= maximumCharacters) return value;
+  return '${value.substring(0, maximumCharacters)}\n[output truncated]';
 }

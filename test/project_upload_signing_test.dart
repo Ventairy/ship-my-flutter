@@ -50,7 +50,7 @@ void main() {
   });
 
   test(
-    'builds with immutable version arguments and finds exactly one IPA',
+    'runs the project build command with immutable release context',
     () async {
       final root = await Directory.systemTemp.createTemp('smf-upload-');
       addTearDown(() => root.delete(recursive: true));
@@ -60,32 +60,99 @@ void main() {
       await File(ipa).writeAsBytes(const <int>[1, 2, 3]);
       final runner = RecordingProcessRunner();
       expect(
-        await buildFlutterIpa(
+        await runIosBuildCommand(
           projectRoot: root.path,
+          command: 'fvm dart run release:build_ios',
+          artifactPath: 'build/ios/ipa',
           version: '1.2.0',
           buildNumber: '17',
           exportOptionsPath: '/tmp/ExportOptions.plist',
           scheme: 'production',
-          buildArgs: const <String>['--dart-define=ENV=production'],
           processRunner: runner,
         ),
         ipa,
       );
-      final arguments = runner.invocations.single.arguments;
+      final invocation = runner.invocations.single;
+      expect(invocation.executable, '/bin/bash');
       expect(
-        arguments,
-        containsAllInOrder(<String>[
-          '--build-name',
-          '1.2.0',
-          '--build-number',
-          '17',
-          '--flavor',
-          'production',
-          '--dart-define=ENV=production',
-        ]),
+        invocation.arguments.last,
+        contains('fvm dart run release:build_ios'),
+      );
+      expect(
+        invocation.arguments.last,
+        contains('--build-name "\$SHIP_MY_FLUTTER_VERSION"'),
+      );
+      expect(
+        invocation.arguments.last,
+        contains('--build-number "\$SHIP_MY_FLUTTER_BUILD_NUMBER"'),
+      );
+      expect(
+        invocation.arguments.last,
+        contains(
+          '--export-options-plist '
+          '"\$SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH"',
+        ),
+      );
+      expect(
+        invocation.arguments.last,
+        contains('--flavor "\$SHIP_MY_FLUTTER_SCHEME"'),
+      );
+      expect(
+        invocation.options.environment,
+        containsPair('SHIP_MY_FLUTTER_VERSION', '1.2.0'),
+      );
+      expect(
+        invocation.options.environment,
+        containsPair('SHIP_MY_FLUTTER_BUILD_NUMBER', '17'),
+      );
+      expect(
+        invocation.options.environment,
+        containsPair(
+          'SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH',
+          '/tmp/ExportOptions.plist',
+        ),
+      );
+      expect(
+        invocation.options.environment,
+        containsPair('SHIP_MY_FLUTTER_SCHEME', 'production'),
       );
     },
   );
+
+  test('accepts an exact IPA artifact path', () async {
+    final root = await Directory.systemTemp.createTemp('smf-upload-');
+    addTearDown(() => root.delete(recursive: true));
+    final ipa = p.join(root.path, 'artifacts', 'example.ipa');
+    await File(ipa).create(recursive: true);
+
+    expect(
+      await findIpa(root.path, artifactPath: 'artifacts/example.ipa'),
+      ipa,
+    );
+  });
+
+  test('rejects an IPA artifact symlink that escapes the project', () async {
+    final root = await Directory.systemTemp.createTemp('smf-upload-');
+    final outside = await Directory.systemTemp.createTemp('smf-outside-');
+    addTearDown(() async {
+      await root.delete(recursive: true);
+      await outside.delete(recursive: true);
+    });
+    final externalIpa = p.join(outside.path, 'example.ipa');
+    await File(externalIpa).create();
+    await Link(p.join(root.path, 'example.ipa')).create(externalIpa);
+
+    await expectLater(
+      findIpa(root.path, artifactPath: 'example.ipa'),
+      throwsA(
+        isA<ShipError>().having(
+          (ShipError error) => error.code,
+          'code',
+          'IPA_PATH_ESCAPE',
+        ),
+      ),
+    );
+  });
 
   test(
     'installs profiles, writes export options, and cleans temporary assets',

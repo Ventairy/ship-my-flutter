@@ -1,4 +1,6 @@
+import '../hooks.dart';
 import '../models/apple_credentials.dart';
+import '../models/ship_config.dart';
 import '../models/signing_credentials.dart';
 import 'project.dart';
 import 'signing.dart';
@@ -11,50 +13,52 @@ typedef InstallSigningAssets =
       String bundleId,
     );
 
-/// Resolves locked Flutter dependencies before a candidate build.
-typedef PrepareFlutterDependencies = Future<void> Function(String projectRoot);
-
 /// Produces an IPA for a planned release version and build number.
-typedef BuildFlutterIpa =
+typedef BuildIosIpa =
     Future<String> Function({
       required String projectRoot,
+      required String command,
+      required String artifactPath,
       required String version,
       required String buildNumber,
       required String exportOptionsPath,
       String? scheme,
-      required List<String> buildArgs,
     });
 
 /// Uploads an IPA with App Store Connect credentials.
 typedef UploadIpa =
     Future<void> Function(String ipaPath, AppleCredentials credentials);
 
+/// Runs project preparation before candidate fingerprinting.
+typedef RunCandidateHook =
+    Future<void> Function(String root, ShipConfig config, String version);
+
 /// Injectable candidate-build operations.
 final class CandidateDependencies {
   /// Creates candidate-build dependencies.
   const CandidateDependencies({
     this.installSigning = installSigningAssets,
-    this.prepareDependencies = prepareFlutterDependencies,
-    this.buildIpa = buildFlutterIpa,
+    this.buildIpa = runIosBuildCommand,
     this.upload = uploadIpa,
     this.resolveBundleIdentifier = resolveBundleId,
+    this.runBeforeCandidate = runBeforeCandidateHook,
     this.currentTime = _currentTime,
   });
 
   /// Signing installer.
   final InstallSigningAssets installSigning;
 
-  /// Locked dependency resolver.
-  final PrepareFlutterDependencies prepareDependencies;
-
   /// IPA builder.
-  final BuildFlutterIpa buildIpa;
+  final BuildIosIpa buildIpa;
 
   /// App Store Connect uploader.
   final UploadIpa upload;
 
   /// Xcode bundle-identifier resolver.
   final ResolveBundleId resolveBundleIdentifier;
+
+  /// Repository-owned candidate preparation.
+  final RunCandidateHook runBeforeCandidate;
 
   /// Supplies the receipt timestamp, primarily for deterministic workflows.
   final DateTime Function() currentTime;

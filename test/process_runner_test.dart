@@ -59,5 +59,21 @@ void main() {
         ),
       );
     });
+
+    test('includes bounded command diagnostics in failure messages', () async {
+      await expectLater(
+        const SystemProcessRunner().run('/bin/sh', const <String>[
+          '-c',
+          'printf "build failed safely" >&2; exit 1',
+        ]),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.message,
+            'message',
+            contains('build failed safely'),
+          ),
+        ),
+      );
+    });
   });
 }

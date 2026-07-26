@@ -7,14 +7,65 @@ import '../model.dart' hide Platform;
 import '../process_runner.dart';
 import '../serialization.dart';
 
-Future<String> findIpa(String projectRoot) async {
-  final directory = p.join(projectRoot, 'build', 'ios', 'ipa');
+/// Resolves one IPA from a project-relative file or directory.
+///
+/// Both lexical paths and resolved symlinks must remain under [projectRoot].
+Future<String> findIpa(
+  String projectRoot, {
+  String artifactPath = 'build/ios/ipa',
+}) async {
+  final repositoryProjectRoot = p.normalize(p.absolute(projectRoot));
+  final configuredPath = p.normalize(
+    p.absolute(repositoryProjectRoot, artifactPath),
+  );
+  invariant(
+    p.equals(configuredPath, repositoryProjectRoot) ||
+        p.isWithin(repositoryProjectRoot, configuredPath),
+    'The configured IPA artifact_path must stay inside project_path.',
+    'IPA_PATH_ESCAPE',
+  );
+
+  final entityType = await FileSystemEntity.type(configuredPath);
+  invariant(
+    entityType != FileSystemEntityType.notFound,
+    'The build command did not produce an IPA at $configuredPath.',
+    'IPA_NOT_FOUND',
+  );
+  final realProjectRoot = await Directory(
+    repositoryProjectRoot,
+  ).resolveSymbolicLinks();
+  final realConfiguredPath = await switch (entityType) {
+    FileSystemEntityType.file => File(configuredPath).resolveSymbolicLinks(),
+    FileSystemEntityType.directory => Directory(
+      configuredPath,
+    ).resolveSymbolicLinks(),
+    _ => throw const ShipError(
+      'The configured IPA artifact_path must be a file or directory.',
+      'IPA_NOT_FOUND',
+    ),
+  };
+  invariant(
+    p.equals(realConfiguredPath, realProjectRoot) ||
+        p.isWithin(realProjectRoot, realConfiguredPath),
+    'The configured IPA artifact_path resolves outside project_path.',
+    'IPA_PATH_ESCAPE',
+  );
+
+  if (entityType == FileSystemEntityType.file) {
+    invariant(
+      configuredPath.toLowerCase().endsWith('.ipa'),
+      'The configured artifact file must have an .ipa extension.',
+      'IPA_NOT_FOUND',
+    );
+    return configuredPath;
+  }
+
   List<FileSystemEntity> entries;
   try {
-    entries = await Directory(directory).list().toList();
+    entries = await Directory(configuredPath).list().toList();
   } on FileSystemException catch (error) {
     throw ShipError(
-      'Flutter did not produce an IPA in $directory.',
+      'The build command did not produce an IPA in $configuredPath.',
       'IPA_NOT_FOUND',
       cause: error,
     );
@@ -28,52 +79,55 @@ Future<String> findIpa(String projectRoot) async {
         ..sort();
   invariant(
     ipas.length == 1,
-    'Expected exactly one IPA in $directory, found ${ipas.length}.',
+    'Expected exactly one IPA in $configuredPath, found ${ipas.length}.',
     'IPA_COUNT',
   );
   return ipas.single;
 }
 
-Future<String> buildFlutterIpa({
+/// Runs the project-owned build command with managed Apple build arguments.
+///
+/// The consumer must install the command's Flutter/FVM toolchain. This appends
+/// immutable version, build number, export-options, and optional flavor
+/// arguments, then validates [artifactPath].
+Future<String> runIosBuildCommand({
   required String projectRoot,
+  required String command,
+  required String artifactPath,
   required String version,
   required String buildNumber,
   required String exportOptionsPath,
   String? scheme,
-  required List<String> buildArgs,
   ProcessRunner processRunner = const SystemProcessRunner(),
 }) async {
-  final arguments = <String>[
-    'build',
-    'ipa',
-    '--no-pub',
-    '--release',
-    '--build-name',
-    version,
-    '--build-number',
-    buildNumber,
-    '--export-options-plist',
-    exportOptionsPath,
-    if (scheme != null) ...<String>['--flavor', scheme],
-    ...buildArgs,
-  ];
-  await processRunner.run(
-    'flutter',
-    arguments,
-    options: RunOptions(workingDirectory: projectRoot),
+  final resolvedArtifactPath = p.normalize(
+    p.absolute(projectRoot, artifactPath),
   );
-  return findIpa(projectRoot);
-}
-
-Future<void> prepareFlutterDependencies(
-  String projectRoot, {
-  ProcessRunner processRunner = const SystemProcessRunner(),
-}) async {
-  await processRunner.run('flutter', const <String>[
-    'pub',
-    'get',
-    '--enforce-lockfile',
-  ], options: RunOptions(workingDirectory: projectRoot));
+  final managedCommand = StringBuffer(command)
+    ..write(r''' \
+  --build-name "$SHIP_MY_FLUTTER_VERSION" \
+  --build-number "$SHIP_MY_FLUTTER_BUILD_NUMBER" \
+  --export-options-plist "$SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH"''');
+  if (scheme != null) {
+    managedCommand.write(r''' \
+  --flavor "$SHIP_MY_FLUTTER_SCHEME"''');
+  }
+  await runShellCommand(
+    managedCommand.toString(),
+    options: RunOptions(
+      workingDirectory: projectRoot,
+      environment: <String, String>{
+        'SHIP_MY_FLUTTER_PLATFORM': 'ios',
+        'SHIP_MY_FLUTTER_VERSION': version,
+        'SHIP_MY_FLUTTER_BUILD_NUMBER': buildNumber,
+        'SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH': exportOptionsPath,
+        'SHIP_MY_FLUTTER_ARTIFACT_PATH': resolvedArtifactPath,
+        'SHIP_MY_FLUTTER_SCHEME': ?scheme,
+      },
+    ),
+    processRunner: processRunner,
+  );
+  return findIpa(projectRoot, artifactPath: artifactPath);
 }
 
 Future<void> uploadIpa(

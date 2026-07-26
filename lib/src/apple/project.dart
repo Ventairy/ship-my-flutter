@@ -18,7 +18,7 @@ Future<String> resolveBundleId(
   if (config.bundleId != null) return config.bundleId!;
   if (!(isMacOS ?? Platform.isMacOS)) {
     throw const ShipError(
-      'platforms.ios.bundleId is required when configuration is validated '
+      'platforms.ios.bundle_id is required when configuration is validated '
           'outside macOS.',
       'BUNDLE_ID_REQUIRED',
     );
@@ -78,7 +78,7 @@ Future<String> resolveBundleId(
   if (bundleId == null || bundleId.isEmpty || bundleId.contains(r'$(')) {
     throw const ShipError(
       'Could not detect PRODUCT_BUNDLE_IDENTIFIER. Set '
-          'platforms.ios.bundleId in .ship-my-flutter/config.yaml.',
+          'platforms.ios.bundle_id in .ship-my-flutter/config.yaml.',
       'BUNDLE_ID_REQUIRED',
     );
   }

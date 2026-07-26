@@ -57,7 +57,7 @@ Future<void> validateRepository(String root) async {
     );
     invariant(
       await Directory(projectRoot).exists(),
-      'The Flutter projectPath does not exist.',
+      'The Flutter project_path does not exist.',
       'PROJECT_PATH_NOT_FOUND',
     );
     final (repositoryRealPath, projectRealPath) = await (
@@ -67,7 +67,7 @@ Future<void> validateRepository(String root) async {
     invariant(
       projectRealPath == repositoryRealPath ||
           p.isWithin(repositoryRealPath, projectRealPath),
-      'The Flutter projectPath resolves outside the repository.',
+      'The Flutter project_path resolves outside the repository.',
       'PROJECT_PATH_ESCAPE',
     );
     invariant(

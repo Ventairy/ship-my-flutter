@@ -116,6 +116,7 @@ void main() {
           attributes: BuildAttributes(version: '7', processingState: 'VALID'),
         ),
       );
+      var candidateHookRan = false;
 
       final reused = await createIosCandidate(
         CandidateOptions(
@@ -131,9 +132,15 @@ void main() {
             provisioningProfiles: 'unused',
           ),
           client: client,
+          dependencies: CandidateDependencies(
+            runBeforeCandidate: (_, _, _) async {
+              candidateHookRan = true;
+            },
+          ),
         ),
       );
 
+      expect(candidateHookRan, isTrue);
       expect(reused.toJson(), receipt.toJson());
       expect(client.betaNotes.single.locale, 'en-US');
       expect(client.betaNotes.single.whatsNew, 'Try the refreshed notes.');

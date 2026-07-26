@@ -29,7 +29,7 @@ workflow:
   `Account Holder` also have those permissions.
 
 Do not grant `Admin` or `Account Holder` merely to make automation work. If
-`testflight.groups` is non-empty or `appStore.mode` is `submit-for-review`, use
+`testflight.groups` is non-empty or `app_store.mode` is `submit-for-review`, use
 at least `App Manager`.
 
 Record:

@@ -78,7 +78,7 @@ dart run ship_my_flutter init \
   --bundle-id com.example.myapp
 ```
 
-Then set `platforms.ios.projectPath` to the app path relative to the repository
+Then set `platforms.ios.project_path` to the app path relative to the repository
 root. The exact `--root` value depends on the workspace layout.
 
 This creates:
@@ -248,28 +248,29 @@ add TestFlight group names if builds should be assigned automatically:
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
 
-schemaVersion: 1
-targetBranch: main
-releaseBranchPrefix: ship-my-flutter
+schema_version: 2
+target_branch: main
+release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:
     enabled: true
-    projectPath: .
-    bundleId: com.example.myapp
-    buildArgs: []
+    project_path: .
+    bundle_id: com.example.myapp
+    build_command: flutter build ipa --release
+    artifact_path: build/ios/ipa
     testflight:
       groups:
         - Internal
-      waitTimeoutMinutes: 45
-    appStore:
+      wait_timeout_minutes: 45
+    app_store:
       mode: upload-only
-      releaseType: manual
+      release_type: manual
 ```
 
 - `submit-for-review` creates or reuses the App Store version, attaches the tested build, applies localized notes, and submits it.
 - `upload-only` keeps the tested build in TestFlight/App Store Connect and still creates the platform GitHub Release after merge.
-- `releaseType` controls what happens after Apple approval: `manual`, `automatic`, or `scheduled`.
+- `release_type` controls what happens after Apple approval: `manual`, `automatic`, or `scheduled`.
 
 The initializer deliberately defaults to `upload-only`. Change it to
 `submit-for-review` only after the first candidate succeeds and the app's
@@ -277,10 +278,12 @@ submission metadata is complete.
 
 The complete contract is in [Configuration](doc/configuration.md).
 
-The action automatically honors a tracked `.fvmrc` or FVM config at the Git
-repository root. In a monorepo with app-local FVM configuration, set
-`flutter-version-file` to that repository-relative file explicitly. Without
-one, the action uses the configured Flutter channel (`stable` by default).
+The generated candidate job installs Flutter before invoking the Action. The
+Action itself does not install Flutter or FVM: the app repository owns the
+exact toolchain used by `build_command`. Keep the generated
+`subosito/flutter-action` step for a normal Flutter setup, or replace it with
+the repository's established FVM/bootstrap steps. The generated setup reads a
+root `.fvmrc` when present and otherwise uses current stable Flutter.
 
 ## Store release notes
 
@@ -301,14 +304,14 @@ Omitting a version is allowed; ship-my-flutter will not invent notes. Apple may 
 
 ### Generate notes before the PR opens
 
-Set a repository script as `hooks.beforeReleasePr`:
+Set any repository-owned shell command as `hooks.before_release_pr`:
 
 ```yaml
 hooks:
-  beforeReleasePr: tool/generate-store-notes
+  before_release_pr: fvm dart run release:generate_store_release_notes
 ```
 
-The executable receives:
+The command receives:
 
 ```text
 SHIP_MY_FLUTTER_PLATFORM
@@ -319,6 +322,27 @@ SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
 ```
 
 The changelog and next version already exist when the hook runs, so an AI or translation script can write deterministic drafts into the release PR for human review.
+
+Project preparation can use the matching candidate hook:
+
+```yaml
+hooks:
+  before_candidate: fvm dart run melos run prepare:ios --no-select
+```
+
+The `build_command` is the project-owned IPA build invocation. ship-my-flutter
+automatically appends the planned version, next App Store build number,
+generated export-options plist, and configured flavor:
+
+```yaml
+platforms:
+  ios:
+    build_command: fvm flutter build ipa --release
+    artifact_path: build/ios/ipa
+```
+
+See [Configuration](doc/configuration.md) for hook context, managed arguments,
+artifact validation, and schema version 1 migration.
 
 ## Version overrides
 
@@ -337,7 +361,10 @@ Every platform owns its version. `pubspec.yaml` is not treated as a global relea
 The generated workflow uses one repository-wide concurrency lane:
 
 - An Ubuntu job plans or updates `ship-my-flutter/ios`.
-- A macOS 26 job imports temporary signing material, builds the IPA with Flutter, uploads it, waits for `VALID`, writes TestFlight notes, assigns groups, and commits the candidate receipt.
+- A macOS 26 job installs the project-selected Flutter toolchain, imports
+  temporary signing material, runs the configured IPA build, uploads it, waits
+  for `VALID`, writes TestFlight notes, assigns groups, and commits the
+  candidate receipt.
 - After the release PR merges, an Ubuntu job verifies the receipt, promotes the exact Apple build, and creates `ios-vX.Y.Z`.
 
 GitHub does not create new workflow runs for events produced by the default
@@ -357,7 +384,8 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 - Dart 3.10 or newer for the package CLI and custom automation. The GitHub
   Action installs its own pinned Dart SDK.
 - A modern Flutter app with an `ios` project.
-- A committed, current `pubspec.lock`; release builds enforce it rather than resolving new dependency versions in CI.
+- A committed, current `pubspec.lock`; the project-owned build command must not
+  introduce uncommitted dependency changes.
 - A GitHub-hosted or self-hosted macOS runner capable of Xcode 26 builds.
 - An existing App Store Connect app record; Apple does not let the API create one.
 - An App Store Connect API key with `Developer` access for upload-only delivery

@@ -10,7 +10,7 @@ part 'ship_config.freezed.dart';
 abstract class ShipConfig with _$ShipConfig {
   /// Creates repository configuration.
   const factory ShipConfig({
-    @Default(1) int schemaVersion,
+    @Default(2) int schemaVersion,
     @Default('main') String targetBranch,
     @Default('ship-my-flutter') String releaseBranchPrefix,
     @Default(HooksConfig()) HooksConfig hooks,

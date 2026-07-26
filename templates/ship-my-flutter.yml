@@ -44,6 +44,11 @@ jobs:
           ref: ${{ needs.plan.outputs.branch }}
           fetch-depth: 0
           persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: ${{ hashFiles('.fvmrc') != '' && '.fvmrc' || '' }}
+          cache: true
+          pub-cache: true
       - uses: Ventairy/ship-my-flutter-action@v1
         with:
           phase: candidate

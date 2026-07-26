@@ -22,8 +22,7 @@ export 'src/apple/promote.dart'
     show PromotionOptions, PromotionResult, promoteIosRelease;
 export 'src/apple/signing.dart'
     show InstalledProfile, SigningSession, installSigningAssets;
-export 'src/apple/upload.dart'
-    show buildFlutterIpa, findIpa, prepareFlutterDependencies, uploadIpa;
+export 'src/apple/upload.dart' show findIpa, runIosBuildCommand, uploadIpa;
 export 'src/candidate_receipt.dart'
     show loadCandidateReceipt, validateCandidateReceipt;
 export 'src/changelog.dart'
@@ -67,7 +66,7 @@ export 'src/github_api.dart'
         GitHubPullRequest,
         GitHubRelease,
         GitHubRestApi;
-export 'src/hooks.dart' show runBeforeReleasePrHook;
+export 'src/hooks.dart' show runBeforeCandidateHook, runBeforeReleasePrHook;
 export 'src/init.dart' show InitOptions, initialize;
 export 'src/manifest_files.dart' show applyReleasePlan, emptyChangelog;
 export 'src/model.dart';
@@ -75,7 +74,12 @@ export 'src/orchestrator.dart' show ReleaseOrchestrator, planGitHubRelease;
 export 'src/paths.dart'
     show ShipPaths, candidatePath, resolveShipPaths, shipDirectoryName;
 export 'src/process_runner.dart'
-    show ProcessRunner, RunOptions, RunResult, SystemProcessRunner;
+    show
+        ProcessRunner,
+        RunOptions,
+        RunResult,
+        SystemProcessRunner,
+        runShellCommand;
 export 'src/release_plan.dart'
     show ReleasePlanner, createReleasePlan, releaseNeedsPromotion, releaseTag;
 export 'src/validate.dart' show validateRepository;

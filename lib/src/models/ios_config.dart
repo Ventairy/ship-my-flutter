@@ -14,7 +14,8 @@ abstract class IosConfig with _$IosConfig {
     @Default('.') String projectPath,
     String? bundleId,
     String? scheme,
-    @Default(<String>[]) List<String> buildArgs,
+    @Default('flutter build ipa --release') String buildCommand,
+    @Default('build/ios/ipa') String artifactPath,
     @Default(TestflightConfig()) TestflightConfig testflight,
     @Default(AppStoreConfig()) AppStoreConfig appStore,
   }) = _IosConfig;

@@ -125,7 +125,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   );
   invariant(
     await isClean(root),
-    'The candidate checkout must be clean before its source is fingerprinted.',
+    'The candidate checkout must be clean before repository hooks run.',
     'DIRTY_WORKTREE',
   );
   final state = manifest.ios;
@@ -133,6 +133,13 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     state.pendingRelease,
     'The iOS manifest does not contain a pending release.',
     'NO_PENDING_RELEASE',
+  );
+  await options.dependencies.runBeforeCandidate(root, config, state.version);
+  invariant(
+    await isClean(root),
+    'The before_candidate hook changed tracked or unignored files. Commit '
+        'deterministic candidate inputs before producing a build.',
+    'CANDIDATE_HOOK_DIRTY_WORKTREE',
   );
   final projectRoot = p.normalize(p.absolute(root, config.ios.projectPath));
   final bundleId = await options.dependencies.resolveBundleIdentifier(
@@ -168,19 +175,6 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     return refreshed;
   }
 
-  await options.dependencies.prepareDependencies(projectRoot);
-  invariant(
-    await isClean(root),
-    'Dependency resolution changed tracked or unignored repository files. '
-        'Commit a current lockfile before producing a candidate.',
-    'DEPENDENCIES_DIRTY_WORKTREE',
-  );
-  invariant(
-    await sourceFingerprint(root) == fingerprint,
-    'A tracked build input changed while validating dependencies.',
-    'DEPENDENCY_INPUT_CHANGED',
-  );
-
   final buildNumber = await client.nextBuildNumber(app.id, state.version);
   final sourceSha = await currentSha(root);
   final signing = await options.dependencies.installSigning(
@@ -191,11 +185,12 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   try {
     ipaPath = await options.dependencies.buildIpa(
       projectRoot: projectRoot,
+      command: config.ios.buildCommand,
+      artifactPath: config.ios.artifactPath,
       version: state.version,
       buildNumber: buildNumber,
       exportOptionsPath: signing.exportOptionsPath,
       scheme: config.ios.scheme,
-      buildArgs: config.ios.buildArgs,
     );
     invariant(
       await isClean(root),
