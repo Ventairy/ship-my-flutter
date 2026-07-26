@@ -4,7 +4,13 @@ Apple requires a small amount of one-time account setup before any CI system can
 
 ## 1. Create the app record
 
-Create the app in App Store Connect with the same bundle ID as the Xcode target. Apple’s API can manage an existing app but cannot create the app record.
+In Certificates, Identifiers & Profiles, [register an explicit App
+ID](https://developer.apple.com/help/account/identifiers/register-an-app-id/)
+for the main app and every embedded extension. Each ID must match its Xcode
+bundle ID and enable the capabilities used by that target.
+
+Create the app in App Store Connect with the main app's bundle ID. Apple’s API
+can manage an existing app but cannot create the app record.
 
 Complete the stable product metadata required for submission: app name, categories, privacy, age rating, pricing/availability, screenshots, review contact information, and any account-specific agreements. ship-my-flutter owns version-specific “What’s New” text; it does not guess product or compliance metadata.
 
@@ -23,8 +29,8 @@ workflow:
   `Account Holder` also have those permissions.
 
 Do not grant `Admin` or `Account Holder` merely to make automation work. If
-`testflight.groups` is non-empty or `appStore.mode` is `submit`, use at least
-`App Manager`.
+`testflight.groups` is non-empty or `appStore.mode` is `submit-for-review`, use
+at least `App Manager`.
 
 Record:
 
@@ -36,11 +42,22 @@ Apple permits downloading the `.p8` only once.
 
 ## 3. Export an Apple Distribution certificate
 
-Export the signing identity and private key from Keychain Access as a password-protected `.p12`. CI needs the private key, not only the public certificate.
+Create a [certificate signing
+request](https://developer.apple.com/help/account/certificates/create-a-certificate-signing-request/)
+on the Mac that will retain the private key, then create and install an Apple
+Distribution certificate for the team. In Keychain Access, verify the
+certificate expands to show its private key, and export that identity as a
+password-protected `.p12`. CI needs the private key, not only the public
+certificate.
 
 ## 4. Download App Store provisioning profiles
 
-Download an App Store distribution profile for the main bundle ID and each embedded extension. The profile must include the entitlements used by the target.
+[Create an App Store Connect provisioning
+profile](https://developer.apple.com/help/account/provisioning-profiles/create-an-app-store-provisioning-profile/)
+for the main App ID and each embedded extension App ID. Select the same
+distribution certificate exported above, then download and install each
+profile. Every profile must belong to the same team and include the
+capabilities/entitlements used by its Xcode target.
 
 ## 5. Create TestFlight groups
 
@@ -59,9 +76,10 @@ Encode the `.p8`, `.p12`, and profiles as Base64 without adding them to the repo
 
 The local test suite validates request contracts with mock Apple responses. A real organization must still exercise certificate import, its entitlements/profiles, build processing, metadata completeness, and API-key permissions before treating production delivery as proven.
 
-Use a disposable release branch for the first live acceptance run and verify
-all of the following before publishing the core package or the `v1` Action
-tag:
+Use a disposable test app/repository—not a production app—for the first live
+acceptance run. Let ship-my-flutter create its normal configured release branch
+in that repository. Verify all of the following before publishing the core
+package or the `v1` Action tag:
 
 1. the macOS candidate job imports the real certificate and every required
    provisioning profile;

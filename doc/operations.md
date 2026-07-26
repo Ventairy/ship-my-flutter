@@ -25,6 +25,14 @@ The initializer defaults to `upload-only`. After the first end-to-end candidate
 works and App Store metadata is complete, opt in to `submit-for-review` in
 `config.yaml`.
 
+To submit the already-tested candidate, change `appStore.mode` on the target
+branch, commit and push it, and wait for the release PR to synchronize and its
+candidate job to finish again. Delivery-only configuration is excluded from the
+source fingerprint, so the job revalidates and reuses the processed build when
+the build inputs are otherwise unchanged. Recheck the receipt and TestFlight
+build, then merge. Any tracked app-source or build-input change invalidates the
+receipt and requires a new candidate.
+
 ## Commit routing while a PR is open
 
 `feat(ios)` and `fix(ios)` update the iOS release. A known different platform
