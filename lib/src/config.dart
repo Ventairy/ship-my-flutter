@@ -201,6 +201,7 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
 }
 
 void _validateBuildCommand(String command) {
+  _validateSingleShellInvocation(command);
   for (final flag in <String>[
     '--build-name',
     '--build-number',
@@ -217,6 +218,59 @@ void _validateBuildCommand(String command) {
     }
   }
 }
+
+void _validateSingleShellInvocation(String command) {
+  String? quote;
+  var escaped = false;
+  for (var index = 0; index < command.length; index++) {
+    final character = command[index];
+    if (character == '\n' || character == '\r') {
+      _invalidBuildCommandShape();
+    }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote == "'") {
+      if (character == "'") quote = null;
+      continue;
+    }
+    if (character == r'\') {
+      escaped = true;
+      continue;
+    }
+    if (quote == '"') {
+      if (character == '"') quote = null;
+      continue;
+    }
+    if (character == "'" || character == '"') {
+      quote = character;
+      continue;
+    }
+    if (';&|<>()`'.contains(character)) {
+      _invalidBuildCommandShape();
+    }
+    if (character == '#' &&
+        (index == 0 || _isShellWhitespace(command.codeUnitAt(index - 1)))) {
+      _invalidBuildCommandShape();
+    }
+  }
+  if (quote != null || escaped) {
+    _fail('platforms.ios.build_command contains incomplete shell quoting');
+  }
+}
+
+bool _isShellWhitespace(int codeUnit) =>
+    codeUnit == 0x20 ||
+    codeUnit == 0x09 ||
+    codeUnit == 0x0b ||
+    codeUnit == 0x0c;
+
+Never _invalidBuildCommandShape() => _fail(
+  'platforms.ios.build_command must be one shell command invocation; '
+  'put pipelines, chained commands, redirections, comments, and preparation '
+  'steps in hooks.before_candidate',
+);
 
 TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
   final groups = _stringList(

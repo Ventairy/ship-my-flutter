@@ -4,13 +4,7 @@
   "title": "ship-my-flutter configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "target_branch",
-    "release_branch_prefix",
-    "hooks",
-    "platforms"
-  ],
+  "required": ["schema_version", "platforms"],
   "properties": {
     "schema_version": {
       "const": 2,
@@ -30,6 +24,7 @@
     },
     "hooks": {
       "type": "object",
+      "default": {},
       "additionalProperties": false,
       "properties": {
         "before_release_pr": {
@@ -52,14 +47,6 @@
         "ios": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "enabled",
-            "project_path",
-            "build_command",
-            "artifact_path",
-            "testflight",
-            "app_store"
-          ],
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -86,7 +73,7 @@
               "type": "string",
               "minLength": 1,
               "default": "flutter build ipa --release",
-              "description": "POSIX shell build invocation. ship-my-flutter appends version, build number, export-options, and configured flavor arguments.",
+              "description": "One POSIX shell command invocation. Chaining, pipelines, redirections, comments, and command substitution are rejected because ship-my-flutter appends version, build number, export-options, and configured flavor arguments to this invocation.",
               "not": {
                 "pattern": "(^|\\s)--(build-name|build-number|export-options-plist|flavor)(\\s|=|$)"
               }
@@ -99,11 +86,12 @@
             },
             "testflight": {
               "type": "object",
+              "default": {},
               "additionalProperties": false,
-              "required": ["groups", "wait_timeout_minutes"],
               "properties": {
                 "groups": {
                   "type": "array",
+                  "default": [],
                   "description": "Exact existing TestFlight group names that should receive the build.",
                   "items": {
                     "type": "string",
@@ -121,8 +109,8 @@
             },
             "app_store": {
               "type": "object",
+              "default": {},
               "additionalProperties": false,
-              "required": ["mode", "release_type"],
               "properties": {
                 "mode": {
                   "enum": ["submit-for-review", "upload-only"],
@@ -140,38 +128,22 @@
                   "description": "ISO 8601 release time required for a scheduled release."
                 }
               },
-              "allOf": [
-                {
-                  "if": {
-                    "properties": {
-                      "release_type": {
-                        "const": "scheduled"
-                      }
-                    },
-                    "required": ["release_type"]
-                  },
-                  "then": {
-                    "required": ["earliest_release_date"]
+              "if": {
+                "properties": {
+                  "release_type": {
+                    "const": "scheduled"
                   }
                 },
-                {
-                  "if": {
-                    "properties": {
-                      "release_type": {
-                        "not": {
-                          "const": "scheduled"
-                        }
-                      }
-                    },
-                    "required": ["release_type"]
-                  },
-                  "then": {
-                    "not": {
-                      "required": ["earliest_release_date"]
-                    }
-                  }
+                "required": ["release_type"]
+              },
+              "then": {
+                "required": ["earliest_release_date"]
+              },
+              "else": {
+                "not": {
+                  "required": ["earliest_release_date"]
                 }
-              ]
+              }
             }
           }
         }

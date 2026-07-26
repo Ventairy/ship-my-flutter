@@ -22,6 +22,14 @@ The project follows Semantic Versioning and Conventional Commits.
   release-note generation, codegen, environment preparation, and custom
   workflows.
 
+### Fixed
+
+- Reject compound `build_command` values that could receive managed release
+  arguments on the wrong shell command; hooks remain available for multi-step
+  preparation.
+- Aligned JSON Schema optional fields and defaults with runtime configuration
+  parsing.
+
 ## 0.1.0 - 2026-07-26
 
 ### Added

@@ -8,12 +8,18 @@ ship-my-flutter handles high-value signing material. Its defaults are intentiona
 - The `.p12`, `.p8`, provisioning profiles, keychain password, and temporary export options are never written inside the repository.
 - Files are created with owner-only permissions where the platform supports them.
 - Signing uses a dedicated temporary keychain.
-- The action masks every credential input, consumes it into memory, and clears the credential environment before repository hooks, Flutter, pub, Git, or Xcode subprocesses run.
+- Action credential inputs are exposed only to the execution step. The action
+  masks them, consumes them into memory, and clears the credential environment
+  before repository hooks, Flutter, Git, or Xcode subprocesses run. Vendored
+  Dart dependencies are resolved in an earlier step that receives no credential
+  inputs. Do not expose release credentials as job-level environment variables,
+  because GitHub would then make them available to every setup step.
 - Installed profiles created by the action, private API key, keychain, and temporary directory are removed in `finally` cleanup. A matching profile that existed before the action is retained.
 - Child-process failures omit command arguments so passwords cannot be copied into error messages. The action never intentionally logs secret values.
 - Generated checkouts do not persist a Git credential. The action supplies its token only to the individual Git fetch or push that needs it.
-- Hooks and `build_command` are arbitrary repository-owned POSIX shell code.
-  They are trusted at the same boundary as the workflow and application source.
+- Hooks are arbitrary repository-owned POSIX shell code. `build_command` is one
+  repository-owned shell invocation with managed release arguments appended.
+  Both are trusted at the same boundary as the workflow and application source.
   Credential variables are removed before they run, but maintainers must still
   review command changes before exposing release secrets.
 - `artifact_path` must stay under `project_path`; resolved symlinks are checked

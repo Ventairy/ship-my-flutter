@@ -156,11 +156,12 @@ void main() {
 
     test('accepts project-owned shell commands and hooks', () {
       final config = validConfig();
-      iosConfig(config)['build_command'] =
-          'fvm dart run release:build_ios && test -f "\$OUTPUT"';
+      iosConfig(config)['build_command'] = 'fvm dart run release:build_ios';
       final hooks = config['hooks']! as Map<String, Object?>;
-      hooks['before_release_pr'] = 'fvm dart run release:notes';
-      hooks['before_candidate'] = 'fvm dart run release:prepare';
+      hooks['before_release_pr'] =
+          'fvm dart run release:notes && test -f "\$OUTPUT"';
+      hooks['before_candidate'] =
+          'fvm dart run release:prepare | tee prepare.log';
 
       final parsed = validateConfig(config);
 
@@ -168,6 +169,52 @@ void main() {
       expect(parsed.hooks.beforeReleasePr, contains('release:notes'));
       expect(parsed.hooks.beforeCandidate, contains('release:prepare'));
     });
+
+    test(
+      'rejects build command composition that could steal managed flags',
+      () {
+        for (final command in <String>[
+          'flutter build ipa && test -f build/app.ipa',
+          'flutter build ipa | tee build.log',
+          'flutter build ipa; echo done',
+          'flutter build ipa > build.log',
+          'flutter build ipa # release',
+          'flutter build ipa\nprintf done',
+          r'flutter build ipa $(printf extra)',
+          'flutter build ipa `printf extra`',
+        ]) {
+          final config = validConfig();
+          iosConfig(config)['build_command'] = command;
+          expect(
+            () => validateConfig(config),
+            throwsA(
+              isA<ShipError>().having(
+                (ShipError error) => error.message,
+                'message',
+                contains('must be one shell command invocation'),
+              ),
+            ),
+            reason: command,
+          );
+        }
+      },
+    );
+
+    test(
+      'allows quoted or escaped shell metacharacters in build arguments',
+      () {
+        final config = validConfig();
+        iosConfig(config)['build_command'] =
+            r'flutter build ipa '
+            r'--dart-define="URL=https://example.test?a=1&b=2" '
+            r'--dart-define=LABEL=release\;candidate';
+
+        expect(
+          validateConfig(config).ios.buildCommand,
+          contains('release\\;candidate'),
+        );
+      },
+    );
 
     test('rejects release arguments managed by ship-my-flutter', () {
       for (final flag in <String>[

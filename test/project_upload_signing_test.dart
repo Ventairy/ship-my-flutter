@@ -119,6 +119,39 @@ void main() {
     },
   );
 
+  test('passes every managed argument to a custom build executable', () async {
+    final root = await Directory.systemTemp.createTemp('smf-build-command-');
+    addTearDown(() => root.delete(recursive: true));
+    await File(p.join(root.path, 'build.sh')).writeAsString(r'''
+set -eu
+mkdir -p "$(dirname "$SHIP_MY_FLUTTER_ARTIFACT_PATH")"
+printf '%s\n' "$@" > "$SHIP_MY_FLUTTER_ARTIFACT_PATH.args"
+printf 'ipa' > "$SHIP_MY_FLUTTER_ARTIFACT_PATH"
+''');
+
+    final ipa = await runIosBuildCommand(
+      projectRoot: root.path,
+      command: '/bin/sh build.sh',
+      artifactPath: 'build/app.ipa',
+      version: '2.3.0',
+      buildNumber: '41',
+      exportOptionsPath: '/tmp/Export Options.plist',
+      scheme: 'production',
+    );
+
+    expect(ipa, p.join(root.path, 'build', 'app.ipa'));
+    expect(await File('$ipa.args').readAsLines(), <String>[
+      '--build-name',
+      '2.3.0',
+      '--build-number',
+      '41',
+      '--export-options-plist',
+      '/tmp/Export Options.plist',
+      '--flavor',
+      'production',
+    ]);
+  });
+
   test('accepts an exact IPA artifact path', () async {
     final root = await Directory.systemTemp.createTemp('smf-upload-');
     addTearDown(() => root.delete(recursive: true));

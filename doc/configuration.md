@@ -17,15 +17,13 @@ begins.
 schema_version: 2
 target_branch: main
 release_branch_prefix: ship-my-flutter
-hooks:
-  before_release_pr: fvm dart run release:generate_store_release_notes
-  before_candidate: fvm dart run release:prepare_ios
+hooks: {}
 platforms:
   ios:
     enabled: true
     project_path: .
     bundle_id: com.example.app
-    build_command: fvm flutter build ipa --release
+    build_command: flutter build ipa --release
     artifact_path: build/ios/ipa
     testflight:
       groups:
@@ -89,10 +87,11 @@ SHIP_MY_FLUTTER_CHANGELOG_PATH
 SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
 ```
 
-Both hooks must leave tracked and unignored files clean. If generation changes a
-release input, commit that input through the release PR before creating a
-candidate. GitHub, Apple, signing, and certificate credentials are removed from
-the hook environment.
+Changes from `before_release_pr` are intentionally staged into the release PR,
+which is how generated store notes or other reviewable release inputs are
+updated. `before_candidate` must leave tracked and unignored files clean; put
+any generated release input in the release-PR hook instead. GitHub, Apple,
+signing, and certificate credentials are removed from both hook environments.
 
 ## `platforms.ios`
 
@@ -109,7 +108,7 @@ The consumer owns the build toolchain. `ship-my-flutter-action` does not install
 Flutter or FVM. Set them up in the workflow before the candidate Action step,
 using the exact version selected by the project.
 
-`build_command` is one build invocation, not a preparation hook.
+`build_command` is one shell command invocation, not a preparation hook.
 ship-my-flutter automatically appends these arguments:
 
 ```text
@@ -120,8 +119,11 @@ ship-my-flutter automatically appends these arguments:
 ```
 
 Do not repeat those flags in the command. They are rejected so release identity
-cannot be overridden. Put dependency resolution, code generation, environment
-preparation, or other multi-step work in `before_candidate`.
+cannot be overridden. Shell chaining, pipelines, redirections, comments, and
+command substitution are also rejected: otherwise Bash could attach the
+managed arguments to a different command or ignore them. Put dependency
+resolution, code generation, environment preparation, logging, or verification
+in `before_candidate`.
 
 Examples:
 
@@ -132,9 +134,13 @@ build_command: flutter build ipa --release
 # Project-owned FVM
 build_command: fvm flutter build ipa --release
 
-# A package executable that accepts Flutter-compatible build arguments
+# A package executable that accepts the appended build arguments
 build_command: fvm dart run release:build_ios
 ```
+
+For a custom Dart executable, read the appended options from `args` and forward
+them to the underlying Flutter build. The executable may also read the matching
+environment variables below.
 
 The command also receives the calculated values as environment variables for
 logging or wrapper logic:
