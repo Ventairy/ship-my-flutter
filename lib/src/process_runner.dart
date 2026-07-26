@@ -84,13 +84,22 @@ final class SystemProcessRunner implements ProcessRunner {
     }
     environment.addAll(options.environment);
 
-    final process = await Process.start(
-      executable,
-      arguments,
-      workingDirectory: options.workingDirectory,
-      environment: environment,
-      includeParentEnvironment: false,
-    );
+    late final Process process;
+    try {
+      process = await Process.start(
+        executable,
+        arguments,
+        workingDirectory: options.workingDirectory,
+        environment: environment,
+        includeParentEnvironment: false,
+      );
+    } on ProcessException catch (error) {
+      throw ShipError(
+        'Could not start $executable: ${error.message}',
+        'COMMAND_FAILED',
+        cause: error,
+      );
+    }
     if (options.input != null) {
       process.stdin.write(options.input);
     }

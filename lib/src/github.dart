@@ -17,25 +17,30 @@ Future<String> _ensureReleaseBranch(
   String token,
 ) async {
   final branch = releaseBranchName(config, platform);
-  await authenticatedGit(
-    root,
-    <String>['fetch', 'origin', config.targetBranch, branch],
-    token,
-    allowFailure: true,
-  );
-  final remoteBranch = await git(root, <String>[
-    'rev-parse',
-    '--verify',
-    '--quiet',
-    'origin/$branch',
-  ], allowFailure: true);
+  await authenticatedGit(root, <String>[
+    'fetch',
+    'origin',
+    config.targetBranch,
+  ], token);
+  final remoteBranch = await authenticatedGit(root, <String>[
+    'ls-remote',
+    '--heads',
+    'origin',
+    'refs/heads/$branch',
+  ], token);
   if (remoteBranch.isNotEmpty) {
+    await authenticatedGit(root, <String>['fetch', 'origin', branch], token);
     await git(root, <String>['checkout', '-B', branch, 'origin/$branch']);
-    await git(root, <String>[
-      'merge',
-      '--no-edit',
-      'origin/${config.targetBranch}',
-    ]);
+    try {
+      await git(root, <String>[
+        'merge',
+        '--no-edit',
+        'origin/${config.targetBranch}',
+      ]);
+    } on ShipError {
+      await git(root, const <String>['merge', '--abort'], allowFailure: true);
+      rethrow;
+    }
   } else {
     await git(root, <String>[
       'checkout',
@@ -73,13 +78,14 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
   final api = githubApi ?? GitHubRestApi(context: context);
   final startingBranch = await currentBranch(root);
   await configureBotIdentity(root);
-  final branch = await _ensureReleaseBranch(
-    root,
-    config,
-    plan.platform,
-    context.token,
-  );
+  late final String branch;
   try {
+    branch = await _ensureReleaseBranch(
+      root,
+      config,
+      plan.platform,
+      context.token,
+    );
     await applyReleasePlan(root, plan);
     await runBeforeReleasePrHook(root, config, plan);
     await git(root, const <String>['add', '.']);
@@ -147,8 +153,9 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
       pullRequestNumber: pull.number,
     );
   } finally {
-    if (startingBranch.isNotEmpty && startingBranch != branch) {
-      await git(root, <String>['checkout', startingBranch], allowFailure: true);
+    if (startingBranch.isNotEmpty &&
+        await currentBranch(root) != startingBranch) {
+      await git(root, <String>['checkout', startingBranch]);
     }
   }
 }

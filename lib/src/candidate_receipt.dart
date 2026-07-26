@@ -69,15 +69,24 @@ Future<CandidateReceipt> loadCandidateReceipt(String filePath) async {
       'CANDIDATE_RECEIPT_NOT_FOUND',
       cause: error,
     );
+  } on FormatException catch (error) {
+    throw ShipError(
+      '$filePath contains malformed JSON.',
+      'INVALID_CANDIDATE_RECEIPT',
+      cause: error,
+    );
   }
 }
 
 Map<String, Object?> _map(Object? value) {
   if (value is! Map<Object?, Object?>) _fail('must be an object');
-  return <String, Object?>{
-    for (final entry in value.entries)
-      if (entry.key is String) entry.key! as String: entry.value,
-  };
+  final result = <String, Object?>{};
+  for (final entry in value.entries) {
+    final key = entry.key;
+    if (key is! String) _fail('keys must be strings');
+    result[key] = entry.value;
+  }
+  return result;
 }
 
 void _equal(Object? actual, Object expected, String path) {

@@ -179,4 +179,88 @@ void main() {
       'ship-my-flutter[bot]',
     );
   });
+
+  test(
+    'restores the starting branch after a release-branch merge fails',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'smf-github-conflict-',
+      );
+      final origin = await Directory.systemTemp.createTemp('smf-origin-');
+      addTearDown(() async {
+        await root.delete(recursive: true);
+        await origin.delete(recursive: true);
+      });
+      await git(origin.path, const <String>['init', '--bare']);
+      await git(root.path, const <String>['init', '-b', 'main']);
+      await git(root.path, const <String>['config', 'user.name', 'Test']);
+      await git(root.path, const <String>[
+        'config',
+        'user.email',
+        'test@example.com',
+      ]);
+      final sourcePath = p.join(root.path, 'app.txt');
+      await File(sourcePath).writeAsString('baseline\n');
+      await git(root.path, const <String>['add', '.']);
+      await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
+      await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
+      await git(root.path, const <String>['push', '-u', 'origin', 'main']);
+
+      await git(root.path, const <String>[
+        'checkout',
+        '-b',
+        'ship-my-flutter/ios',
+      ]);
+      await File(sourcePath).writeAsString('release branch\n');
+      await git(root.path, const <String>['add', '.']);
+      await git(root.path, const <String>['commit', '-m', 'chore: release']);
+      await git(root.path, const <String>[
+        'push',
+        '-u',
+        'origin',
+        'ship-my-flutter/ios',
+      ]);
+
+      await git(root.path, const <String>['checkout', 'main']);
+      await File(sourcePath).writeAsString('target branch\n');
+      await git(root.path, const <String>['add', '.']);
+      await git(root.path, const <String>['commit', '-m', 'fix: conflict']);
+      await git(root.path, const <String>['push', 'origin', 'main']);
+
+      const config = ShipConfig(ios: IosConfig());
+      const plan = ReleasePlan(
+        platform: Platform.ios,
+        currentVersion: '1.0.0',
+        nextVersion: '1.0.1',
+        bump: Bump.patch,
+        baseSha: 'base',
+        headSha: 'head',
+        changes: <ConventionalChange>[],
+      );
+      const context = GitHubContext(
+        owner: 'example',
+        repo: 'app',
+        token: 'unused',
+      );
+
+      await expectLater(
+        createOrUpdateReleasePullRequest(
+          root.path,
+          config,
+          plan,
+          context,
+          githubApi: FakeGitHubApi(),
+        ),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'COMMAND_FAILED',
+          ),
+        ),
+      );
+      expect(await currentBranch(root.path), 'main');
+      expect(await isClean(root.path), isTrue);
+    },
+  );
 }

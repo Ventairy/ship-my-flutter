@@ -43,6 +43,79 @@ Map<String, Object?> requestBody(http.Request request) =>
 
 void main() {
   group('App Store Connect client', () {
+    test('maps transport failures to a typed API failure', () async {
+      final client = AppStoreConnectClient(
+        const AppleCredentials(
+          keyId: 'KEY123',
+          issuerId: 'issuer',
+          privateKey: 'unused',
+        ),
+        httpClient: MockClient(
+          (http.Request request) async =>
+              throw http.ClientException('connection failed', request.url),
+        ),
+        tokenProvider: () async => 'test-token',
+      );
+
+      await expectLater(
+        client.findApp('dev.example.app'),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'APP_STORE_CONNECT_API',
+          ),
+        ),
+      );
+    });
+
+    test('maps malformed JSON to a typed response failure', () async {
+      final fixture = ClientFixture(<http.Response>[
+        http.Response('{not-json', 200),
+      ]);
+
+      await expectLater(
+        fixture.client.findApp('dev.example.app'),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'APP_STORE_CONNECT_RESPONSE',
+          ),
+        ),
+      );
+    });
+
+    test(
+      'maps invalid optional attributes to a typed response failure',
+      () async {
+        final fixture = ClientFixture(<http.Response>[
+          response(<String, Object?>{
+            'data': <String, Object?>{
+              'type': 'builds',
+              'id': 'build-1',
+              'attributes': <String, Object?>{
+                'version': '1',
+                'processingState': 'VALID',
+                'uploadedDate': 42,
+              },
+            },
+          }),
+        ]);
+
+        await expectLater(
+          fixture.client.getBuild('build-1'),
+          throwsA(
+            isA<ShipError>().having(
+              (ShipError error) => error.code,
+              'code',
+              'APP_STORE_CONNECT_RESPONSE',
+            ),
+          ),
+        );
+      },
+    );
+
     test('finds an app by exact bundle identifier', () async {
       final fixture = ClientFixture(<http.Response>[
         response(<String, Object?>{

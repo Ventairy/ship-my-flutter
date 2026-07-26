@@ -128,19 +128,33 @@ abstract interface class AppStoreConnectApi {
 
 typedef AppleTokenProvider = Future<String> Function();
 
+DateTime _systemTime() => DateTime.now();
+
+Future<void> _systemDelay(Duration duration) => Future<void>.delayed(duration);
+
 final class AppStoreConnectClient implements AppStoreConnectApi {
+  /// Creates an App Store Connect client.
+  ///
+  /// [currentTime] and [delay] are deterministic seams for build-processing
+  /// polling. Normal consumers should leave them unset.
   AppStoreConnectClient(
     this.credentials, {
     http.Client? httpClient,
     AppleTokenProvider? tokenProvider,
     Uri? baseUrl,
+    DateTime Function()? currentTime,
+    Future<void> Function(Duration)? delay,
   }) : _httpClient = httpClient ?? http.Client(),
        _tokenProvider = tokenProvider,
+       _currentTime = currentTime ?? _systemTime,
+       _delay = delay ?? _systemDelay,
        baseUrl = baseUrl ?? Uri.parse('https://api.appstoreconnect.apple.com');
 
   final AppleCredentials credentials;
   final http.Client _httpClient;
   final AppleTokenProvider? _tokenProvider;
+  final DateTime Function() _currentTime;
+  final Future<void> Function(Duration) _delay;
   final Uri baseUrl;
 
   Future<String> _token() async {
@@ -177,8 +191,17 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
         if (body != null) 'Content-Type': 'application/json',
       });
     if (body != null) request.body = jsonEncode(body);
-    final streamed = await _httpClient.send(request);
-    final response = await http.Response.fromStream(streamed);
+    late final http.Response response;
+    try {
+      final streamed = await _httpClient.send(request);
+      response = await http.Response.fromStream(streamed);
+    } on http.ClientException catch (error) {
+      throw ShipError(
+        'Could not reach App Store Connect.',
+        'APP_STORE_CONNECT_API',
+        cause: error,
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? details;
       try {
@@ -202,15 +225,16 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
       } on ShipError {
         details = null;
       }
+      final requestTarget = '${url.path}${url.hasQuery ? '?${url.query}' : ''}';
       throw ShipError(
-        'App Store Connect $method ${url.path}${url.hasQuery ? '?${url.query}' : ''} '
+        'App Store Connect $method $requestTarget '
             'failed (${response.statusCode})'
             '${details == null || details.isEmpty ? '' : ': $details'}',
         'APP_STORE_CONNECT_API',
       );
     }
     if (response.statusCode == 204 || response.body.isEmpty) return null;
-    return jsonDecode(response.body);
+    return _decodeResponseBody(response.body);
   }
 
   Future<List<Object?>> _collection(String path) async {
@@ -226,7 +250,12 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
       final page = _map(await request('GET', next), 'collection');
       data.addAll(_list(page['data'], 'collection.data'));
       final links = page['links'];
-      next = links is Map<Object?, Object?> ? links['next'] as String? : null;
+      next = links == null
+          ? null
+          : _optionalString(
+              _map(links, 'collection.links')['next'],
+              'collection.links.next',
+            );
     }
     return data;
   }
@@ -304,7 +333,12 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     final numeric = builds.map((ApiResource<BuildAttributes> build) {
       return int.tryParse(build.attributes.version);
     }).whereType<int>();
-    return '${numeric.isEmpty ? 1 : numeric.reduce((int a, int b) => a > b ? a : b) + 1}';
+    final latest = numeric.isEmpty
+        ? 0
+        : numeric.reduce(
+            (int first, int second) => first > second ? first : second,
+          );
+    return '${latest + 1}';
   }
 
   @override
@@ -315,8 +349,8 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     int timeoutMinutes, {
     Duration interval = const Duration(seconds: 30),
   }) async {
-    final deadline = DateTime.now().add(Duration(minutes: timeoutMinutes));
-    while (DateTime.now().isBefore(deadline)) {
+    final deadline = _currentTime().add(Duration(minutes: timeoutMinutes));
+    while (_currentTime().isBefore(deadline)) {
       final builds = await buildsForVersion(appId, version);
       final build = builds
           .where(
@@ -335,7 +369,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
           'BUILD_INVALID',
         );
       }
-      if (interval > Duration.zero) await Future<void>.delayed(interval);
+      if (interval > Duration.zero) await _delay(interval);
     }
     throw ShipError(
       'Timed out waiting for $version ($buildNumber) to finish processing.',
@@ -484,8 +518,8 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
         invariant(
           match.attributes.appStoreState == 'PREPARE_FOR_SUBMISSION',
           'App Store version $version is already '
-              '${match.attributes.appStoreState}; its release policy can no longer '
-              'be changed.',
+              '${match.attributes.appStoreState}; its release policy can no '
+              'longer be changed.',
           'APP_STORE_RELEASE_POLICY_LOCKED',
         );
         final updated = _map(
@@ -606,7 +640,8 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
       await request(
         'GET',
         '/v1/apps/$appId/reviewSubmissions?'
-            'filter%5Bplatform%5D=IOS&include=appStoreVersionForReview&limit=200',
+            'filter%5Bplatform%5D=IOS&'
+            'include=appStoreVersionForReview&limit=200',
       ),
       'review submissions',
     );
@@ -622,18 +657,12 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
         submission['attributes'],
         'review submission.attributes',
       );
-      final relationships = submission['relationships'];
-      final versionRelationship = relationships is Map<Object?, Object?>
-          ? relationships['appStoreVersionForReview']
-          : null;
-      final relationshipData = versionRelationship is Map<Object?, Object?>
-          ? versionRelationship['data']
-          : null;
-      final relationshipId = relationshipData is Map<Object?, Object?>
-          ? relationshipData['id']
-          : null;
-      if (relationshipId == appStoreVersionId &&
-          activeStates.contains(attributes['state'])) {
+      final relationshipId = _reviewSubmissionVersionId(submission);
+      final state = _string(
+        attributes['state'],
+        'review submission.attributes.state',
+      );
+      if (relationshipId == appStoreVersionId && activeStates.contains(state)) {
         return _string(submission['id'], 'review submission.id');
       }
     }
@@ -695,6 +724,31 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
   }
 }
 
+String? _reviewSubmissionVersionId(Map<String, Object?> submission) {
+  final relationshipsValue = submission['relationships'];
+  if (relationshipsValue == null) return null;
+  final relationships = _map(
+    relationshipsValue,
+    'review submission.relationships',
+  );
+  final versionValue = relationships['appStoreVersionForReview'];
+  if (versionValue == null) return null;
+  final version = _map(
+    versionValue,
+    'review submission.relationships.appStoreVersionForReview',
+  );
+  final dataValue = version['data'];
+  if (dataValue == null) return null;
+  final data = _map(
+    dataValue,
+    'review submission.relationships.appStoreVersionForReview.data',
+  );
+  return _optionalString(
+    data['id'],
+    'review submission.relationships.appStoreVersionForReview.data.id',
+  );
+}
+
 ApiResource<AppAttributes> _appResource(Object? value) {
   final resource = _map(value, 'app');
   final attributes = _map(resource['attributes'], 'app.attributes');
@@ -738,9 +792,15 @@ ApiResource<BuildAttributes> _buildResource(Object? value) {
         attributes['processingState'],
         'build.processingState',
       ),
-      uploadedDate: attributes['uploadedDate'] as String?,
-      expired: attributes['expired'] as bool? ?? false,
-      usesNonExemptEncryption: attributes['usesNonExemptEncryption'] as bool?,
+      uploadedDate: _optionalString(
+        attributes['uploadedDate'],
+        'build.uploadedDate',
+      ),
+      expired: _optionalBool(attributes['expired'], 'build.expired') ?? false,
+      usesNonExemptEncryption: _optionalBool(
+        attributes['usesNonExemptEncryption'],
+        'build.usesNonExemptEncryption',
+      ),
     ),
   );
 }
@@ -765,7 +825,10 @@ ApiResource<AppStoreVersionAttributes> _appStoreVersionResource(Object? value) {
         attributes['releaseType'],
         'appStoreVersion.releaseType',
       ),
-      earliestReleaseDate: attributes['earliestReleaseDate'] as String?,
+      earliestReleaseDate: _optionalString(
+        attributes['earliestReleaseDate'],
+        'appStoreVersion.earliestReleaseDate',
+      ),
     ),
   );
 }
@@ -791,10 +854,18 @@ Map<String, Object?> _map(Object? value, String path) {
   if (value is! Map<Object?, Object?>) {
     throw ShipError('$path must be an object.', 'APP_STORE_CONNECT_RESPONSE');
   }
-  return <String, Object?>{
-    for (final entry in value.entries)
-      if (entry.key is String) entry.key! as String: entry.value,
-  };
+  final result = <String, Object?>{};
+  for (final entry in value.entries) {
+    final key = entry.key;
+    if (key is! String) {
+      throw ShipError(
+        '$path contains a non-string key.',
+        'APP_STORE_CONNECT_RESPONSE',
+      );
+    }
+    result[key] = entry.value;
+  }
+  return result;
 }
 
 List<Object?> _list(Object? value, String path) {
@@ -809,4 +880,29 @@ String _string(Object? value, String path) {
     throw ShipError('$path must be a string.', 'APP_STORE_CONNECT_RESPONSE');
   }
   return value;
+}
+
+String? _optionalString(Object? value, String path) {
+  if (value == null) return null;
+  return _string(value, path);
+}
+
+bool? _optionalBool(Object? value, String path) {
+  if (value == null) return null;
+  if (value is! bool) {
+    throw ShipError('$path must be a boolean.', 'APP_STORE_CONNECT_RESPONSE');
+  }
+  return value;
+}
+
+Object? _decodeResponseBody(String body) {
+  try {
+    return jsonDecode(body);
+  } on FormatException catch (error) {
+    throw ShipError(
+      'App Store Connect returned malformed JSON.',
+      'APP_STORE_CONNECT_RESPONSE',
+      cause: error,
+    );
+  }
 }

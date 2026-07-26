@@ -94,14 +94,19 @@ final class GitHubRestApi implements GitHubApi {
     final request = http.Request(method, _uri(path, query))
       ..headers.addAll(_headers);
     if (body != null) request.body = jsonEncode(body);
-    final streamed = await _client.send(request);
-    final response = await http.Response.fromStream(streamed);
+    late final http.Response response;
+    try {
+      final streamed = await _client.send(request);
+      response = await http.Response.fromStream(streamed);
+    } on http.ClientException catch (error) {
+      throw ShipError('Could not reach GitHub.', 'GITHUB_API', cause: error);
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw GitHubApiException(
         statusCode: response.statusCode,
         method: method,
         path: path,
-        responseBody: response.body,
+        responseBody: _boundedBody(response.body),
       );
     }
     return response;
@@ -124,7 +129,7 @@ final class GitHubRestApi implements GitHubApi {
         'per_page': '$perPage',
       },
     );
-    final data = jsonDecode(response.body);
+    final data = _decodeResponse(response);
     if (data is! List<Object?>) {
       throw const ShipError(
         'GitHub returned an invalid pull request list.',
@@ -155,7 +160,7 @@ final class GitHubRestApi implements GitHubApi {
       },
     );
     return GitHubPullRequest(
-      number: _integerField(jsonDecode(response.body), 'number'),
+      number: _integerField(_decodeResponse(response), 'number'),
     );
   }
 
@@ -218,7 +223,7 @@ final class GitHubRestApi implements GitHubApi {
         '$_repositoryPath/releases/tags/${Uri.encodeComponent(tag)}',
       );
       return GitHubRelease(
-        htmlUrl: _stringField(jsonDecode(response.body), 'html_url'),
+        htmlUrl: _stringField(_decodeResponse(response), 'html_url'),
       );
     } on GitHubApiException catch (error) {
       if (error.statusCode == 404) return null;
@@ -244,7 +249,7 @@ final class GitHubRestApi implements GitHubApi {
       },
     );
     return GitHubRelease(
-      htmlUrl: _stringField(jsonDecode(response.body), 'html_url'),
+      htmlUrl: _stringField(_decodeResponse(response), 'html_url'),
     );
   }
 }
@@ -263,14 +268,19 @@ final class GitHubApiException implements Exception {
   final String responseBody;
 
   @override
-  String toString() =>
-      'GitHub API $method $path failed with status $statusCode: '
-      '${responseBody.length > 500 ? responseBody.substring(0, 500) : responseBody}';
+  String toString() {
+    return 'GitHub API $method $path failed with status $statusCode: '
+        '$responseBody';
+  }
 }
 
+String _boundedBody(String body) =>
+    body.length > 500 ? body.substring(0, 500) : body;
+
 int _integerField(Object? value, String field) {
-  if (value is Map<String, Object?> && value[field] is int) {
-    return value[field]! as int;
+  if (value is Map<String, Object?>) {
+    final fieldValue = value[field];
+    if (fieldValue is int) return fieldValue;
   }
   throw ShipError(
     'GitHub response is missing integer field "$field".',
@@ -279,11 +289,24 @@ int _integerField(Object? value, String field) {
 }
 
 String _stringField(Object? value, String field) {
-  if (value is Map<String, Object?> && value[field] is String) {
-    return value[field]! as String;
+  if (value is Map<String, Object?>) {
+    final fieldValue = value[field];
+    if (fieldValue is String) return fieldValue;
   }
   throw ShipError(
     'GitHub response is missing string field "$field".',
     'GITHUB_RESPONSE',
   );
+}
+
+Object? _decodeResponse(http.Response response) {
+  try {
+    return jsonDecode(response.body);
+  } on FormatException catch (error) {
+    throw ShipError(
+      'GitHub returned malformed JSON.',
+      'GITHUB_RESPONSE',
+      cause: error,
+    );
+  }
 }

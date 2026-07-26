@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import 'error.dart';
 import 'git.dart';
 import 'serialization.dart';
 
@@ -18,7 +19,9 @@ bool _shouldInclude(String file) =>
     !file.startsWith('.ship-my-flutter/candidates/');
 
 Future<String> sourceFingerprint(String root) async {
-  final output = await git(root, const <String>['ls-files', '-z']);
+  final output = await GitClient(
+    root: root,
+  ).runRaw(const <String>['ls-files', '-z']);
   final files =
       output
           .split('\u0000')
@@ -26,7 +29,10 @@ Future<String> sourceFingerprint(String root) async {
           .where(_shouldInclude)
           .toList()
         ..sort();
-  final digest = await sha256.bind(_fingerprintBytes(root, files)).first;
+  final repositoryRoot = await Directory(root).resolveSymbolicLinks();
+  final digest = await sha256
+      .bind(_fingerprintBytes(repositoryRoot, files))
+      .first;
   return digest.toString();
 }
 
@@ -41,7 +47,7 @@ Stream<List<int>> _fingerprintBytes(String root, List<String> files) async* {
     yield utf8.encode(isLink ? 'symlink' : '${stats.mode & 0x49}');
     yield const <int>[0];
     if (isLink) {
-      yield utf8.encode(await Link(filePath).target());
+      yield utf8.encode(await _validatedLinkTarget(root, filePath, files));
     } else {
       yield* File(filePath).openRead();
     }
@@ -73,6 +79,30 @@ Stream<List<int>> _fingerprintBytes(String root, List<String> files) async* {
   } on FileSystemException catch (error) {
     if (error.osError?.errorCode != 2) rethrow;
   }
+}
+
+Future<String> _validatedLinkTarget(
+  String repositoryRoot,
+  String linkPath,
+  List<String> trackedFiles,
+) async {
+  final link = Link(linkPath);
+  final target = await link.target();
+  final resolvedTarget = await link.resolveSymbolicLinks();
+  invariant(
+    p.isWithin(repositoryRoot, resolvedTarget),
+    'Tracked symlink ${p.relative(linkPath, from: repositoryRoot)} resolves '
+        'outside the repository.',
+    'SOURCE_SYMLINK_ESCAPE',
+  );
+  final relativeTarget = p.relative(resolvedTarget, from: repositoryRoot);
+  invariant(
+    trackedFiles.contains(relativeTarget),
+    'Tracked symlink ${p.relative(linkPath, from: repositoryRoot)} resolves '
+        'to an untracked build input.',
+    'SOURCE_SYMLINK_UNTRACKED',
+  );
+  return target;
 }
 
 Future<String> fileSha256(String filePath) async {

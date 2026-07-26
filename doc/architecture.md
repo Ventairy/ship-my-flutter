@@ -62,7 +62,12 @@ The candidate job:
 9. applies TestFlight “What’s New” localizations and beta groups.
 10. commits a receipt to the release PR.
 
-The fingerprint deliberately ignores the changelog, store notes, candidate receipts, and delivery-only settings such as TestFlight groups or App Store release mode. It hashes the build-relevant iOS configuration separately. Editing release copy or promotion policy does not rebuild an identical app; editing an actual build input does.
+The fingerprint deliberately ignores the changelog, store notes, candidate
+receipts, and delivery-only settings such as TestFlight groups or App Store
+release mode. It hashes the build-relevant iOS configuration separately and
+rejects tracked symlinks to external or untracked inputs. Editing release copy
+or promotion policy does not rebuild an identical app; editing an actual build
+input does.
 
 ### 3. Promote
 

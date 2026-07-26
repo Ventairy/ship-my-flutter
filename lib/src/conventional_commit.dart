@@ -29,11 +29,8 @@ ConventionalChange parseConventionalCommit(String sha, String message) {
   final scope = match?.group(2);
   final breaking =
       match?.group(3) == '!' || _breakingFooterPattern.hasMatch(message);
-  final body = lines.length <= 1
-      ? null
-      : lines.skip(1).join('\n').trim().isEmpty
-      ? null
-      : lines.skip(1).join('\n').trim();
+  final bodyText = lines.skip(1).join('\n').trim();
+  final body = bodyText.isEmpty ? null : bodyText;
   final releaseAs = _footerVersion(message, Platform.ios);
   return ConventionalChange(
     sha: sha,
@@ -97,13 +94,19 @@ String? _footerVersion(String message, Platform platform) {
 }
 
 Bump? highestBump(Iterable<ConventionalChange> changes) {
-  const rank = <Bump, int>{Bump.patch: 1, Bump.minor: 2, Bump.major: 3};
   Bump? result;
   for (final change in changes) {
     final bump = change.bump;
-    if (bump != null && (result == null || rank[bump]! > rank[result]!)) {
+    if (bump != null &&
+        (result == null || _bumpRank(bump) > _bumpRank(result))) {
       result = bump;
     }
   }
   return result;
 }
+
+int _bumpRank(Bump bump) => switch (bump) {
+  Bump.patch => 1,
+  Bump.minor => 2,
+  Bump.major => 3,
+};

@@ -37,6 +37,56 @@ void main() {
       expect(validateConfig(validConfig()).ios.enabled, isTrue);
     });
 
+    test('rejects unknown fields at every configuration level', () {
+      final cases = <Map<String, Object?> Function()>[
+        () => validConfig()..['unexpected'] = true,
+        () {
+          final config = validConfig();
+          final hooks = config['hooks']! as Map<String, Object?>;
+          hooks['unexpected'] = true;
+          return config;
+        },
+        () {
+          final config = validConfig();
+          final platforms = config['platforms']! as Map<String, Object?>;
+          platforms['android'] = <String, Object?>{};
+          return config;
+        },
+        () {
+          final config = validConfig();
+          iosConfig(config)['unexpected'] = true;
+          return config;
+        },
+        () {
+          final config = validConfig();
+          final testflight =
+              iosConfig(config)['testflight']! as Map<String, Object?>;
+          testflight['unexpected'] = true;
+          return config;
+        },
+        () {
+          final config = validConfig();
+          final appStore =
+              iosConfig(config)['appStore']! as Map<String, Object?>;
+          appStore['unexpected'] = true;
+          return config;
+        },
+      ];
+
+      for (final createConfig in cases) {
+        expect(
+          () => validateConfig(createConfig()),
+          throwsA(
+            isA<ShipError>().having(
+              (ShipError error) => error.message,
+              'message',
+              contains('unknown field'),
+            ),
+          ),
+        );
+      }
+    });
+
     test('defaults omitted App Store behavior to upload only', () {
       final config = validConfig();
       iosConfig(config).remove('appStore');

@@ -26,6 +26,19 @@ final class GitClient {
     List<String> arguments, {
     bool allowFailure = false,
     Map<String, String> environment = const <String, String>{},
+  }) async => (await _run(
+    arguments,
+    allowFailure: allowFailure,
+    environment: environment,
+  )).trim();
+
+  Future<String> runRaw(List<String> arguments) =>
+      _run(arguments, allowFailure: false);
+
+  Future<String> _run(
+    List<String> arguments, {
+    required bool allowFailure,
+    Map<String, String> environment = const <String, String>{},
   }) async {
     final result = await processRunner.run(
       'git',
@@ -36,7 +49,7 @@ final class GitClient {
         allowFailure: allowFailure,
       ),
     );
-    return result.stdout.trim();
+    return result.stdout;
   }
 
   Future<String> authenticated(

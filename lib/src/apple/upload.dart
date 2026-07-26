@@ -82,6 +82,11 @@ Future<void> uploadIpa(
   ProcessRunner processRunner = const SystemProcessRunner(),
   String? homeDirectory,
 }) async {
+  invariant(
+    RegExp(r'^[A-Za-z0-9]+$').hasMatch(credentials.keyId),
+    'The App Store Connect key ID must contain only letters and digits.',
+    'INVALID_CREDENTIAL',
+  );
   final privateKeysDirectory = p.join(
     homeDirectory ?? Platform.environment['HOME'] ?? Directory.current.path,
     '.appstoreconnect',

@@ -32,6 +32,8 @@ typedef BuildFlutterIpa =
 typedef UploadIpa =
     Future<void> Function(String ipaPath, AppleCredentials credentials);
 
+DateTime _currentTime() => DateTime.now().toUtc();
+
 final class CandidateDependencies {
   const CandidateDependencies({
     this.installSigning = installSigningAssets,
@@ -39,6 +41,7 @@ final class CandidateDependencies {
     this.buildIpa = buildFlutterIpa,
     this.upload = uploadIpa,
     this.resolveBundleIdentifier = resolveBundleId,
+    this.currentTime = _currentTime,
   });
 
   final InstallSigningAssets installSigning;
@@ -46,6 +49,9 @@ final class CandidateDependencies {
   final BuildFlutterIpa buildIpa;
   final UploadIpa upload;
   final ResolveBundleId resolveBundleIdentifier;
+
+  /// Supplies the receipt timestamp, primarily for deterministic workflows.
+  final DateTime Function() currentTime;
 }
 
 final class CandidateOptions {
@@ -119,6 +125,64 @@ Future<void> _commitCandidateReceipt(
   }
 }
 
+Future<void> _applyTestflightMetadata({
+  required String root,
+  required String version,
+  required String appId,
+  required String buildId,
+  required TestflightConfig config,
+  required AppStoreConnectApi client,
+}) async {
+  final notes = await loadStoreReleaseNotes(root);
+  final localizations =
+      notes[Platform.ios]?[version] ?? const <String, String>{};
+  for (final entry in localizations.entries) {
+    await client.setBetaBuildLocalization(buildId, entry.key, entry.value);
+  }
+  await client.addBuildToGroups(appId, buildId, config.groups);
+}
+
+Future<void> _recordCandidateReceipt({
+  required String root,
+  required String receiptPath,
+  required CandidateReceipt receipt,
+  required bool commitReceipt,
+  required GitHubContext? github,
+  required bool refreshed,
+}) async {
+  await writeJson(receiptPath, receipt.toJson());
+  if (!commitReceipt) return;
+  try {
+    await _commitCandidateReceipt(root, receiptPath, receipt.version, github);
+  } on Exception catch (error) {
+    final description = refreshed
+        ? 'refreshed candidate receipt'
+        : 'candidate receipt';
+    throw ShipError(
+      'The TestFlight build is valid, but its $description could not be '
+          'committed. Do not merge the release PR until this is repaired.',
+      'CANDIDATE_RECEIPT_COMMIT',
+      cause: error,
+    );
+  }
+}
+
+CandidateReceipt _refreshCandidateReceipt(
+  CandidateReceipt receipt,
+  List<String> testflightGroups,
+) => CandidateReceipt(
+  version: receipt.version,
+  buildNumber: receipt.buildNumber,
+  buildId: receipt.buildId,
+  appId: receipt.appId,
+  bundleId: receipt.bundleId,
+  sourceSha: receipt.sourceSha,
+  sourceFingerprint: receipt.sourceFingerprint,
+  ipaSha256: receipt.ipaSha256,
+  uploadedAt: receipt.uploadedAt,
+  testflightGroups: testflightGroups,
+);
+
 Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   final root = p.normalize(p.absolute(options.root));
   await validateRepository(root);
@@ -157,52 +221,26 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   final receiptPath = candidatePath(root, Platform.ios, state.version);
   final reusable = await _reusableCandidate(receiptPath, fingerprint, client);
   if (reusable != null) {
-    final notes = await loadStoreReleaseNotes(root);
-    for (final entry
-        in (notes[Platform.ios]?[state.version] ?? const <String, String>{})
-            .entries) {
-      await client.setBetaBuildLocalization(
-        reusable.buildId,
-        entry.key,
-        entry.value,
-      );
-    }
-    await client.addBuildToGroups(
-      app.id,
-      reusable.buildId,
+    await _applyTestflightMetadata(
+      root: root,
+      version: state.version,
+      appId: app.id,
+      buildId: reusable.buildId,
+      config: config.ios.testflight,
+      client: client,
+    );
+    final refreshed = _refreshCandidateReceipt(
+      reusable,
       config.ios.testflight.groups,
     );
-    final refreshed = CandidateReceipt(
-      version: reusable.version,
-      buildNumber: reusable.buildNumber,
-      buildId: reusable.buildId,
-      appId: reusable.appId,
-      bundleId: reusable.bundleId,
-      sourceSha: reusable.sourceSha,
-      sourceFingerprint: reusable.sourceFingerprint,
-      ipaSha256: reusable.ipaSha256,
-      uploadedAt: reusable.uploadedAt,
-      testflightGroups: config.ios.testflight.groups,
+    await _recordCandidateReceipt(
+      root: root,
+      receiptPath: receiptPath,
+      receipt: refreshed,
+      commitReceipt: options.commitReceipt,
+      github: options.github,
+      refreshed: true,
     );
-    await writeJson(receiptPath, refreshed.toJson());
-    if (options.commitReceipt) {
-      try {
-        await _commitCandidateReceipt(
-          root,
-          receiptPath,
-          state.version,
-          options.github,
-        );
-      } on Object catch (error) {
-        throw ShipError(
-          'The TestFlight build is valid, but its refreshed candidate receipt '
-              'could not be committed. Do not merge the release PR until this is '
-              'repaired.',
-          'CANDIDATE_RECEIPT_COMMIT',
-          cause: error,
-        );
-      }
-    }
     return refreshed;
   }
 
@@ -257,13 +295,14 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     buildNumber,
     config.ios.testflight.waitTimeoutMinutes,
   );
-  final notes = await loadStoreReleaseNotes(root);
-  for (final entry
-      in (notes[Platform.ios]?[state.version] ?? const <String, String>{})
-          .entries) {
-    await client.setBetaBuildLocalization(build.id, entry.key, entry.value);
-  }
-  await client.addBuildToGroups(app.id, build.id, config.ios.testflight.groups);
+  await _applyTestflightMetadata(
+    root: root,
+    version: state.version,
+    appId: app.id,
+    buildId: build.id,
+    config: config.ios.testflight,
+    client: client,
+  );
   final receipt = CandidateReceipt(
     version: state.version,
     buildNumber: buildNumber,
@@ -273,26 +312,16 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     sourceSha: sourceSha,
     sourceFingerprint: fingerprint,
     ipaSha256: await fileSha256(ipaPath),
-    uploadedAt: DateTime.now().toUtc(),
+    uploadedAt: options.dependencies.currentTime().toUtc(),
     testflightGroups: config.ios.testflight.groups,
   );
-  await writeJson(receiptPath, receipt.toJson());
-  if (options.commitReceipt) {
-    try {
-      await _commitCandidateReceipt(
-        root,
-        receiptPath,
-        state.version,
-        options.github,
-      );
-    } on Object catch (error) {
-      throw ShipError(
-        'The TestFlight build is valid, but its candidate receipt could not be '
-            'committed. Do not merge the release PR until this is repaired.',
-        'CANDIDATE_RECEIPT_COMMIT',
-        cause: error,
-      );
-    }
-  }
+  await _recordCandidateReceipt(
+    root: root,
+    receiptPath: receiptPath,
+    receipt: receipt,
+    commitReceipt: options.commitReceipt,
+    github: options.github,
+    refreshed: false,
+  );
   return receipt;
 }

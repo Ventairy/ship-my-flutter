@@ -165,7 +165,12 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
 
   final changelog = await loadChangelog(root);
   final release = changelog.iosReleases[state.version];
-  invariant(release != null, 'Missing changelog for iOS ${state.version}');
+  if (release == null) {
+    throw ShipError(
+      'Missing changelog for iOS ${state.version}',
+      'MISSING_CHANGELOG',
+    );
+  }
   final tag = releaseTag(Platform.ios, state.version);
   final githubApi = options.githubApi ?? GitHubRestApi(context: options.github);
   final githubRelease =
@@ -174,7 +179,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
         tag: tag,
         targetCommitish: await currentSha(root),
         name: 'iOS v${state.version}',
-        body: releaseNotesMarkdown(Platform.ios, release!),
+        body: releaseNotesMarkdown(Platform.ios, release),
       );
   return PromotionResult(
     version: state.version,

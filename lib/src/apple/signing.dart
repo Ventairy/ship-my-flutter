@@ -47,7 +47,16 @@ final class SigningSession {
 Map<String, String> _parseProfileInput(String value, String bundleId) {
   final trimmed = value.trim();
   if (!trimmed.startsWith('{')) return <String, String>{bundleId: trimmed};
-  final decoded = jsonDecode(trimmed);
+  Object? decoded;
+  try {
+    decoded = jsonDecode(trimmed);
+  } on FormatException catch (error) {
+    throw ShipError(
+      'Provisioning profiles JSON is malformed.',
+      'INVALID_PROFILE',
+      cause: error,
+    );
+  }
   if (decoded is! Map<Object?, Object?>) {
     throw const ShipError(
       'Provisioning profiles JSON must be an object.',
@@ -56,14 +65,15 @@ Map<String, String> _parseProfileInput(String value, String bundleId) {
   }
   final result = <String, String>{};
   for (final entry in decoded.entries) {
-    invariant(
-      entry.key is String &&
-          entry.value is String &&
-          (entry.value! as String).isNotEmpty,
-      'Every provisioning profile must be a Base64 string.',
-      'INVALID_PROFILE',
-    );
-    result[entry.key! as String] = entry.value! as String;
+    final key = entry.key;
+    final encodedProfile = entry.value;
+    if (key is! String || encodedProfile is! String || encodedProfile.isEmpty) {
+      throw const ShipError(
+        'Every provisioning profile must be a Base64 string.',
+        'INVALID_PROFILE',
+      );
+    }
+    result[key] = encodedProfile;
   }
   return result;
 }
@@ -78,7 +88,16 @@ Future<Map<String, Object?>> _decodeProfile(
     '-i',
     filePath,
   ]);
-  final document = XmlDocument.parse(decoded.stdout);
+  late final XmlDocument document;
+  try {
+    document = XmlDocument.parse(decoded.stdout);
+  } on XmlException catch (error) {
+    throw ShipError(
+      'The provisioning profile did not decode to valid XML.',
+      'INVALID_PROFILE',
+      cause: error,
+    );
+  }
   final root = document.rootElement;
   final valueElement = root.name.local == 'plist'
       ? root.childElements.firstOrNull
@@ -91,6 +110,14 @@ Future<Map<String, Object?>> _decodeProfile(
     );
   }
   return value;
+}
+
+List<int> _decodeBase64(String value, String label, String code) {
+  try {
+    return base64Decode(value);
+  } on FormatException catch (error) {
+    throw ShipError('$label is not valid Base64.', code, cause: error);
+  }
 }
 
 Object? _parsePlist(XmlElement element) => switch (element.name.local) {
@@ -161,6 +188,7 @@ Future<SigningSession> installSigningAssets(
   final installedPaths = <String>[];
   List<String>? previousKeychains;
   var keychainCreated = false;
+  var installationCompleted = false;
 
   Future<void> cleanup() async {
     for (final installedPath in installedPaths) {
@@ -190,9 +218,13 @@ Future<SigningSession> installSigningAssets(
   }
 
   try {
-    await File(
-      certificatePath,
-    ).writeAsBytes(base64Decode(credentials.certificateBase64));
+    await File(certificatePath).writeAsBytes(
+      _decodeBase64(
+        credentials.certificateBase64,
+        'The iOS distribution certificate',
+        'INVALID_CERTIFICATE',
+      ),
+    );
     await processRunner.run('/bin/chmod', <String>['600', certificatePath]);
     keychainCreated = true;
     await processRunner.run('security', <String>[
@@ -264,7 +296,13 @@ Future<SigningSession> installSigningAssets(
         temporaryDirectory.path,
         '${_randomToken(16)}.mobileprovision',
       );
-      await File(sourcePath).writeAsBytes(base64Decode(entry.value));
+      await File(sourcePath).writeAsBytes(
+        _decodeBase64(
+          entry.value,
+          'Provisioning profile for ${entry.key}',
+          'INVALID_PROFILE',
+        ),
+      );
       await processRunner.run('/bin/chmod', <String>['600', sourcePath]);
       final profile = await _decodeProfile(sourcePath, processRunner);
       final entitlements = profile['Entitlements'];
@@ -294,6 +332,11 @@ Future<SigningSession> installSigningAssets(
           'INVALID_PROFILE',
         );
       }
+      invariant(
+        RegExp(r'^[A-Za-z0-9-]+$').hasMatch(uuid),
+        'Provisioning profile "$profileName" has an invalid UUID.',
+        'INVALID_PROFILE',
+      );
       invariant(
         actualBundleId == entry.key,
         'Provisioning profile "$profileName" is for $actualBundleId, not '
@@ -340,16 +383,19 @@ Future<SigningSession> installSigningAssets(
       'ExportOptions.plist',
     );
     await File(exportOptionsPath).writeAsString(_exportOptionsPlist(profiles));
-    return SigningSession(
+    final session = SigningSession(
       keychainPath: keychainPath,
       keychainPassword: keychainPassword,
       profiles: List<InstalledProfile>.unmodifiable(profiles),
       exportOptionsPath: exportOptionsPath,
       cleanup: cleanup,
     );
-  } on Object {
-    await cleanup();
-    rethrow;
+    installationCompleted = true;
+    return session;
+  } finally {
+    if (!installationCompleted) {
+      await cleanup();
+    }
   }
 }
 

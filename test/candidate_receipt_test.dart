@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
 import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
@@ -21,6 +24,24 @@ Map<String, Object?> receipt() => <String, Object?>{
 };
 
 void main() {
+  test('maps malformed JSON to a typed candidate receipt failure', () async {
+    final directory = await Directory.systemTemp.createTemp('smf-receipt-');
+    addTearDown(() => directory.delete(recursive: true));
+    final path = p.join(directory.path, 'candidate.json');
+    await File(path).writeAsString('{not-json');
+
+    await expectLater(
+      loadCandidateReceipt(path),
+      throwsA(
+        isA<ShipError>().having(
+          (ShipError error) => error.code,
+          'code',
+          'INVALID_CANDIDATE_RECEIPT',
+        ),
+      ),
+    );
+  });
+
   group('candidate receipts', () {
     test('accepts the complete immutable receipt contract', () {
       final parsed = validateCandidateReceipt(receipt());

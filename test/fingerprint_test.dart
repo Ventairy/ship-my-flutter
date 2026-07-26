@@ -75,5 +75,77 @@ void main() {
       ).writeAsString('void main() => run();\n');
       expect(await sourceFingerprint(root.path), isNot(before));
     });
+
+    test('rejects tracked symlinks to hidden build inputs', () async {
+      final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
+      final outside = await Directory.systemTemp.createTemp(
+        'smf-fingerprint-outside-',
+      );
+      addTearDown(() async {
+        await root.delete(recursive: true);
+        await outside.delete(recursive: true);
+      });
+      await git(root.path, const <String>['init', '-b', 'main']);
+      final externalTarget = p.join(outside.path, 'external.dart');
+      await File(externalTarget).writeAsString('external\n');
+      await Link(p.join(root.path, 'external.dart')).create(externalTarget);
+      await git(root.path, const <String>['add', 'external.dart']);
+
+      await expectLater(
+        sourceFingerprint(root.path),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'SOURCE_SYMLINK_ESCAPE',
+          ),
+        ),
+      );
+
+      await Link(p.join(root.path, 'external.dart')).delete();
+      final ignoredTarget = p.join(root.path, 'generated.dart');
+      await File(ignoredTarget).writeAsString('ignored\n');
+      await File(
+        p.join(root.path, '.gitignore'),
+      ).writeAsString('generated.dart\n');
+      await Link(p.join(root.path, 'external.dart')).create('generated.dart');
+      await git(root.path, const <String>[
+        'add',
+        '.gitignore',
+        'external.dart',
+      ]);
+
+      await expectLater(
+        sourceFingerprint(root.path),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'SOURCE_SYMLINK_UNTRACKED',
+          ),
+        ),
+      );
+    });
+
+    test('accepts a tracked symlink to another tracked file', () async {
+      final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
+      addTearDown(() => root.delete(recursive: true));
+      await git(root.path, const <String>['init', '-b', 'main']);
+      await File(p.join(root.path, 'target.dart')).writeAsString('tracked\n');
+      await Link(p.join(root.path, 'link.dart')).create('target.dart');
+      await git(root.path, const <String>['add', 'target.dart', 'link.dart']);
+
+      expect(await sourceFingerprint(root.path), matches(r'^[a-f0-9]{64}$'));
+    });
+
+    test('preserves leading whitespace in tracked file names', () async {
+      final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
+      addTearDown(() => root.delete(recursive: true));
+      await git(root.path, const <String>['init', '-b', 'main']);
+      await File(p.join(root.path, ' leading.dart')).writeAsString('tracked\n');
+      await git(root.path, const <String>['add', ' leading.dart']);
+
+      expect(await sourceFingerprint(root.path), matches(r'^[a-f0-9]{64}$'));
+    });
   });
 }

@@ -36,6 +36,10 @@ String releaseNotesMarkdown(Platform platform, ChangelogRelease release) {
 
 String releasePullRequestBody(Platform platform, ChangelogRelease release) {
   final notes = releaseNotesMarkdown(platform, release);
+  const deliveryMessage =
+      'Merging this PR promotes the exact committed TestFlight candidate. If '
+      'build inputs change after the candidate is uploaded, ship-my-flutter '
+      'refuses promotion until a new candidate is produced.';
   return <String>[
     '<!-- ship-my-flutter:release-pr -->',
     notes.trim(),
@@ -46,6 +50,6 @@ String releasePullRequestBody(Platform platform, ChangelogRelease release) {
     '- [ ] The candidate has been tested',
     '- [ ] Store release notes have been reviewed',
     '',
-    'Merging this PR promotes the exact committed TestFlight candidate. If build inputs change after the candidate is uploaded, ship-my-flutter refuses promotion until a new candidate is produced.',
+    deliveryMessage,
   ].join('\n');
 }

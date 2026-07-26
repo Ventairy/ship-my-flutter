@@ -12,6 +12,7 @@ ship-my-flutter handles high-value signing material. Its defaults are intentiona
 - Installed profiles created by the action, private API key, keychain, and temporary directory are removed in `finally` cleanup. A matching profile that existed before the action is retained.
 - Child-process failures omit command arguments so passwords cannot be copied into error messages. The action never intentionally logs secret values.
 - Generated checkouts do not persist a Git credential. The action supplies its token only to the individual Git fetch or push that needs it.
+- Release hooks must resolve inside the repository and be tracked by Git.
 
 GitHub should restrict release environments, secret access, and workflow modification to trusted maintainers. Do not run the candidate phase for untrusted fork code with secrets.
 Prefer a dedicated ephemeral macOS runner when using self-hosted infrastructure.
@@ -71,7 +72,9 @@ The candidate receipt records:
 - assigned TestFlight groups.
 
 The fingerprint covers files tracked by Git. Ignored and untracked files are
-outside this integrity boundary and must not be required build inputs.
+outside this integrity boundary and must not be required build inputs. A
+tracked symlink is accepted only when it resolves inside the repository to
+another tracked file; external and hidden targets are rejected.
 
 Promotion recomputes the fingerprint, resolves the current bundle identifier,
 looks up its App Store Connect app, and verifies that the recorded build belongs

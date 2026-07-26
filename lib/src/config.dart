@@ -21,6 +21,31 @@ const Set<String> _managedFlutterBuildArguments = <String>{
   '--no-pub',
 };
 
+const Set<String> _rootConfigFields = <String>{
+  'schemaVersion',
+  'targetBranch',
+  'releaseBranchPrefix',
+  'hooks',
+  'platforms',
+};
+const Set<String> _hookFields = <String>{'beforeReleasePr'};
+const Set<String> _platformFields = <String>{'ios'};
+const Set<String> _iosFields = <String>{
+  'enabled',
+  'projectPath',
+  'bundleId',
+  'scheme',
+  'buildArgs',
+  'testflight',
+  'appStore',
+};
+const Set<String> _testflightFields = <String>{'groups', 'waitTimeoutMinutes'};
+const Set<String> _appStoreFields = <String>{
+  'mode',
+  'releaseType',
+  'earliestReleaseDate',
+};
+
 Future<ShipConfig> loadConfig([String? root]) async {
   final paths = resolveShipPaths(root);
   try {
@@ -86,144 +111,28 @@ ShipConfig validateConfig(Object? value, {String source = 'configuration'}) {
   try {
     final root = _objectMap(value, source);
     _schemaVersion(root, source);
+    _rejectUnknownFields(root, _rootConfigFields, source);
     final hooks = _objectMap(
       root['hooks'] ?? const <String, Object?>{},
       'hooks',
     );
+    _rejectUnknownFields(hooks, _hookFields, 'hooks');
     final platforms = _objectMap(root['platforms'], 'platforms');
+    _rejectUnknownFields(platforms, _platformFields, 'platforms');
     final ios = _objectMap(platforms['ios'], 'platforms.ios');
-    final testflight = _objectMap(
-      ios['testflight'] ?? const <String, Object?>{},
-      'platforms.ios.testflight',
-    );
-    final appStore = _objectMap(
-      ios['appStore'] ?? const <String, Object?>{},
-      'platforms.ios.appStore',
-    );
-
-    final targetBranch = _nonEmptyString(
-      root['targetBranch'] ?? 'main',
-      'targetBranch',
-    );
-    final releaseBranchPrefix = _nonEmptyString(
-      root['releaseBranchPrefix'] ?? 'ship-my-flutter',
-      'releaseBranchPrefix',
-    );
-    final beforeReleasePr = _optionalString(
-      hooks['beforeReleasePr'],
-      'hooks.beforeReleasePr',
-    );
-    if (beforeReleasePr != null) {
-      _relativePath(beforeReleasePr, 'hooks.beforeReleasePr');
-    }
-
-    final projectPath = _nonEmptyString(
-      ios['projectPath'] ?? '.',
-      'platforms.ios.projectPath',
-    );
-    _relativePath(projectPath, 'platforms.ios.projectPath');
-    final buildArgs = _stringList(
-      ios['buildArgs'] ?? const <Object?>[],
-      'platforms.ios.buildArgs',
-    );
-    for (final argument in buildArgs) {
-      if (_managedFlutterBuildArguments.any(
-        (String managed) =>
-            argument == managed || argument.startsWith('$managed='),
-      )) {
-        _fail(
-          'platforms.ios.buildArgs: This flag is managed by '
-          'ship-my-flutter and cannot be set in buildArgs',
-        );
-      }
-    }
-
-    final groups = _stringList(
-      testflight['groups'] ?? const <Object?>[],
-      'platforms.ios.testflight.groups',
-      nonEmpty: true,
-    );
-    final waitTimeoutMinutes = _integer(
-      testflight['waitTimeoutMinutes'] ?? 45,
-      'platforms.ios.testflight.waitTimeoutMinutes',
-    );
-    if (waitTimeoutMinutes < 5 || waitTimeoutMinutes > 180) {
-      _fail(
-        'platforms.ios.testflight.waitTimeoutMinutes must be between 5 and 180',
-      );
-    }
-
-    final releaseMode = switch (_nonEmptyString(
-      appStore['mode'] ?? 'upload-only',
-      'platforms.ios.appStore.mode',
-    )) {
-      'submit-for-review' => ReleaseMode.submitForReview,
-      'upload-only' => ReleaseMode.uploadOnly,
-      final String invalid => _fail(
-        'platforms.ios.appStore.mode must be submit-for-review or upload-only, '
-        'not "$invalid"',
-      ),
-    };
-    final releaseType = switch (_nonEmptyString(
-      appStore['releaseType'] ?? 'manual',
-      'platforms.ios.appStore.releaseType',
-    )) {
-      'manual' => StoreReleaseType.manual,
-      'automatic' => StoreReleaseType.automatic,
-      'scheduled' => StoreReleaseType.scheduled,
-      final String invalid => _fail(
-        'platforms.ios.appStore.releaseType must be manual, automatic, or '
-        'scheduled, not "$invalid"',
-      ),
-    };
-    final earliestValue = _optionalString(
-      appStore['earliestReleaseDate'],
-      'platforms.ios.appStore.earliestReleaseDate',
-    );
-    final earliestReleaseDate = earliestValue == null
-        ? null
-        : _dateTime(
-            earliestValue,
-            'platforms.ios.appStore.earliestReleaseDate',
-          );
-    if (releaseType == StoreReleaseType.scheduled &&
-        earliestReleaseDate == null) {
-      _fail(
-        'platforms.ios.appStore.earliestReleaseDate is required when '
-        'releaseType is scheduled',
-      );
-    }
-    if (releaseType != StoreReleaseType.scheduled &&
-        earliestReleaseDate != null) {
-      _fail(
-        'platforms.ios.appStore.earliestReleaseDate is only valid when '
-        'releaseType is scheduled',
-      );
-    }
+    _rejectUnknownFields(ios, _iosFields, 'platforms.ios');
 
     return ShipConfig(
-      targetBranch: targetBranch,
-      releaseBranchPrefix: releaseBranchPrefix,
-      hooks: HooksConfig(beforeReleasePr: beforeReleasePr),
-      ios: IosConfig(
-        enabled: _boolean(ios['enabled'] ?? true, 'platforms.ios.enabled'),
-        projectPath: projectPath,
-        bundleId: _optionalNonEmptyString(
-          ios['bundleId'],
-          'platforms.ios.bundleId',
-        ),
-        scheme: _optionalNonEmptyString(ios['scheme'], 'platforms.ios.scheme'),
-        buildArgs: List<String>.unmodifiable(buildArgs),
-        testflight: TestflightConfig(
-          groups: List<String>.unmodifiable(groups),
-          waitTimeoutMinutes: waitTimeoutMinutes,
-        ),
-        appStore: AppStoreConfig(
-          mode: releaseMode,
-          releaseType: releaseType,
-          earliestReleaseDate: earliestReleaseDate,
-        ),
+      targetBranch: _nonEmptyString(
+        root['targetBranch'] ?? 'main',
+        'targetBranch',
       ),
+      releaseBranchPrefix: _nonEmptyString(
+        root['releaseBranchPrefix'] ?? 'ship-my-flutter',
+        'releaseBranchPrefix',
+      ),
+      hooks: _parseHooks(hooks),
+      ios: _parseIosConfig(ios),
     );
   } on ShipError {
     rethrow;
@@ -232,6 +141,152 @@ ShipConfig validateConfig(Object? value, {String source = 'configuration'}) {
       '$source is invalid:\n${error.message}',
       'INVALID_CONFIG',
       cause: error,
+    );
+  }
+}
+
+HooksConfig _parseHooks(Map<String, Object?> hooks) {
+  final beforeReleasePr = _optionalString(
+    hooks['beforeReleasePr'],
+    'hooks.beforeReleasePr',
+  );
+  if (beforeReleasePr != null) {
+    _relativePath(beforeReleasePr, 'hooks.beforeReleasePr');
+  }
+  return HooksConfig(beforeReleasePr: beforeReleasePr);
+}
+
+IosConfig _parseIosConfig(Map<String, Object?> ios) {
+  final projectPath = _nonEmptyString(
+    ios['projectPath'] ?? '.',
+    'platforms.ios.projectPath',
+  );
+  _relativePath(projectPath, 'platforms.ios.projectPath');
+  final buildArgs = _stringList(
+    ios['buildArgs'] ?? const <Object?>[],
+    'platforms.ios.buildArgs',
+  );
+  _validateBuildArguments(buildArgs);
+
+  final testflight = _objectMap(
+    ios['testflight'] ?? const <String, Object?>{},
+    'platforms.ios.testflight',
+  );
+  _rejectUnknownFields(
+    testflight,
+    _testflightFields,
+    'platforms.ios.testflight',
+  );
+  final appStore = _objectMap(
+    ios['appStore'] ?? const <String, Object?>{},
+    'platforms.ios.appStore',
+  );
+  _rejectUnknownFields(appStore, _appStoreFields, 'platforms.ios.appStore');
+
+  return IosConfig(
+    enabled: _boolean(ios['enabled'] ?? true, 'platforms.ios.enabled'),
+    projectPath: projectPath,
+    bundleId: _optionalNonEmptyString(
+      ios['bundleId'],
+      'platforms.ios.bundleId',
+    ),
+    scheme: _optionalNonEmptyString(ios['scheme'], 'platforms.ios.scheme'),
+    buildArgs: List<String>.unmodifiable(buildArgs),
+    testflight: _parseTestflightConfig(testflight),
+    appStore: _parseAppStoreConfig(appStore),
+  );
+}
+
+void _validateBuildArguments(List<String> buildArgs) {
+  for (final argument in buildArgs) {
+    final managed = _managedFlutterBuildArguments.any(
+      (String name) => argument == name || argument.startsWith('$name='),
+    );
+    if (managed) {
+      _fail(
+        'platforms.ios.buildArgs: This flag is managed by ship-my-flutter '
+        'and cannot be set in buildArgs',
+      );
+    }
+  }
+}
+
+TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
+  final groups = _stringList(
+    testflight['groups'] ?? const <Object?>[],
+    'platforms.ios.testflight.groups',
+    nonEmpty: true,
+  );
+  final waitTimeoutMinutes = _integer(
+    testflight['waitTimeoutMinutes'] ?? 45,
+    'platforms.ios.testflight.waitTimeoutMinutes',
+  );
+  if (waitTimeoutMinutes < 5 || waitTimeoutMinutes > 180) {
+    _fail(
+      'platforms.ios.testflight.waitTimeoutMinutes must be between 5 and 180',
+    );
+  }
+  return TestflightConfig(
+    groups: List<String>.unmodifiable(groups),
+    waitTimeoutMinutes: waitTimeoutMinutes,
+  );
+}
+
+AppStoreConfig _parseAppStoreConfig(Map<String, Object?> appStore) {
+  final releaseMode = switch (_nonEmptyString(
+    appStore['mode'] ?? 'upload-only',
+    'platforms.ios.appStore.mode',
+  )) {
+    'submit-for-review' => ReleaseMode.submitForReview,
+    'upload-only' => ReleaseMode.uploadOnly,
+    final String invalid => _fail(
+      'platforms.ios.appStore.mode must be submit-for-review or upload-only, '
+      'not "$invalid"',
+    ),
+  };
+  final releaseType = switch (_nonEmptyString(
+    appStore['releaseType'] ?? 'manual',
+    'platforms.ios.appStore.releaseType',
+  )) {
+    'manual' => StoreReleaseType.manual,
+    'automatic' => StoreReleaseType.automatic,
+    'scheduled' => StoreReleaseType.scheduled,
+    final String invalid => _fail(
+      'platforms.ios.appStore.releaseType must be manual, automatic, or '
+      'scheduled, not "$invalid"',
+    ),
+  };
+  final earliestValue = _optionalString(
+    appStore['earliestReleaseDate'],
+    'platforms.ios.appStore.earliestReleaseDate',
+  );
+  final earliestReleaseDate = earliestValue == null
+      ? null
+      : _dateTime(earliestValue, 'platforms.ios.appStore.earliestReleaseDate');
+  _validateReleaseDate(releaseType, earliestReleaseDate);
+  return AppStoreConfig(
+    mode: releaseMode,
+    releaseType: releaseType,
+    earliestReleaseDate: earliestReleaseDate,
+  );
+}
+
+void _validateReleaseDate(
+  StoreReleaseType releaseType,
+  DateTime? earliestReleaseDate,
+) {
+  if (releaseType == StoreReleaseType.scheduled &&
+      earliestReleaseDate == null) {
+    _fail(
+      'platforms.ios.appStore.earliestReleaseDate is required when '
+      'releaseType is scheduled',
+    );
+  }
+  if (releaseType != StoreReleaseType.scheduled &&
+      earliestReleaseDate != null) {
+    _fail(
+      'platforms.ios.appStore.earliestReleaseDate is only valid when '
+      'releaseType is scheduled',
     );
   }
 }
@@ -408,12 +463,25 @@ Map<String, Object?> _objectMap(Object? value, String path) {
   }
   final result = <String, Object?>{};
   for (final entry in value.entries) {
-    if (entry.key is! String) {
+    final key = entry.key;
+    if (key is! String) {
       _fail('$path keys must be strings');
     }
-    result[entry.key! as String] = entry.value;
+    result[key] = entry.value;
   }
   return result;
+}
+
+void _rejectUnknownFields(
+  Map<String, Object?> value,
+  Set<String> allowed,
+  String path,
+) {
+  for (final field in value.keys) {
+    if (!allowed.contains(field)) {
+      _fail('$path contains unknown field "$field"');
+    }
+  }
 }
 
 String _nonEmptyString(Object? value, String path) {

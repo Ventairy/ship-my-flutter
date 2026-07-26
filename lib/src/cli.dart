@@ -9,6 +9,7 @@ import 'apple/credentials.dart';
 import 'apple/promote.dart';
 import 'config.dart';
 import 'error.dart';
+import 'github_api.dart';
 import 'init.dart';
 import 'model.dart';
 import 'orchestrator.dart';
@@ -166,29 +167,33 @@ Future<GitHubContext?> _optionalGitHub(ArgResults command, CliIo io) async {
   final token = await _token(command, io);
   final repository = _repository(command, io);
   if (token == null && repository == null) return null;
-  invariant(
-    token != null,
-    'A GitHub token is required. Set SHIP_MY_FLUTTER_GITHUB_TOKEN or '
-        'GITHUB_TOKEN.',
-    'GITHUB_TOKEN_REQUIRED',
-  );
-  invariant(
-    repository != null && RegExp(r'^[^/\s]+/[^/\s]+$').hasMatch(repository),
-    'A GitHub repository in owner/name form is required.',
-    'GITHUB_REPOSITORY_REQUIRED',
-  );
-  final parts = repository!.split('/');
-  return GitHubContext(owner: parts[0], repo: parts[1], token: token!);
+  if (token == null) {
+    throw const ShipError(
+      'A GitHub token is required. Set SHIP_MY_FLUTTER_GITHUB_TOKEN or '
+          'GITHUB_TOKEN.',
+      'GITHUB_TOKEN_REQUIRED',
+    );
+  }
+  if (repository == null ||
+      !RegExp(r'^[^/\s]+/[^/\s]+$').hasMatch(repository)) {
+    throw const ShipError(
+      'A GitHub repository in owner/name form is required.',
+      'GITHUB_REPOSITORY_REQUIRED',
+    );
+  }
+  final parts = repository.split('/');
+  return GitHubContext(owner: parts[0], repo: parts[1], token: token);
 }
 
 Future<GitHubContext> _requiredGitHub(ArgResults command, CliIo io) async {
   final context = await _optionalGitHub(command, io);
-  invariant(
-    context != null,
-    'GitHub credentials are required for this command.',
-    'GITHUB_CREDENTIALS_REQUIRED',
-  );
-  return context!;
+  if (context == null) {
+    throw const ShipError(
+      'GitHub credentials are required for this command.',
+      'GITHUB_CREDENTIALS_REQUIRED',
+    );
+  }
+  return context;
 }
 
 void _printJson(CliIo io, Object? value) {
@@ -320,6 +325,12 @@ Future<int> runShipMyFlutterCli(List<String> arguments, {CliIo? io}) async {
     return 64;
   } on ShipError catch (error) {
     resolvedIo.writeError('ship-my-flutter [${error.code}]: ${error.message}');
+    return 1;
+  } on GitHubApiException catch (error) {
+    resolvedIo.writeError(
+      'ship-my-flutter [GITHUB_API]: GitHub ${error.method} ${error.path} '
+      'failed (${error.statusCode}).',
+    );
     return 1;
   } on dart_io.FileSystemException catch (error) {
     resolvedIo.writeError('ship-my-flutter [FILESYSTEM]: ${error.message}');

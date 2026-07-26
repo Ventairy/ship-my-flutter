@@ -158,6 +158,67 @@ void main() {
     },
   );
 
+  test('maps malformed signing inputs to typed failures', () async {
+    final root = await Directory.systemTemp.createTemp('smf-signing-invalid-');
+    addTearDown(() => root.delete(recursive: true));
+    final temporaryRoot = await Directory(
+      p.join(root.path, 'temporary'),
+    ).create();
+    final home = await Directory(p.join(root.path, 'home')).create();
+    final runner = RecordingProcessRunner(
+      handler: (ProcessInvocation invocation) async {
+        if (invocation.executable == 'security' &&
+            invocation.arguments.first == 'list-keychains') {
+          return const RunResult(stdout: '', stderr: '', exitCode: 0);
+        }
+        return const RunResult(stdout: '', stderr: '', exitCode: 0);
+      },
+    );
+
+    await expectLater(
+      installSigningAssets(
+        const SigningCredentials(
+          certificateBase64: 'not-base64',
+          certificatePassword: 'password',
+          provisioningProfiles: 'unused',
+        ),
+        'dev.example.app',
+        processRunner: runner,
+        isMacOS: true,
+        homeDirectory: home.path,
+        temporaryRoot: temporaryRoot,
+      ),
+      throwsA(
+        isA<ShipError>().having(
+          (ShipError error) => error.code,
+          'code',
+          'INVALID_CERTIFICATE',
+        ),
+      ),
+    );
+    await expectLater(
+      installSigningAssets(
+        SigningCredentials(
+          certificateBase64: base64Encode(const <int>[1, 2, 3]),
+          certificatePassword: 'password',
+          provisioningProfiles: '{not-json',
+        ),
+        'dev.example.app',
+        processRunner: runner,
+        isMacOS: true,
+        homeDirectory: home.path,
+        temporaryRoot: temporaryRoot,
+      ),
+      throwsA(
+        isA<ShipError>().having(
+          (ShipError error) => error.code,
+          'code',
+          'INVALID_PROFILE',
+        ),
+      ),
+    );
+  });
+
   test(
     'uploads with a temporary App Store Connect key and removes it',
     () async {
@@ -195,6 +256,36 @@ void main() {
           '--apiIssuer',
           'issuer',
         ]),
+      );
+    },
+  );
+
+  test(
+    'rejects an App Store Connect key ID that could escape its directory',
+    () async {
+      final root = await Directory.systemTemp.createTemp('smf-upload-key-');
+      addTearDown(() => root.delete(recursive: true));
+      final ipa = p.join(root.path, 'example.ipa');
+      await File(ipa).writeAsBytes(const <int>[1, 2, 3]);
+
+      await expectLater(
+        uploadIpa(
+          ipa,
+          const AppleCredentials(
+            keyId: '../../outside',
+            issuerId: 'issuer',
+            privateKey: 'private-key',
+          ),
+          processRunner: RecordingProcessRunner(),
+          homeDirectory: root.path,
+        ),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'INVALID_CREDENTIAL',
+          ),
+        ),
       );
     },
   );

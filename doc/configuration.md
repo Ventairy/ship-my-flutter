@@ -81,3 +81,7 @@ buildArgs:
 ```
 
 The config file is part of the source fingerprint when tracked by Git, so changing it invalidates the candidate.
+
+Configuration fields are strict. Unknown keys are rejected at runtime as well
+as by the editor schema, preventing misspelled settings from being silently
+ignored.

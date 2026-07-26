@@ -7,6 +7,35 @@ import 'package:test/test.dart';
 
 void main() {
   test(
+    'GitHub REST client maps transport failures to a typed failure',
+    () async {
+      final api = GitHubRestApi(
+        context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
+        client: MockClient(
+          (http.Request request) async =>
+              throw http.ClientException('connection failed', request.url),
+        ),
+      );
+
+      await expectLater(
+        api.listPullRequests(
+          state: 'open',
+          head: 'o:ship-my-flutter/ios',
+          base: 'main',
+          perPage: 1,
+        ),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'GITHUB_API',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
     'GitHub REST client sends native API requests and maps resources',
     () async {
       final requests = <http.Request>[];
@@ -90,6 +119,29 @@ void main() {
               'path',
               contains('/labels/pending'),
             ),
+      ),
+    );
+  });
+
+  test('GitHub REST client maps malformed JSON to a typed failure', () async {
+    final api = GitHubRestApi(
+      context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
+      client: MockClient((_) async => http.Response('{not-json', 200)),
+    );
+
+    await expectLater(
+      api.listPullRequests(
+        state: 'open',
+        head: 'o:ship-my-flutter/ios',
+        base: 'main',
+        perPage: 1,
+      ),
+      throwsA(
+        isA<ShipError>().having(
+          (ShipError error) => error.code,
+          'code',
+          'GITHUB_RESPONSE',
+        ),
       ),
     );
   });
