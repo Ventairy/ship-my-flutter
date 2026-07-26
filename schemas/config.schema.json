@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json",
+  "title": "ship-my-flutter configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "targetBranch",
+    "releaseBranchPrefix",
+    "hooks",
+    "platforms"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "targetBranch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "releaseBranchPrefix": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "beforeReleasePr": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ios"],
+      "properties": {
+        "ios": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "projectPath",
+            "buildArgs",
+            "testflight",
+            "appStore"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "projectPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bundleId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scheme": {
+              "type": "string",
+              "minLength": 1
+            },
+            "buildArgs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "not": {
+                  "pattern": "^--(build-name|build-number|export-options-plist|release|debug|profile|flavor|pub|no-pub)(=|$)"
+                }
+              }
+            },
+            "testflight": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["groups", "waitTimeoutMinutes"],
+              "properties": {
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "waitTimeoutMinutes": {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 180
+                }
+              }
+            },
+            "appStore": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode", "releaseType"],
+              "properties": {
+                "mode": {
+                  "enum": ["submit-for-review", "upload-only"]
+                },
+                "releaseType": {
+                  "enum": ["manual", "automatic", "scheduled"]
+                },
+                "earliestReleaseDate": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "releaseType": {
+                        "const": "scheduled"
+                      }
+                    },
+                    "required": ["releaseType"]
+                  },
+                  "then": {
+                    "required": ["earliestReleaseDate"]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "releaseType": {
+                        "not": {
+                          "const": "scheduled"
+                        }
+                      }
+                    },
+                    "required": ["releaseType"]
+                  },
+                  "then": {
+                    "not": {
+                      "required": ["earliestReleaseDate"]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
