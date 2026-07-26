@@ -165,9 +165,10 @@ whether the SDK or existing dependency set can solve the problem clearly. If a
 new dependency is justified, document why its maintenance, supply-chain, and
 SDK costs are acceptable.
 
-The exact `test` pin protects the declared Dart 3.10 floor. Do not widen or
-upgrade it without verifying both newest and downgraded resolutions on Dart
-3.10.
+The exact `test` pin and direct `frontend_server_client` development constraint
+protect the declared Dart 3.10 floor and keep downgraded test tooling compatible
+with the SDK layout. Do not change either without verifying both newest and
+downgraded resolutions on Dart 3.10.
 
 ---
 
