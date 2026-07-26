@@ -3,12 +3,12 @@
 Release PRs, TestFlight candidates, and App Store submission for Flutter apps.
 
 > [!WARNING]
-> This project is in pre-release validation. The `ship-my-flutter` npm package
+> This project is in pre-release validation. The `ship_my_flutter` Dart package
 > is not published yet, and the companion action does not have a `v1` tag.
 > Follow [core issue #1](https://github.com/Ventairy/ship-my-flutter/issues/1)
 > and [action issue #1](https://github.com/Ventairy/ship-my-flutter-action/issues/1)
 > for the live Apple acceptance and first publication gates. The quick start
-> below describes the post-publication interface; do not assume `npx` or `@v1`
+> below describes the post-publication interface; do not assume pub.dev or `@v1`
 > is available before those issues are complete. Non-Apple release planning is
 > exercised publicly in
 > [`Ventairy/ship-my-flutter-e2e`](https://github.com/Ventairy/ship-my-flutter-e2e).
@@ -45,7 +45,8 @@ Unknown scopes such as `auth` are feature scopes, not platform scopes, so they a
 Run this from the Flutter project root:
 
 ```bash
-npx ship-my-flutter init \
+dart pub add --dev ship_my_flutter
+dart run ship_my_flutter init \
   --current-version 1.0.0 \
   --bundle-id com.example.myapp
 ```
@@ -63,6 +64,59 @@ This creates:
 ```
 
 Commit those files before merging new release-worthy work. The initializer records the current commit as the release baseline, so existing repository history is not released accidentally.
+
+### CLI and Dart API
+
+The package offers one discoverable CLI with subcommands:
+
+```bash
+dart run ship_my_flutter --help
+dart run ship_my_flutter validate
+dart run ship_my_flutter plan
+dart run ship_my_flutter open-pr
+dart run ship_my_flutter testflight
+dart run ship_my_flutter app-store
+```
+
+Success writes one JSON value to stdout, so the same commands compose cleanly
+inside custom GitHub workflows. Diagnostics go to stderr. `release` aliases
+`open-pr`, `candidate` aliases `testflight`, and `promote` aliases `app-store`.
+
+Package-qualified executables are also available when a single-purpose command
+fits better:
+
+```bash
+dart run ship_my_flutter:init
+dart run ship_my_flutter:open_pr
+dart run ship_my_flutter:release
+dart run ship_my_flutter:testflight
+dart run ship_my_flutter:promote
+dart run ship_my_flutter:app_store
+```
+
+For use outside a project, activate the package globally:
+
+```bash
+dart pub global activate ship_my_flutter
+ship-my-flutter validate
+```
+
+Custom Dart automation imports the same implementation used by the Action:
+
+```dart
+import 'package:ship_my_flutter/ship_my_flutter.dart';
+
+Future<void> main() async {
+  const root = '.';
+  await validateRepository(root);
+  final manifest = await loadManifest(root);
+  final plan = await createReleasePlan(root, manifest, Platform.ios);
+  print(plan?.toJson());
+}
+```
+
+See [`example/custom_workflow.dart`](example/custom_workflow.dart) for a
+complete JSON-emitting example.
 
 ### 2. Allow the workflow to open release PRs
 
@@ -114,7 +168,36 @@ For an app with extensions, set `IOS_PROVISIONING_PROFILES_BASE64` to a JSON obj
 }
 ```
 
-See [Apple bootstrap](docs/apple-bootstrap.md) for the one-time App Store Connect setup and required roles.
+See [Apple bootstrap](doc/apple-bootstrap.md) for the one-time App Store Connect setup and required roles.
+
+### CLI credential environment
+
+The CLI reads secrets from environment variables so they never need to appear
+in command history or process arguments:
+
+| Variable                                                         | Used by                  |
+| ---------------------------------------------------------------- | ------------------------ |
+| `SHIP_MY_FLUTTER_GITHUB_TOKEN` or `GITHUB_TOKEN`                  | `open-pr`, `release`, promotion |
+| `GITHUB_REPOSITORY`                                              | GitHub commands; `owner/name` |
+| `SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID`                       | TestFlight and App Store |
+| `SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID`                    | TestFlight and App Store |
+| `SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64`           | TestFlight and App Store |
+| `SHIP_MY_FLUTTER_IOS_CERTIFICATE_BASE64`                         | TestFlight candidate     |
+| `SHIP_MY_FLUTTER_IOS_CERTIFICATE_PASSWORD`                       | TestFlight candidate     |
+| `SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_BASE64`               | TestFlight candidate     |
+
+For local files, replace the private key, certificate, or profile Base64
+variable with its `_PATH` form:
+
+```text
+SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH
+SHIP_MY_FLUTTER_IOS_CERTIFICATE_PATH
+SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_PATH
+```
+
+Set exactly one source for each credential. The certificate password remains
+an environment secret. GitHub automation can alternatively use
+`--github-token-file`; raw token arguments are intentionally unsupported.
 
 ### 4. Configure TestFlight and submission behavior
 
@@ -152,7 +235,7 @@ The initializer deliberately defaults to `upload-only`. Change it to
 `submit-for-review` only after the first candidate succeeds and the app's
 submission metadata is complete.
 
-The complete contract is in [Configuration](docs/configuration.md).
+The complete contract is in [Configuration](doc/configuration.md).
 
 The action automatically honors a tracked `.fvmrc` or FVM config. Without one, it uses the configured Flutter channel (`stable` by default). You can instead set `flutter-version` or `flutter-version-file` explicitly on the candidate action step.
 
@@ -225,11 +308,12 @@ installation token (preferred) or use a narrowly scoped personal access token
 and pass it as the plan step's `github-token` input. This is optional; do not add
 a long-lived token merely for ship-my-flutter's own jobs.
 
-Secrets are passed only as action inputs, masked by GitHub, written with restrictive permissions, and removed during cleanup. See [Security model](docs/security.md).
+Secrets are passed only as action inputs, masked by GitHub, written with restrictive permissions, and removed during cleanup. See [Security model](doc/security.md).
 
 ## Requirements
 
-- Node.js 20 or newer for the initializer and local validation.
+- Dart 3.10 or newer for the package CLI and custom automation. The GitHub
+  Action installs its own pinned Dart SDK.
 - A modern Flutter app with an `ios` project.
 - A committed, current `pubspec.lock`; release builds enforce it rather than resolving new dependency versions in CI.
 - A GitHub-hosted or self-hosted macOS runner capable of Xcode 26 builds.
@@ -237,13 +321,14 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 - An App Store Connect API key, Apple Distribution certificate, and App Store provisioning profile.
 - Required App Store product metadata already configured for the app.
 
-Run `npx ship-my-flutter validate` locally to catch repository configuration problems before CI.
+Run `dart run ship_my_flutter validate` locally to catch repository
+configuration problems before CI.
 
 ## More detail
 
-- [Architecture and state machine](docs/architecture.md)
-- [Apple bootstrap](docs/apple-bootstrap.md)
-- [Configuration reference](docs/configuration.md)
-- [Operating release PRs](docs/operations.md)
-- [Security model](docs/security.md)
+- [Architecture and state machine](doc/architecture.md)
+- [Apple bootstrap](doc/apple-bootstrap.md)
+- [Configuration reference](doc/configuration.md)
+- [Operating release PRs](doc/operations.md)
+- [Security model](doc/security.md)
 - [Releasing ship-my-flutter itself](RELEASING.md)

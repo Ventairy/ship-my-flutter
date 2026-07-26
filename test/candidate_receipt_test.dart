@@ -1,0 +1,47 @@
+import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:test/test.dart';
+
+String repeated(String value, int count) =>
+    List<String>.filled(count, value).join();
+
+Map<String, Object?> receipt() => <String, Object?>{
+  'schemaVersion': 1,
+  'platform': 'ios',
+  'version': '1.2.3',
+  'buildNumber': '7',
+  'buildId': 'build-7',
+  'appId': 'app-1',
+  'bundleId': 'dev.example.app',
+  'sourceSha': repeated('a', 40),
+  'sourceFingerprint': repeated('b', 64),
+  'ipaSha256': repeated('c', 64),
+  'uploadedAt': '2026-07-26T00:00:00.000Z',
+  'processingState': 'VALID',
+  'testflightGroups': <Object?>['Internal'],
+};
+
+void main() {
+  group('candidate receipts', () {
+    test('accepts the complete immutable receipt contract', () {
+      final parsed = validateCandidateReceipt(receipt());
+      expect(parsed.version, '1.2.3');
+      expect(parsed.buildId, 'build-7');
+    });
+
+    test('rejects malformed identity and digest fields', () {
+      final malformed = receipt()
+        ..['buildNumber'] = 'latest'
+        ..['sourceFingerprint'] = 'short';
+      expect(
+        () => validateCandidateReceipt(malformed),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.message,
+            'message',
+            contains('candidate receipt is invalid'),
+          ),
+        ),
+      );
+    });
+  });
+}

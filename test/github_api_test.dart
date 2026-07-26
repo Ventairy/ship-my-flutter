@@ -1,0 +1,96 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test(
+    'GitHub REST client sends native API requests and maps resources',
+    () async {
+      final requests = <http.Request>[];
+      final responses = <http.Response>[
+        http.Response('[{"number":12}]', 200),
+        http.Response('{"number":13}', 201),
+        http.Response('', 204),
+        http.Response('{"message":"Not Found"}', 404),
+        http.Response(
+          '{"html_url":"https://github.com/o/r/releases/tag/ios-v1.0.0"}',
+          201,
+        ),
+      ];
+      final api = GitHubRestApi(
+        context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
+        client: MockClient((http.Request request) async {
+          requests.add(request);
+          return responses.removeAt(0);
+        }),
+      );
+
+      expect(
+        (await api.listPullRequests(
+          state: 'open',
+          head: 'o:ship-my-flutter/ios',
+          base: 'main',
+          perPage: 1,
+        )).single.number,
+        12,
+      );
+      expect(
+        (await api.createPullRequest(
+          head: 'ship-my-flutter/ios',
+          base: 'main',
+          title: 'release',
+          body: 'body',
+        )).number,
+        13,
+      );
+      await api.updatePullRequest(number: 13, title: 'updated', body: 'body');
+      expect(await api.releaseByTag('missing'), isNull);
+      final release = await api.createRelease(
+        tag: 'ios-v1.0.0',
+        name: 'iOS v1.0.0',
+        body: 'notes',
+        targetCommitish: 'sha',
+      );
+      expect(release.htmlUrl, contains('ios-v1.0.0'));
+
+      expect(requests.first.headers['authorization'], 'Bearer secret');
+      expect(requests.first.url.path, '/repos/o/r/pulls');
+      expect(
+        requests.first.url.queryParameters['head'],
+        'o:ship-my-flutter/ios',
+      );
+      expect(
+        jsonDecode(requests[1].body),
+        containsPair('head', 'ship-my-flutter/ios'),
+      );
+    },
+  );
+
+  test('GitHub REST failures preserve status and operation', () async {
+    final api = GitHubRestApi(
+      context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
+      client: MockClient(
+        (_) async => http.Response('{"message":"forbidden"}', 403),
+      ),
+    );
+    await expectLater(
+      api.labelExists('pending'),
+      throwsA(
+        isA<GitHubApiException>()
+            .having(
+              (GitHubApiException error) => error.statusCode,
+              'statusCode',
+              403,
+            )
+            .having(
+              (GitHubApiException error) => error.path,
+              'path',
+              contains('/labels/pending'),
+            ),
+      ),
+    );
+  });
+}
