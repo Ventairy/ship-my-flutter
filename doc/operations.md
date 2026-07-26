@@ -14,8 +14,12 @@ Do not merge a release PR until:
 4. the localized store notes in the PR are correct.
 
 The PR checkboxes are a human review aid; GitHub does not complete them
-automatically. Branch protection should require the candidate job and any
-project-specific checks you depend on.
+automatically. In the generated same-run workflow, the candidate job belongs to
+the target-branch run and its receipt push advances the release PR head, so it
+cannot currently be a required PR-head branch-protection check. Treat the
+receipt, valid TestFlight build, and human test as an explicit manual merge
+gate. Require project-specific PR checks separately; if they must run on the
+generated PR, use the alternate GitHub App/PAT path described in the README.
 
 The initializer defaults to `upload-only`. After the first end-to-end candidate
 works and App Store metadata is complete, opt in to `submit-for-review` in

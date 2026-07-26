@@ -11,7 +11,23 @@ Release PRs, TestFlight candidates, and App Store submission for Flutter apps.
 > below describes the post-publication interface; do not assume pub.dev or `@v1`
 > is available before those issues are complete. Non-Apple release planning is
 > exercised publicly in
-> [`Ventairy/ship-my-flutter-e2e`](https://github.com/Ventairy/ship-my-flutter-e2e).
+> [`Ventairy/ship-my-flutter-dart-e2e`](https://github.com/Ventairy/ship-my-flutter-dart-e2e).
+
+For non-Apple evaluation before publication, use the exact pair proven by that
+fixture:
+
+```yaml
+dev_dependencies:
+  ship_my_flutter:
+    git:
+      url: https://github.com/Ventairy/ship-my-flutter.git
+      ref: dadddd96a1c8434684a508991cb3d15e238b2014
+```
+
+Replace generated `@v1` references with
+`Ventairy/ship-my-flutter-action@c285341d48f554411d18c0245e2721ce4710683e`.
+Those commits cover only the documented non-Apple boundary; they are not a
+production release.
 
 `ship-my-flutter` turns the iOS release process into a code review:
 
@@ -42,14 +58,37 @@ Unknown scopes such as `auth` are feature scopes, not platform scopes, so they a
 
 ### 1. Initialize the Flutter repository
 
-Run this from the Flutter project root:
+For a single-app repository, run this from the Git repository root (which is
+also the Flutter project root):
 
 ```bash
 dart pub add --dev ship_my_flutter
 dart run ship_my_flutter init \
-  --current-version 1.0.0 \
+  --current-version <current-ios-version> \
   --bundle-id com.example.myapp
 ```
+
+`--current-version` is the latest iOS marketing version already represented by
+your release history, not the version you want the next PR to create. Existing
+apps normally use the latest shipped App Store version. For a never-released
+app, use `0.0.0` and put `Release-As-ios: 1.0.0` in the first release-worthy
+commit if the first release should be 1.0.0. If omitted, the initializer reads
+the stable version from `pubspec.yaml` and otherwise falls back to `0.0.0`;
+passing it explicitly is safer.
+
+In a monorepo, `.github` and `.ship-my-flutter` must live at the Git repository
+root. If `ship_my_flutter` is installed in a nested app package, run from that
+package but point initialization at the repository:
+
+```bash
+dart run ship_my_flutter init \
+  --root ../.. \
+  --current-version <current-ios-version> \
+  --bundle-id com.example.myapp
+```
+
+Then set `platforms.ios.projectPath` to the app path relative to the repository
+root. The exact `--root` value depends on the workspace layout.
 
 This creates:
 
@@ -63,7 +102,10 @@ This creates:
 .github/workflows/ship-my-flutter.yml
 ```
 
-Commit those files before merging new release-worthy work. The initializer records the current commit as the release baseline, so existing repository history is not released accidentally.
+Commit those files with a non-release message such as
+`chore: configure ship-my-flutter` before merging new release-worthy work. The
+initializer records the pre-initialization commit as the release baseline, so
+existing repository history is not released accidentally.
 
 ### CLI and Dart API
 
@@ -116,7 +158,8 @@ Future<void> main() async {
 ```
 
 See [`example/custom_workflow.dart`](example/custom_workflow.dart) for a
-complete JSON-emitting example.
+complete JSON-emitting example and [CLI reference](doc/cli.md) for each
+command's branch, credentials, runner, and side effects.
 
 ### 2. Allow the workflow to open release PRs
 
@@ -137,6 +180,12 @@ For a fine-grained personal access token, grant access only to the Flutter
 repository and give it Contents, Pull requests, and Issues read/write access.
 The same token performs the authenticated release-branch push. Treat the
 alternative token as a release secret.
+
+The default `GITHUB_TOKEN` does not trigger separate workflow runs for events
+it creates. That does not affect ship-my-flutter's candidate job—the generated
+workflow dispatches it from the plan job's outputs—but it can suppress your
+repository's normal `pull_request` checks on the generated release PR. Use the
+GitHub App or PAT path when those independent checks must run automatically.
 
 ### 3. Add six Apple GitHub Actions secrets
 
@@ -237,7 +286,10 @@ submission metadata is complete.
 
 The complete contract is in [Configuration](doc/configuration.md).
 
-The action automatically honors a tracked `.fvmrc` or FVM config. Without one, it uses the configured Flutter channel (`stable` by default). You can instead set `flutter-version` or `flutter-version-file` explicitly on the candidate action step.
+The action automatically honors a tracked `.fvmrc` or FVM config at the Git
+repository root. In a monorepo with app-local FVM configuration, set
+`flutter-version-file` to that repository-relative file explicitly. Without
+one, the action uses the configured Flutter channel (`stable` by default).
 
 ## Store release notes
 
@@ -297,16 +349,15 @@ The generated workflow uses one repository-wide concurrency lane:
 - A macOS 26 job imports temporary signing material, builds the IPA with Flutter, uploads it, waits for `VALID`, writes TestFlight notes, assigns groups, and commits the candidate receipt.
 - After the release PR merges, an Ubuntu job verifies the receipt, promotes the exact Apple build, and creates `ios-vX.Y.Z`.
 
-GitHub places other `pull_request` workflows triggered by a release PR created
-with the default `GITHUB_TOKEN` in an approval-required state. A maintainer with
-write access must select **Approve workflows to run** in the release PR before
-those checks start. The TestFlight candidate job itself does not need that
-approval because it continues in the workflow that opened the PR.
+GitHub does not create new workflow runs for events produced by the default
+`GITHUB_TOKEN`. The TestFlight candidate job is unaffected because it continues
+in the workflow that opened the PR. Your repository's separate `pull_request`
+workflows, however, will not run for that generated PR.
 
-If independent PR checks must start without approval, generate a GitHub App
-installation token (preferred) or use a narrowly scoped personal access token
-and pass it as the plan step's `github-token` input. This is optional; do not add
-a long-lived token merely for ship-my-flutter's own jobs.
+If independent PR checks must run, generate a GitHub App installation token
+(preferred) or use a narrowly scoped personal access token and pass it as the
+plan step's `github-token` input. This is optional; do not add a long-lived
+token merely for ship-my-flutter's own jobs.
 
 Secrets are passed only as action inputs, masked by GitHub, written with restrictive permissions, and removed during cleanup. See [Security model](doc/security.md).
 
@@ -324,10 +375,25 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 Run `dart run ship_my_flutter validate` locally to catch repository
 configuration problems before CI.
 
+## Validation boundary
+
+The public
+[`ship-my-flutter-dart-e2e`](https://github.com/Ventairy/ship-my-flutter-dart-e2e)
+fixture verifies the Dart 3.10 package install, initializer, validator, planner,
+public Dart API, thin Action adapter, Android/iOS commit isolation, release-PR
+creation and updates, merge routing, platform GitHub Release, and terminal
+`noop` state on GitHub-hosted runners.
+
+It intentionally has no candidate or promotion job, stores no Apple
+credentials, and calls no Apple endpoint. Real certificate import, signing, IPA
+upload, TestFlight processing, and App Review submission remain the explicit
+pre-publication acceptance gate in issues #1.
+
 ## More detail
 
 - [Architecture and state machine](doc/architecture.md)
 - [Apple bootstrap](doc/apple-bootstrap.md)
+- [CLI reference](doc/cli.md)
 - [Configuration reference](doc/configuration.md)
 - [Operating release PRs](doc/operations.md)
 - [Security model](doc/security.md)

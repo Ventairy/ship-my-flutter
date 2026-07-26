@@ -24,10 +24,15 @@ Paths must remain inside the repository.
 | `enabled`     | `true`            | Enables iOS planning and delivery                      |
 | `projectPath` | `.`               | Flutter project root relative to the repository        |
 | `bundleId`    | detected on macOS | App Store bundle identifier; setting it is recommended |
-| `scheme`      | `Runner`          | Custom Xcode scheme/Flutter flavor                     |
+| `scheme`      | unset             | Actual custom Flutter flavor/Xcode scheme              |
 | `buildArgs`   | `[]`              | Extra arguments appended to `flutter build ipa`        |
 
 Do not put secrets in `buildArgs`. The version, build number, and export options are controlled by ship-my-flutter.
+
+Omit `scheme` for a normal unflavored Flutter app. Bundle-ID detection uses the
+standard Runner scheme when it is absent, but an explicitly configured value is
+also passed to `flutter build ipa --flavor`; setting `Runner` on an unflavored
+app can therefore break the build.
 
 ## TestFlight
 

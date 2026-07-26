@@ -17,8 +17,9 @@ Publishing is intentionally separate from normal development.
 1. Run the core gate and `npm run vendor-core` in the adjacent Action checkout.
 2. In `ship-my-flutter-action`, run `npm ci`, resolve the vendored Dart
    lockfile, and run `npm run check`.
-3. Regenerate `dist`, then verify a second build produces no diff in
-   `dist` or `vendor`.
+3. Confirm `vendor/ship-my-flutter/CORE_COMMIT` names the reviewed immutable
+   core commit. Regenerate `dist`, then verify a second build produces no diff
+   in `dist` or `vendor`.
 4. Test `plan`, candidate dispatch, and merged-release dispatch against a
    disposable Flutter repository. Do not use production Apple credentials.
 5. Complete the separately tracked live Apple acceptance gate.

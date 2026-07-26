@@ -23,8 +23,9 @@ Prefer a dedicated ephemeral macOS runner when using self-hosted infrastructure.
 - Generated workflows pin GitHub-owned setup actions to full commit SHAs.
 - The Action resolves the vendored package with `--enforce-lockfile`, which
   checks the locked hosted-package content hashes before execution.
-- The core's strict analyzer, tests, and pub dry run plus the Action's npm
-  audit and full checks are expected before release.
+- The core's strict analyzer, tests, and pub dry run plus the Action's locked
+  install and full format/lint/typecheck/test/build gate are expected before
+  release.
 
 The consumer references `Ventairy/ship-my-flutter-action@v1` for stable updates. High-assurance repositories can pin the action to a reviewed full release commit.
 
@@ -48,10 +49,11 @@ to the plan action's `github-token` input. Grant Contents, Pull requests, and
 Issues read/write access; the alternative token performs both the API
 operations and release-branch push.
 
-GitHub creates runs for other `pull_request` workflows when the release PR is
-opened or updated with `GITHUB_TOKEN`, but holds those runs for a maintainer with
-write access to select **Approve workflows to run**. Repositories that require
-those independent checks to start automatically must use a GitHub App
+GitHub does not create new workflow runs for events produced by the default
+`GITHUB_TOKEN`. ship-my-flutter's candidate still runs because the generated
+workflow dispatches it from the plan job's outputs, but unrelated
+`pull_request` workflows will not run for the generated release PR.
+Repositories that require those independent checks must use a GitHub App
 installation token (preferred) or narrowly scoped personal access token as the
 plan action's `github-token` input. Treat that credential as a release secret
 and grant only the repository permissions used by the plan phase.

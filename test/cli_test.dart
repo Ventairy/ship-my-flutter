@@ -4,8 +4,15 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
+import 'package:yaml/yaml.dart';
 
 void main() {
+  test('CLI version matches the package version', () async {
+    final pubspec = loadYaml(await File('pubspec.yaml').readAsString());
+    expect(pubspec, isA<YamlMap>());
+    expect((pubspec as YamlMap)['version'], shipMyFlutterVersion);
+  });
+
   test(
     'initializes, validates, and plans through the public Dart CLI',
     () async {
