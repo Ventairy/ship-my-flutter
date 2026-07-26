@@ -30,6 +30,17 @@ describe("configuration", () => {
     expect(validateConfig(validConfig()).platforms.ios.enabled).toBe(true);
   });
 
+  it("defaults omitted App Store behavior to upload only", () => {
+    const config = validConfig() as {
+      platforms: { ios: { appStore?: unknown } };
+    };
+    delete config.platforms.ios.appStore;
+    expect(validateConfig(config).platforms.ios.appStore).toMatchObject({
+      mode: "upload-only",
+      releaseType: "manual",
+    });
+  });
+
   it("rejects paths that escape the repository", () => {
     const config = validConfig() as {
       platforms: { ios: { projectPath: string } };

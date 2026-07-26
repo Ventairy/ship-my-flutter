@@ -12,6 +12,7 @@ import { loadConfig, loadManifest, loadStoreReleaseNotes } from "../config.js";
 import { ShipError, invariant } from "../errors.js";
 import { fileSha256, sourceFingerprint } from "../fingerprint.js";
 import {
+  authenticatedGit,
   configureBotIdentity,
   currentBranch,
   currentSha,
@@ -24,6 +25,7 @@ import { validateRepository } from "../validate.js";
 import type {
   AppleCredentials,
   CandidateReceipt,
+  GitHubContext,
   SigningCredentials,
 } from "../types.js";
 
@@ -31,6 +33,7 @@ export interface CandidateOptions {
   root: string;
   appleCredentials: AppleCredentials;
   signingCredentials: SigningCredentials;
+  github?: GitHubContext;
   commitReceipt?: boolean;
   client?: AppStoreConnectClient;
 }
@@ -59,6 +62,7 @@ async function commitCandidateReceipt(
   root: string,
   receiptPath: string,
   version: string,
+  github?: GitHubContext,
 ): Promise<void> {
   await configureBotIdentity(root);
   await git(root, ["add", receiptPath]);
@@ -70,7 +74,11 @@ async function commitCandidateReceipt(
   ]);
   const branch = await currentBranch(root);
   invariant(branch, "Candidate checkout must be on a branch.", "DETACHED_HEAD");
-  await git(root, ["push", "origin", branch]);
+  if (github) {
+    await authenticatedGit(root, ["push", "origin", branch], github.token);
+  } else {
+    await git(root, ["push", "origin", branch]);
+  }
 }
 
 export async function createIosCandidate(
@@ -129,7 +137,12 @@ export async function createIosCandidate(
     await writeJson(receiptPath, refreshed);
     if (options.commitReceipt ?? true) {
       try {
-        await commitCandidateReceipt(root, receiptPath, state.version);
+        await commitCandidateReceipt(
+          root,
+          receiptPath,
+          state.version,
+          options.github,
+        );
       } catch (error) {
         throw new ShipError(
           "The TestFlight build is valid, but its refreshed candidate receipt could not be committed. Do not merge the release PR until this is repaired.",
@@ -222,7 +235,12 @@ export async function createIosCandidate(
   await writeJson(receiptPath, receipt);
   if (options.commitReceipt ?? true) {
     try {
-      await commitCandidateReceipt(root, receiptPath, state.version);
+      await commitCandidateReceipt(
+        root,
+        receiptPath,
+        state.version,
+        options.github,
+      );
     } catch (error) {
       throw new ShipError(
         "The TestFlight build is valid, but its candidate receipt could not be committed. Do not merge the release PR until this is repaired.",

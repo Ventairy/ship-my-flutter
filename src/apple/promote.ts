@@ -1,6 +1,7 @@
 import path from "node:path";
 import { Octokit } from "@octokit/rest";
 import { AppStoreConnectClient } from "./client.js";
+import { resolveBundleId } from "./project.js";
 import { loadCandidateReceipt } from "../candidate-receipt.js";
 import {
   loadChangelog,
@@ -74,16 +75,24 @@ export async function promoteIosRelease(options: {
 
   const client =
     options.client ?? new AppStoreConnectClient(options.appleCredentials);
-  const build = await client.request<{
-    data: {
-      id: string;
-      attributes: { processingState: string; version: string };
-    };
-  }>("GET", `/v1/builds/${receipt.buildId}`);
+  const bundleId = await resolveBundleId(root, config.platforms.ios);
   invariant(
-    build.data.attributes.processingState === "VALID" &&
-      build.data.attributes.version === receipt.buildNumber,
-    "The recorded Apple build is no longer a valid candidate.",
+    receipt.bundleId === bundleId,
+    "The candidate receipt bundle identifier does not match the current iOS configuration.",
+    "CANDIDATE_BUNDLE_MISMATCH",
+  );
+  const app = await client.findApp(bundleId);
+  invariant(
+    receipt.appId === app.id,
+    "The candidate receipt App Store app does not match the configured bundle identifier.",
+    "CANDIDATE_APP_MISMATCH",
+  );
+  const versionBuilds = await client.buildsForVersion(app.id, state.version);
+  const build = versionBuilds.find((item) => item.id === receipt.buildId);
+  invariant(
+    build?.attributes.processingState === "VALID" &&
+      build.attributes.version === receipt.buildNumber,
+    "The recorded Apple build is not a valid build for the configured app and marketing version.",
     "CANDIDATE_INVALID",
   );
 
@@ -91,7 +100,7 @@ export async function promoteIosRelease(options: {
   let reviewSubmissionId: string | undefined;
   if (config.platforms.ios.appStore.mode === "submit-for-review") {
     const appStoreVersion = await client.findOrCreateAppStoreVersion(
-      receipt.appId,
+      app.id,
       state.version,
       config.platforms.ios.appStore.releaseType,
       config.platforms.ios.appStore.earliestReleaseDate,
@@ -117,7 +126,7 @@ export async function promoteIosRelease(options: {
       "APP_STORE_BUILD_MISMATCH",
     );
     reviewSubmissionId = await client.submitVersionForReview(
-      receipt.appId,
+      app.id,
       appStoreVersion.id,
     );
   }

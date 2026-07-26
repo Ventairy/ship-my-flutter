@@ -2,6 +2,17 @@
 
 Release PRs, TestFlight candidates, and App Store submission for Flutter apps.
 
+> [!WARNING]
+> This project is in pre-release validation. The `ship-my-flutter` npm package
+> is not published yet, and the companion action does not have a `v1` tag.
+> Follow [core issue #1](https://github.com/Ventairy/ship-my-flutter/issues/1)
+> and [action issue #1](https://github.com/Ventairy/ship-my-flutter-action/issues/1)
+> for the live Apple acceptance and first publication gates. The quick start
+> below describes the post-publication interface; do not assume `npx` or `@v1`
+> is available before those issues are complete. Non-Apple release planning is
+> exercised publicly in
+> [`Ventairy/ship-my-flutter-e2e`](https://github.com/Ventairy/ship-my-flutter-e2e).
+
 `ship-my-flutter` turns the iOS release process into a code review:
 
 1. Merge normal Conventional Commits into `main`.
@@ -69,9 +80,9 @@ token (preferred) or narrowly scoped personal access token:
 ```
 
 For a fine-grained personal access token, grant access only to the Flutter
-repository and give it Pull requests and Issues read/write access. The
-workflow's existing `contents: write` permission continues to own the release
-branch push. Treat the alternative token as a release secret.
+repository and give it Contents, Pull requests, and Issues read/write access.
+The same token performs the authenticated release-branch push. Treat the
+alternative token as a release secret.
 
 ### 3. Add six Apple GitHub Actions secrets
 
@@ -91,6 +102,8 @@ base64 -i AuthKey_ABC123.p8 | pbcopy
 base64 -i distribution.p12 | pbcopy
 base64 -i AppStore.mobileprovision | pbcopy
 ```
+
+On Linux, use `base64 -w 0 FILE` and copy the single-line output.
 
 For an app with extensions, set `IOS_PROVISIONING_PROFILES_BASE64` to a JSON object whose keys are bundle IDs:
 
@@ -124,7 +137,7 @@ The generated `.ship-my-flutter/config.json` is ready for a standard Flutter app
         "waitTimeoutMinutes": 45
       },
       "appStore": {
-        "mode": "submit-for-review",
+        "mode": "upload-only",
         "releaseType": "manual"
       }
     }
@@ -135,6 +148,10 @@ The generated `.ship-my-flutter/config.json` is ready for a standard Flutter app
 - `submit-for-review` creates or reuses the App Store version, attaches the tested build, applies localized notes, and submits it.
 - `upload-only` keeps the tested build in TestFlight/App Store Connect and still creates the platform GitHub Release after merge.
 - `releaseType` controls what happens after Apple approval: `manual`, `automatic`, or `scheduled`.
+
+The initializer deliberately defaults to `upload-only`. Change it to
+`submit-for-review` only after the first candidate succeeds and the app's
+submission metadata is complete.
 
 The complete contract is in [Configuration](docs/configuration.md).
 
@@ -216,6 +233,7 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 
 ## Requirements
 
+- Node.js 20 or newer for the initializer and local validation.
 - A modern Flutter app with an `ios` project.
 - A committed, current `pubspec.lock`; release builds enforce it rather than resolving new dependency versions in CI.
 - A GitHub-hosted or self-hosted macOS runner capable of Xcode 26 builds.
@@ -230,5 +248,6 @@ Run `npx ship-my-flutter validate` locally to catch repository configuration pro
 - [Architecture and state machine](docs/architecture.md)
 - [Apple bootstrap](docs/apple-bootstrap.md)
 - [Configuration reference](docs/configuration.md)
+- [Operating release PRs](docs/operations.md)
 - [Security model](docs/security.md)
 - [Releasing ship-my-flutter itself](RELEASING.md)

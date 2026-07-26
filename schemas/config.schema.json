@@ -98,10 +98,12 @@
               "required": ["mode", "releaseType"],
               "properties": {
                 "mode": {
-                  "enum": ["submit-for-review", "upload-only"]
+                  "enum": ["submit-for-review", "upload-only"],
+                  "default": "upload-only"
                 },
                 "releaseType": {
-                  "enum": ["manual", "automatic", "scheduled"]
+                  "enum": ["manual", "automatic", "scheduled"],
+                  "default": "manual"
                 },
                 "earliestReleaseDate": {
                   "type": "string",

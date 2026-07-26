@@ -63,7 +63,7 @@ export async function initialize(options: InitOptions): Promise<void> {
           waitTimeoutMinutes: 45,
         },
         appStore: {
-          mode: "submit-for-review",
+          mode: "upload-only",
           releaseType: "manual",
         },
       },

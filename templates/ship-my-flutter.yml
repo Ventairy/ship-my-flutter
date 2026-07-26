@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
       - id: ship
         uses: Ventairy/ship-my-flutter-action@v1
         with:
@@ -42,6 +43,7 @@ jobs:
         with:
           ref: ${{ needs.plan.outputs.branch }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: Ventairy/ship-my-flutter-action@v1
         with:
           phase: candidate
@@ -62,6 +64,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: Ventairy/ship-my-flutter-action@v1
         with:
           phase: promote

@@ -40,6 +40,9 @@ External groups can require Beta App Review. ship-my-flutter assigns the build t
 - `submit-for-review`: create/reuse the iOS App Store version, attach the tested build, apply supplied notes, and submit it.
 - `upload-only`: stop after TestFlight delivery; merging still tags the code and creates the GitHub Release.
 
+The initializer defaults to `upload-only`, making App Review submission an
+explicit opt-in.
+
 `appStore.releaseType` controls release after Apple approves the submission:
 
 - `manual`: wait in Pending Developer Release.

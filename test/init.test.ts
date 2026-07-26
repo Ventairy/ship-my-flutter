@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { git } from "../src/git.js";
 import { initialize } from "../src/init.js";
 import { fileExists, readJson } from "../src/json.js";
-import type { ShipManifest } from "../src/types.js";
+import type { ShipConfig, ShipManifest } from "../src/types.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -43,6 +43,10 @@ describe("initializer", () => {
       baselineSha,
       pendingRelease: false,
     });
+    const config = await readJson<ShipConfig>(
+      path.join(root, ".ship-my-flutter", "config.json"),
+    );
+    expect(config.platforms.ios.appStore.mode).toBe("upload-only");
     expect(
       await fileExists(
         path.join(root, ".ship-my-flutter", "candidates", ".gitkeep"),
@@ -54,5 +58,6 @@ describe("initializer", () => {
     );
     expect(workflow).toContain("Ventairy/ship-my-flutter-action@v1");
     expect(workflow).toContain("runs-on: macos-26");
+    expect(workflow.match(/persist-credentials: false/gu)).toHaveLength(3);
   });
 });

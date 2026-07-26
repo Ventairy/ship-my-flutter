@@ -80,7 +80,7 @@ const configSchema = z.object({
         .object({
           mode: z
             .enum(["submit-for-review", "upload-only"])
-            .default("submit-for-review"),
+            .default("upload-only"),
           releaseType: z
             .enum(["manual", "automatic", "scheduled"])
             .default("manual"),
@@ -109,7 +109,7 @@ const configSchema = z.object({
           }
         })
         .default({
-          mode: "submit-for-review",
+          mode: "upload-only",
           releaseType: "manual",
         }),
     }),
