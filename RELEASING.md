@@ -1,16 +1,55 @@
 # Releasing ship-my-flutter
 
-Publishing is intentionally separate from normal development.
+Release Please owns the core package version, changelog, immutable `vX.Y.Z`
+tag, and GitHub Release. Publishing to pub.dev remains a separately authorized
+step.
 
-## Dart package
+## Release PR
 
-1. Run the complete development gate from `CONTRIBUTING.md`.
-2. Test the package through a path dependency in a clean Flutter fixture.
-3. Update the version and changelog through a release PR.
-4. Configure pub.dev automated publishing for `Ventairy/ship-my-flutter`.
-5. Tag the immutable commit and publish to pub.dev.
-6. Verify both `dart pub add --dev ship_my_flutter` and
+Every push to `main` runs `.github/workflows/release-please.yml`.
+Release Please reads Conventional Commits after the current release baseline
+and opens or updates one release PR.
+
+The release PR updates these synchronized version surfaces:
+
+- `pubspec.yaml`;
+- `lib/src/cli.dart`;
+- `CHANGELOG.md`;
+- `.release-please-manifest.json`.
+
+The CI workflow is dispatched for the generated release branch because a pull
+request created with the repository `GITHUB_TOKEN` does not trigger another
+`pull_request` workflow. Do not merge the release PR until that exact branch
+passes the complete hosted gate.
+
+Before merging:
+
+1. Review the proposed semantic version and changelog.
+2. Run the complete development gate from `CONTRIBUTING.md`.
+3. Test the package through a path dependency in a clean Flutter fixture.
+4. Confirm the release branch CI passed on Dart 3.10, stable Dart, minimum
+   dependencies, and the publication dry run.
+
+Merging the release PR makes Release Please create the immutable `vX.Y.Z` tag
+and matching GitHub Release. Do not create, reuse, or move these tags manually.
+
+## pub.dev
+
+Automated publishing cannot create a new pub.dev package. The first release
+must be published manually from the exact immutable Release Please tag:
+
+1. Check out the immutable tag in a clean worktree.
+2. Repeat the complete gate and inspect the package archive.
+3. Run `dart pub publish` and complete pub.dev authentication.
+4. Verify the published version and archive on pub.dev.
+5. Verify both `dart pub add --dev ship_my_flutter` and
    `dart pub global activate ship_my_flutter` in separate clean consumers.
+
+Only after the first version exists may maintainers configure pub.dev automated
+publishing for `Ventairy/ship-my-flutter`. Use the tag pattern
+`v{{version}}`, require a protected GitHub environment named `pub.dev`, and add
+a tag-triggered OIDC publishing workflow. Keep publication separate from the
+Release Please job so a publication failure cannot rewrite release history.
 
 ## GitHub Action
 

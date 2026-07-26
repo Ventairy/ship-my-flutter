@@ -13,21 +13,12 @@ Release PRs, TestFlight candidates, and App Store submission for Flutter apps.
 > exercised publicly in
 > [`Ventairy/ship-my-flutter-dart-e2e`](https://github.com/Ventairy/ship-my-flutter-dart-e2e).
 
-For non-Apple evaluation before publication, use the exact pair proven by that
-fixture:
-
-```yaml
-dev_dependencies:
-  ship_my_flutter:
-    git:
-      url: https://github.com/Ventairy/ship-my-flutter.git
-      ref: dadddd96a1c8434684a508991cb3d15e238b2014
-```
-
-Replace generated `@v1` references with
-`Ventairy/ship-my-flutter-action@c285341d48f554411d18c0245e2721ce4710683e`.
-Those commits cover only the documented non-Apple boundary; they are not a
-production release.
+For non-Apple evaluation before publication, copy the current immutable
+core/Action pair recorded in the
+[`ship-my-flutter-dart-e2e` README](https://github.com/Ventairy/ship-my-flutter-dart-e2e#readme).
+That external fixture can name the core commit without creating a circular
+self-reference in this repository. Its commits cover only the documented
+non-Apple boundary; they are not a production release.
 
 `ship-my-flutter` turns the iOS release process into a code review:
 
@@ -369,7 +360,10 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 - A committed, current `pubspec.lock`; release builds enforce it rather than resolving new dependency versions in CI.
 - A GitHub-hosted or self-hosted macOS runner capable of Xcode 26 builds.
 - An existing App Store Connect app record; Apple does not let the API create one.
-- An App Store Connect API key, Apple Distribution certificate, and App Store provisioning profile.
+- An App Store Connect API key with `Developer` access for upload-only delivery
+  without TestFlight groups, or at least `App Manager` access for group
+  assignment and App Review submission; plus an Apple Distribution certificate
+  and App Store provisioning profile.
 - Required App Store product metadata already configured for the app.
 
 Run `dart run ship_my_flutter validate` locally to catch repository
