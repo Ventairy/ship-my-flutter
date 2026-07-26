@@ -1,8 +1,10 @@
-.dart_tool/
-.git/
-.github/
-coverage/
-node_modules/
-src/
-test/
+/.dart_tool/
+/.git/
+/.github/
+/coverage/
+/dist/
+/docs/
+/node_modules/
+/src/
+/test/
 *.log
