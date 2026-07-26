@@ -109,6 +109,8 @@ describe("GitHub release pull requests", () => {
       await loadManifest(root),
       "ios",
     );
+    await git(root, ["config", "--unset-all", "user.name"]);
+    await git(root, ["config", "--unset-all", "user.email"]);
     await createOrUpdateReleasePullRequest(
       root,
       await loadConfig(root),
@@ -121,6 +123,9 @@ describe("GitHub release pull requests", () => {
         pull_number: 42,
         title: "chore(ios): release 1.1.0",
       }),
+    );
+    expect(await git(root, ["config", "user.name"])).toBe(
+      "ship-my-flutter[bot]",
     );
   });
 });
