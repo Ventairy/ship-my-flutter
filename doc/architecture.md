@@ -7,9 +7,10 @@ ship-my-flutter separates release planning from irreversible delivery.
 - `Ventairy/ship-my-flutter` is the Dart package. It contains the public library
   API, CLI, schemas, release planner, GitHub orchestration, signing
   implementation, and App Store Connect client.
-- `Ventairy/ship-my-flutter-action` vendors the exact Dart package source and
-  lockfile, records the source commit in `vendor/ship-my-flutter/CORE_COMMIT`,
-  and exposes the three workflow phases as one GitHub Action.
+- `Ventairy/ship-my-flutter-action` vendors the exact Dart package source,
+  generates and commits a deployment lockfile, records the source commit in
+  `vendor/ship-my-flutter/CORE_COMMIT`, and exposes the three workflow phases
+  as one GitHub Action.
 
 TypeScript in the Action is intentionally limited to GitHub-native concerns:
 inputs, secret masking, repository context, process execution, failures, and

@@ -18,7 +18,8 @@ Prefer a dedicated ephemeral macOS runner when using self-hosted infrastructure.
 
 ## Supply chain
 
-- The action vendors the reviewed Dart core source and exact pub lockfile.
+- The action vendors the reviewed Dart core source, then generates and commits
+  its deployment lockfile from that source's `pubspec.yaml`.
 - The Dart and Flutter setup actions are pinned to full commit SHAs.
 - Generated workflows pin GitHub-owned setup actions to full commit SHAs.
 - The Action resolves the vendored package with `--enforce-lockfile`, which

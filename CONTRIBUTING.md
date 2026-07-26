@@ -11,12 +11,18 @@ Requirements:
 - macOS with Xcode only for real iOS signing/build integration
 
 ```bash
-dart pub get --enforce-lockfile
+dart pub get
 dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos
 dart test
 dart pub publish --dry-run
 ```
+
+The core is a shared package, so its generated `pubspec.lock` is intentionally
+ignored. CI resolves the newest compatible graph on Dart 3.10 and stable, and
+separately runs `dart pub downgrade`, analysis, and tests to verify the lower
+dependency bounds. The companion Action owns the committed deployment
+lockfile.
 
 The test suite uses local Git repositories, synthetic signing assets, and
 mocked GitHub and Apple endpoints. It must not contact a production Apple
