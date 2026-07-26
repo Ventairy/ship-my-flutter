@@ -1,6 +1,6 @@
 name: ship_my_flutter
 description: Release PRs, TestFlight candidates, and App Store submission for Flutter apps.
-version: 0.1.0
+version: 1.0.0
 repository: https://github.com/Ventairy/ship-my-flutter
 issue_tracker: https://github.com/Ventairy/ship-my-flutter/issues
 topics:

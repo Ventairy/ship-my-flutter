@@ -16,7 +16,7 @@ import 'orchestrator.dart';
 import 'release_plan.dart';
 import 'validate.dart';
 
-const String shipMyFlutterVersion = '0.1.0'; // x-release-please-version
+const String shipMyFlutterVersion = '1.0.0'; // x-release-please-version
 
 final class CliIo {
   const CliIo({
