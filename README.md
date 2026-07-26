@@ -257,8 +257,6 @@ platforms:
     enabled: true
     project_path: .
     bundle_id: com.example.myapp
-    build_command: flutter build ipa --release
-    artifact_path: build/ios/ipa
     testflight:
       groups:
         - Internal
@@ -277,6 +275,12 @@ The initializer deliberately defaults to `upload-only`. Change it to
 submission metadata is complete.
 
 The complete contract is in [Configuration](doc/configuration.md).
+
+For a standard Flutter app, no build fields are needed. ship-my-flutter defaults
+to `flutter build ipa --release` and reads the single IPA from
+`build/ios/ipa`, matching Flutter's standard iOS output. Add `build_command` or
+`artifact_path` only when the project uses FVM, Melos, a wrapper, or a custom
+artifact location.
 
 The generated candidate job installs Flutter before invoking the Action. The
 Action itself does not install Flutter or FVM: the app repository owns the
@@ -330,9 +334,9 @@ hooks:
   before_candidate: fvm dart run melos run prepare:ios --no-select
 ```
 
-The `build_command` is the project-owned IPA build invocation. ship-my-flutter
-automatically appends the planned version, next App Store build number,
-generated export-options plist, and configured flavor:
+The optional `build_command` overrides the default project-owned IPA build
+invocation. ship-my-flutter automatically appends the planned version, next App
+Store build number, generated export-options plist, and configured flavor:
 
 ```yaml
 platforms:

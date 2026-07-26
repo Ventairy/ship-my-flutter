@@ -5,7 +5,7 @@ import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
 String configYaml({
-  String buildCommand = 'flutter build ipa',
+  String buildCommand = 'flutter build ipa --release',
   List<String> groups = const <String>[],
   String mode = 'upload-only',
   String releaseType = 'manual',
@@ -81,6 +81,31 @@ void main() {
         p.join(root.path, 'lib.dart'),
       ).writeAsString('void main() => run();\n');
       expect(await sourceFingerprint(root.path), isNot(before));
+    });
+
+    test('normalizes omitted build defaults', () async {
+      final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
+      addTearDown(() => root.delete(recursive: true));
+      await git(root.path, const <String>['init', '-b', 'main']);
+      final paths = resolveShipPaths(root.path);
+      await Directory(paths.directory).create(recursive: true);
+      await File(
+        p.join(root.path, 'lib.dart'),
+      ).writeAsString('void main() {}\n');
+      await File(paths.config).writeAsString(configYaml());
+      await git(root.path, const <String>['add', '.']);
+
+      final explicitDefaults = await sourceFingerprint(root.path);
+      await File(paths.config).writeAsString(
+        configYaml()
+            .replaceFirst(
+              '    build_command: "flutter build ipa --release"\n',
+              '',
+            )
+            .replaceFirst('    artifact_path: build/ios/ipa\n', ''),
+      );
+
+      expect(await sourceFingerprint(root.path), explicitDefaults);
     });
 
     test('rejects tracked symlinks to hidden build inputs', () async {

@@ -19,9 +19,7 @@ platforms:
   ios:
     enabled: true
     project_path: .
-$bundleLine    build_command: flutter build ipa --release
-    artifact_path: build/ios/ipa
-    testflight:
+$bundleLine    testflight:
       groups: []
       wait_timeout_minutes: 45
     app_store:

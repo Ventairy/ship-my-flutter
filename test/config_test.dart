@@ -38,6 +38,21 @@ void main() {
       expect(validateConfig(validConfig()).ios.enabled, isTrue);
     });
 
+    test(
+      'defaults the standard Flutter IPA command and artifact directory',
+      () {
+        final config = validConfig();
+        iosConfig(config)
+          ..remove('build_command')
+          ..remove('artifact_path');
+
+        final ios = validateConfig(config).ios;
+
+        expect(ios.buildCommand, 'flutter build ipa --release');
+        expect(ios.artifactPath, 'build/ios/ipa');
+      },
+    );
+
     test('rejects unknown fields at every configuration level', () {
       final cases = <Map<String, Object?> Function()>[
         () => validConfig()..['unexpected'] = true,

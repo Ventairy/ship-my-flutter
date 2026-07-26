@@ -11,7 +11,7 @@ begins. The schema provides structural validation, defaults, and conservative
 editor checks. `dart run ship_my_flutter validate` is authoritative for shell
 quoting, cross-field rules, and path safety on every supported host platform.
 
-## Complete example
+## Typical configuration
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
@@ -25,8 +25,6 @@ platforms:
     enabled: true
     project_path: .
     bundle_id: com.example.app
-    build_command: flutter build ipa --release
-    artifact_path: build/ios/ipa
     testflight:
       groups:
         - Internal
@@ -109,6 +107,14 @@ signing, and certificate credentials are removed from both hook environments.
 The consumer owns the build toolchain. `ship-my-flutter-action` does not install
 Flutter or FVM. Set them up in the workflow before the candidate Action step,
 using the exact version selected by the project.
+
+For a standard Flutter app, omit both build fields. The defaults follow
+Flutter's standard release command and IPA output:
+
+```yaml
+build_command: flutter build ipa --release
+artifact_path: build/ios/ipa
+```
 
 `build_command` is one shell command invocation, not a preparation hook.
 ship-my-flutter automatically appends these arguments:
@@ -209,7 +215,8 @@ Version 2 replaces camelCase configuration keys and the Flutter-specific
 | `releaseType` | `release_type` |
 | `earliestReleaseDate` | `earliest_release_date` |
 
-Add `artifact_path`, and optionally add `before_candidate`. State files such as
+Override `build_command` or `artifact_path` only when the project differs from
+Flutter's defaults, and optionally add `before_candidate`. State files such as
 `manifest.json`, `changelog.json`, and candidate receipts remain versioned JSON
 and are not migrated to snake_case.
 

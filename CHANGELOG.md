@@ -15,6 +15,8 @@ The project follows Semantic Versioning and Conventional Commits.
 - Made IPA creation project-owned through `build_command` and `artifact_path`;
   ship-my-flutter now appends immutable version, build number, signing export
   options, and flavor arguments.
+- Made `build_command` and `artifact_path` optional in generated configuration,
+  defaulting to Flutter's standard release IPA command and output directory.
 
 ### Added
 

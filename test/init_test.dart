@@ -44,6 +44,9 @@ void main() {
         'schemas/config.schema.json',
       ),
     );
+    expect(configText, isNot(contains('build_command:')));
+    expect(configText, isNot(contains('artifact_path:')));
+    expect(config.ios.artifactPath, 'build/ios/ipa');
     expect(
       await File(
         p.join(root.path, '.ship-my-flutter', 'candidates', '.gitkeep'),
