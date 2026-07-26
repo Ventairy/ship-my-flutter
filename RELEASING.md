@@ -53,9 +53,9 @@ Release Please job so a publication failure cannot rewrite release history.
 
 ## GitHub Action
 
-1. Run the core gate and `npm run vendor-core` in the adjacent Action checkout.
-2. In `ship-my-flutter-action`, run `npm ci`, resolve the vendored Dart
-   lockfile, and run `npm run check`.
+1. Run the core gate and `pnpm run vendor-core` in the adjacent Action checkout.
+2. In `ship-my-flutter-action`, run `pnpm install --frozen-lockfile`, resolve
+   the vendored Dart lockfile, and run `pnpm run check`.
 3. Confirm `vendor/ship-my-flutter/CORE_COMMIT` names the reviewed immutable
    core commit. Regenerate `dist`, then verify a second build produces no diff
    in `dist` or `vendor`.
