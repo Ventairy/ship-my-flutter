@@ -2,57 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'error.dart';
+import 'process/run_options.dart';
+import 'process/run_result.dart';
 
-const Set<String> sensitiveEnvironmentNames = <String>{
-  'GITHUB_TOKEN',
-  'INPUT_GITHUB_TOKEN',
-  'SMF_APP_STORE_CONNECT_KEY_ID',
-  'SMF_APP_STORE_CONNECT_ISSUER_ID',
-  'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
-  'SMF_IOS_CERTIFICATE_BASE64',
-  'SMF_IOS_CERTIFICATE_PASSWORD',
-  'SMF_IOS_PROVISIONING_PROFILES_BASE64',
-  'SHIP_MY_FLUTTER_GITHUB_TOKEN',
-  'SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID',
-  'SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID',
-  'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
-  'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
-  'SHIP_MY_FLUTTER_IOS_CERTIFICATE_BASE64',
-  'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PATH',
-  'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PASSWORD',
-  'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_BASE64',
-  'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_PATH',
-};
-
-final class RunOptions {
-  const RunOptions({
-    this.workingDirectory,
-    this.environment = const <String, String>{},
-    this.input,
-    this.allowFailure = false,
-    this.onStdout,
-    this.onStderr,
-  });
-
-  final String? workingDirectory;
-  final Map<String, String> environment;
-  final String? input;
-  final bool allowFailure;
-  final void Function(String value)? onStdout;
-  final void Function(String value)? onStderr;
-}
-
-final class RunResult {
-  const RunResult({
-    required this.stdout,
-    required this.stderr,
-    required this.exitCode,
-  });
-
-  final String stdout;
-  final String stderr;
-  final int exitCode;
-}
+export 'process/run_options.dart';
+export 'process/run_result.dart';
 
 abstract interface class ProcessRunner {
   Future<RunResult> run(
@@ -64,6 +18,27 @@ abstract interface class ProcessRunner {
 
 final class SystemProcessRunner implements ProcessRunner {
   const SystemProcessRunner({this.parentEnvironment});
+
+  static const Set<String> _sensitiveEnvironmentNames = <String>{
+    'GITHUB_TOKEN',
+    'INPUT_GITHUB_TOKEN',
+    'SMF_APP_STORE_CONNECT_KEY_ID',
+    'SMF_APP_STORE_CONNECT_ISSUER_ID',
+    'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
+    'SMF_IOS_CERTIFICATE_BASE64',
+    'SMF_IOS_CERTIFICATE_PASSWORD',
+    'SMF_IOS_PROVISIONING_PROFILES_BASE64',
+    'SHIP_MY_FLUTTER_GITHUB_TOKEN',
+    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID',
+    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID',
+    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
+    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
+    'SHIP_MY_FLUTTER_IOS_CERTIFICATE_BASE64',
+    'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PATH',
+    'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PASSWORD',
+    'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_BASE64',
+    'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_PATH',
+  };
 
   /// Primarily useful for deterministic embedding and tests.
   ///
@@ -79,7 +54,7 @@ final class SystemProcessRunner implements ProcessRunner {
     final environment = Map<String, String>.of(
       parentEnvironment ?? Platform.environment,
     );
-    for (final name in sensitiveEnvironmentNames) {
+    for (final name in _sensitiveEnvironmentNames) {
       environment.remove(name);
     }
     environment.addAll(options.environment);

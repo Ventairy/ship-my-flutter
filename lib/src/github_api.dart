@@ -1,21 +1,17 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:json_annotation/json_annotation.dart';
 
 import 'error.dart';
+import 'github/dtos/github_pull_request.dart';
+import 'github/dtos/github_release.dart';
+import 'github/github_api_exception.dart';
 import 'model.dart';
 
-final class GitHubPullRequest {
-  const GitHubPullRequest({required this.number});
-
-  final int number;
-}
-
-final class GitHubRelease {
-  const GitHubRelease({required this.htmlUrl});
-
-  final String htmlUrl;
-}
+export 'github/dtos/github_pull_request.dart';
+export 'github/dtos/github_release.dart';
+export 'github/github_api_exception.dart';
 
 abstract interface class GitHubApi {
   Future<List<GitHubPullRequest>> listPullRequests({
@@ -136,10 +132,7 @@ final class GitHubRestApi implements GitHubApi {
         'GITHUB_RESPONSE',
       );
     }
-    return <GitHubPullRequest>[
-      for (final item in data)
-        GitHubPullRequest(number: _integerField(item, 'number')),
-    ];
+    return <GitHubPullRequest>[for (final item in data) _pullRequest(item)];
   }
 
   @override
@@ -159,9 +152,7 @@ final class GitHubRestApi implements GitHubApi {
         'body': body,
       },
     );
-    return GitHubPullRequest(
-      number: _integerField(_decodeResponse(response), 'number'),
-    );
+    return _pullRequest(_decodeResponse(response));
   }
 
   @override
@@ -222,9 +213,7 @@ final class GitHubRestApi implements GitHubApi {
         'GET',
         '$_repositoryPath/releases/tags/${Uri.encodeComponent(tag)}',
       );
-      return GitHubRelease(
-        htmlUrl: _stringField(_decodeResponse(response), 'html_url'),
-      );
+      return _release(_decodeResponse(response));
     } on GitHubApiException catch (error) {
       if (error.statusCode == 404) return null;
       rethrow;
@@ -248,55 +237,37 @@ final class GitHubRestApi implements GitHubApi {
         'target_commitish': targetCommitish,
       },
     );
-    return GitHubRelease(
-      htmlUrl: _stringField(_decodeResponse(response), 'html_url'),
-    );
+    return _release(_decodeResponse(response));
   }
-}
 
-final class GitHubApiException implements Exception {
-  const GitHubApiException({
-    required this.statusCode,
-    required this.method,
-    required this.path,
-    required this.responseBody,
-  });
+  String _boundedBody(String body) =>
+      body.length > 500 ? body.substring(0, 500) : body;
 
-  final int statusCode;
-  final String method;
-  final String path;
-  final String responseBody;
-
-  @override
-  String toString() {
-    return 'GitHub API $method $path failed with status $statusCode: '
-        '$responseBody';
+  GitHubPullRequest _pullRequest(Object? value) {
+    return _decodeDto(value, GitHubPullRequest.fromJson);
   }
-}
 
-String _boundedBody(String body) =>
-    body.length > 500 ? body.substring(0, 500) : body;
-
-int _integerField(Object? value, String field) {
-  if (value is Map<String, Object?>) {
-    final fieldValue = value[field];
-    if (fieldValue is int) return fieldValue;
+  GitHubRelease _release(Object? value) {
+    return _decodeDto(value, GitHubRelease.fromJson);
   }
-  throw ShipError(
-    'GitHub response is missing integer field "$field".',
-    'GITHUB_RESPONSE',
-  );
-}
 
-String _stringField(Object? value, String field) {
-  if (value is Map<String, Object?>) {
-    final fieldValue = value[field];
-    if (fieldValue is String) return fieldValue;
+  T _decodeDto<T>(Object? value, T Function(Map<String, Object?>) fromJson) {
+    if (value is! Map<String, Object?>) {
+      throw const ShipError(
+        'GitHub returned an invalid response object.',
+        'GITHUB_RESPONSE',
+      );
+    }
+    try {
+      return fromJson(value);
+    } on CheckedFromJsonException catch (error) {
+      throw ShipError(
+        'GitHub returned invalid response data.',
+        'GITHUB_RESPONSE',
+        cause: error,
+      );
+    }
   }
-  throw ShipError(
-    'GitHub response is missing string field "$field".',
-    'GITHUB_RESPONSE',
-  );
 }
 
 Object? _decodeResponse(http.Response response) {

@@ -369,6 +369,14 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 Run `dart run ship_my_flutter validate` locally to catch repository
 configuration problems before CI.
 
+## Contributing to the core
+
+The package uses Freezed and json_serializable for immutable release state and
+typed JSON boundaries. Generated Dart files are committed, so package users do
+not run a generator. Contributors changing an annotated model should run
+`dart run build_runner build` and review the generated diff. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the complete development gate.
+
 ## Validation boundary
 
 The public

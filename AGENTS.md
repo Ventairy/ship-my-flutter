@@ -143,6 +143,7 @@ Resolve the newest compatible dependency graph:
 
 ```bash
 dart pub get
+dart run build_runner build
 ```
 
 This is a shared package with a public library API, so its generated root
@@ -184,6 +185,8 @@ Run the same complete gate expected before a pull request or commit:
 
 ```bash
 dart pub get
+dart run build_runner build
+git diff --exit-code -- lib
 dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos
 dart test
@@ -254,6 +257,29 @@ cleanly, and explain the exception immediately beside it.
 - Prefer enums over magic strings for closed domain states.
 - Switch exhaustively over enums. Never add a `default` or wildcard case that
   would hide a future enum value; `no_default_cases` is intentional.
+
+### Generated models and DTOs
+
+- Use Freezed for immutable, non-secret value models that need deep equality,
+  collection immutability, or `copyWith` state transitions.
+- Use json_serializable for persisted JSON and external API response DTOs.
+  Keep domain-specific validation and stable `ShipError` translation at the
+  untrusted boundary.
+- Keep one DTO or independently meaningful generated model per authored file.
+  Shared enums may live together in one dedicated enum file.
+- Generated `.freezed.dart` and `.g.dart` files under `lib/` are committed
+  package source. Consumers must never need `build_runner`; contributors must
+  regenerate and review these files after changing annotations.
+- Never edit generated files directly.
+- Freezed 3.2.5 emits spaces on some otherwise blank generated lines.
+  `.gitattributes` excludes only `*.freezed.dart` from Git's blank-at-EOL
+  warning so generated output remains byte-for-byte reproducible. Do not
+  normalize it by hand or weaken whitespace checks for authored files.
+- Never apply generated value semantics to credentials, tokens, private keys,
+  certificates, passwords, or other secret-bearing objects. Generated
+  `toString` output must not create a credential-leak path.
+- Prefer generated `copyWith` for immutable state changes instead of manually
+  rebuilding every unchanged field.
 
 ### Files and ownership
 

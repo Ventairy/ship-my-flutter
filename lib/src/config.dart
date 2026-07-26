@@ -191,7 +191,7 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
       'platforms.ios.bundleId',
     ),
     scheme: _optionalNonEmptyString(ios['scheme'], 'platforms.ios.scheme'),
-    buildArgs: List<String>.unmodifiable(buildArgs),
+    buildArgs: buildArgs,
     testflight: _parseTestflightConfig(testflight),
     appStore: _parseAppStoreConfig(appStore),
   );
@@ -227,7 +227,7 @@ TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
     );
   }
   return TestflightConfig(
-    groups: List<String>.unmodifiable(groups),
+    groups: groups,
     waitTimeoutMinutes: waitTimeoutMinutes,
   );
 }
@@ -372,12 +372,10 @@ ChangelogManifest validateChangelog(
           release['headSha'],
           'platforms.ios.releases.${entry.key}.headSha',
         ),
-        changes: List<ConventionalChange>.unmodifiable(changes),
+        changes: changes,
       );
     }
-    return ChangelogManifest(
-      iosReleases: Map<String, ChangelogRelease>.unmodifiable(parsed),
-    );
+    return ChangelogManifest(iosReleases: parsed);
   } on ShipError {
     rethrow;
   } on FormatException catch (error) {
@@ -439,12 +437,12 @@ ConventionalChange _parseChange(Object? value, String path) {
     body: _nullableString(change['body'], '$path.body'),
     breaking: _boolean(change['breaking'], '$path.breaking'),
     bump: Bump.maybeParse(change['bump']),
-    platforms: List<Platform>.unmodifiable(
-      platformsValue.map(
-        (Object? item) =>
-            Platform.parse(_nonEmptyString(item, '$path.platforms')),
-      ),
-    ),
+    platforms: platformsValue
+        .map(
+          (Object? item) =>
+              Platform.parse(_nonEmptyString(item, '$path.platforms')),
+        )
+        .toList(),
     releaseAs: change['releaseAs'] == null
         ? null
         : _stableVersion(change['releaseAs'], '$path.releaseAs'),

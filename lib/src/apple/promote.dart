@@ -12,52 +12,11 @@ import '../paths.dart';
 import '../release_plan.dart';
 import '../validate.dart';
 import 'client.dart';
-import 'project.dart';
+import 'dtos/promotion_result.dart';
+import 'promotion_options.dart';
 
-final class PromotionResult {
-  const PromotionResult({
-    required this.version,
-    required this.tag,
-    required this.buildId,
-    required this.githubReleaseUrl,
-    this.appStoreVersionId,
-    this.reviewSubmissionId,
-  });
-
-  final String version;
-  final String tag;
-  final String buildId;
-  final String? appStoreVersionId;
-  final String? reviewSubmissionId;
-  final String githubReleaseUrl;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'version': version,
-    'tag': tag,
-    'buildId': buildId,
-    if (appStoreVersionId != null) 'appStoreVersionId': appStoreVersionId,
-    if (reviewSubmissionId != null) 'reviewSubmissionId': reviewSubmissionId,
-    'githubReleaseUrl': githubReleaseUrl,
-  };
-}
-
-final class PromotionOptions {
-  const PromotionOptions({
-    required this.root,
-    required this.appleCredentials,
-    required this.github,
-    this.client,
-    this.githubApi,
-    this.resolveBundleIdentifier = resolveBundleId,
-  });
-
-  final String root;
-  final AppleCredentials appleCredentials;
-  final GitHubContext github;
-  final AppStoreConnectApi? client;
-  final GitHubApi? githubApi;
-  final ResolveBundleId resolveBundleIdentifier;
-}
+export 'dtos/promotion_result.dart';
+export 'promotion_options.dart';
 
 Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
   final root = p.normalize(p.absolute(options.root));

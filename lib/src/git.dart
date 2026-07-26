@@ -1,17 +1,13 @@
 import 'dart:convert';
 
 import 'error.dart';
+import 'git/git_commit.dart';
 import 'process_runner.dart';
+
+export 'git/git_commit.dart';
 
 const String _recordSeparator = '\u001e';
 const String _fieldSeparator = '\u001f';
-
-final class GitCommit {
-  const GitCommit({required this.sha, required this.message});
-
-  final String sha;
-  final String message;
-}
 
 final class GitClient {
   const GitClient({

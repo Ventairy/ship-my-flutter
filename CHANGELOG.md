@@ -4,6 +4,14 @@ All notable changes to ship-my-flutter are documented here.
 
 The project follows Semantic Versioning and Conventional Commits.
 
+## Unreleased
+
+### Changed
+
+- Refactored immutable release state and Apple/GitHub response models with
+  Freezed and json_serializable while preserving public constructors and wire
+  formats.
+
 ## 0.1.0 - 2026-07-26
 
 ### Added

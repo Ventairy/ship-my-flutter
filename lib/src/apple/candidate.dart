@@ -9,70 +9,11 @@ import '../model.dart';
 import '../paths.dart';
 import '../serialization.dart';
 import '../validate.dart';
+import 'candidate_options.dart';
 import 'client.dart';
-import 'project.dart';
-import 'signing.dart';
-import 'upload.dart';
 
-typedef InstallSigningAssets =
-    Future<SigningSession> Function(
-      SigningCredentials credentials,
-      String bundleId,
-    );
-typedef PrepareFlutterDependencies = Future<void> Function(String projectRoot);
-typedef BuildFlutterIpa =
-    Future<String> Function({
-      required String projectRoot,
-      required String version,
-      required String buildNumber,
-      required String exportOptionsPath,
-      String? scheme,
-      required List<String> buildArgs,
-    });
-typedef UploadIpa =
-    Future<void> Function(String ipaPath, AppleCredentials credentials);
-
-DateTime _currentTime() => DateTime.now().toUtc();
-
-final class CandidateDependencies {
-  const CandidateDependencies({
-    this.installSigning = installSigningAssets,
-    this.prepareDependencies = prepareFlutterDependencies,
-    this.buildIpa = buildFlutterIpa,
-    this.upload = uploadIpa,
-    this.resolveBundleIdentifier = resolveBundleId,
-    this.currentTime = _currentTime,
-  });
-
-  final InstallSigningAssets installSigning;
-  final PrepareFlutterDependencies prepareDependencies;
-  final BuildFlutterIpa buildIpa;
-  final UploadIpa upload;
-  final ResolveBundleId resolveBundleIdentifier;
-
-  /// Supplies the receipt timestamp, primarily for deterministic workflows.
-  final DateTime Function() currentTime;
-}
-
-final class CandidateOptions {
-  const CandidateOptions({
-    required this.root,
-    required this.appleCredentials,
-    required this.signingCredentials,
-    this.github,
-    this.commitReceipt = true,
-    this.client,
-    this.dependencies = const CandidateDependencies(),
-  });
-
-  final String root;
-  final AppleCredentials appleCredentials;
-  final SigningCredentials signingCredentials;
-  final GitHubContext? github;
-  final bool commitReceipt;
-  final AppStoreConnectApi? client;
-  final CandidateDependencies dependencies;
-}
+export 'candidate_dependencies.dart';
+export 'candidate_options.dart';
 
 Future<CandidateReceipt?> _reusableCandidate(
   String receiptPath,
@@ -167,22 +108,6 @@ Future<void> _recordCandidateReceipt({
   }
 }
 
-CandidateReceipt _refreshCandidateReceipt(
-  CandidateReceipt receipt,
-  List<String> testflightGroups,
-) => CandidateReceipt(
-  version: receipt.version,
-  buildNumber: receipt.buildNumber,
-  buildId: receipt.buildId,
-  appId: receipt.appId,
-  bundleId: receipt.bundleId,
-  sourceSha: receipt.sourceSha,
-  sourceFingerprint: receipt.sourceFingerprint,
-  ipaSha256: receipt.ipaSha256,
-  uploadedAt: receipt.uploadedAt,
-  testflightGroups: testflightGroups,
-);
-
 Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   final root = p.normalize(p.absolute(options.root));
   await validateRepository(root);
@@ -229,9 +154,8 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
       config: config.ios.testflight,
       client: client,
     );
-    final refreshed = _refreshCandidateReceipt(
-      reusable,
-      config.ios.testflight.groups,
+    final refreshed = reusable.copyWith(
+      testflightGroups: config.ios.testflight.groups,
     );
     await _recordCandidateReceipt(
       root: root,

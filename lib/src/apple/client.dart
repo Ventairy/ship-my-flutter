@@ -2,77 +2,21 @@ import 'dart:convert';
 
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
+import 'package:json_annotation/json_annotation.dart';
 
 import '../error.dart';
 import '../model.dart';
+import 'dtos/api_resource.dart';
+import 'dtos/app_attributes.dart';
+import 'dtos/app_store_version_attributes.dart';
+import 'dtos/build_attributes.dart';
+import 'dtos/prerelease_version_attributes.dart';
 
-final class ApiResource<T> {
-  const ApiResource({
-    required this.type,
-    required this.id,
-    required this.attributes,
-  });
-
-  final String type;
-  final String id;
-  final T attributes;
-}
-
-final class AppAttributes {
-  const AppAttributes({
-    required this.name,
-    required this.bundleId,
-    required this.sku,
-    required this.primaryLocale,
-  });
-
-  final String name;
-  final String bundleId;
-  final String sku;
-  final String primaryLocale;
-}
-
-final class BuildAttributes {
-  const BuildAttributes({
-    required this.version,
-    required this.processingState,
-    this.uploadedDate,
-    this.expired = false,
-    this.usesNonExemptEncryption,
-  });
-
-  final String version;
-  final String? uploadedDate;
-  final String processingState;
-  final bool expired;
-  final bool? usesNonExemptEncryption;
-}
-
-final class PrereleaseVersionAttributes {
-  const PrereleaseVersionAttributes({
-    required this.version,
-    required this.platform,
-  });
-
-  final String version;
-  final String platform;
-}
-
-final class AppStoreVersionAttributes {
-  const AppStoreVersionAttributes({
-    required this.platform,
-    required this.versionString,
-    required this.appStoreState,
-    required this.releaseType,
-    this.earliestReleaseDate,
-  });
-
-  final String platform;
-  final String versionString;
-  final String appStoreState;
-  final String releaseType;
-  final String? earliestReleaseDate;
-}
+export 'dtos/api_resource.dart';
+export 'dtos/app_attributes.dart';
+export 'dtos/app_store_version_attributes.dart';
+export 'dtos/build_attributes.dart';
+export 'dtos/prerelease_version_attributes.dart';
 
 abstract interface class AppStoreConnectApi {
   Future<ApiResource<AppAttributes>> findApp(String bundleId);
@@ -128,10 +72,6 @@ abstract interface class AppStoreConnectApi {
 
 typedef AppleTokenProvider = Future<String> Function();
 
-DateTime _systemTime() => DateTime.now();
-
-Future<void> _systemDelay(Duration duration) => Future<void>.delayed(duration);
-
 final class AppStoreConnectClient implements AppStoreConnectApi {
   /// Creates an App Store Connect client.
   ///
@@ -156,6 +96,11 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
   final DateTime Function() _currentTime;
   final Future<void> Function(Duration) _delay;
   final Uri baseUrl;
+
+  static DateTime _systemTime() => DateTime.now();
+
+  static Future<void> _systemDelay(Duration duration) =>
+      Future<void>.delayed(duration);
 
   Future<String> _token() async {
     final override = _tokenProvider;
@@ -722,187 +667,148 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     );
     return submissionId;
   }
-}
 
-String? _reviewSubmissionVersionId(Map<String, Object?> submission) {
-  final relationshipsValue = submission['relationships'];
-  if (relationshipsValue == null) return null;
-  final relationships = _map(
-    relationshipsValue,
-    'review submission.relationships',
-  );
-  final versionValue = relationships['appStoreVersionForReview'];
-  if (versionValue == null) return null;
-  final version = _map(
-    versionValue,
-    'review submission.relationships.appStoreVersionForReview',
-  );
-  final dataValue = version['data'];
-  if (dataValue == null) return null;
-  final data = _map(
-    dataValue,
-    'review submission.relationships.appStoreVersionForReview.data',
-  );
-  return _optionalString(
-    data['id'],
-    'review submission.relationships.appStoreVersionForReview.data.id',
-  );
-}
-
-ApiResource<AppAttributes> _appResource(Object? value) {
-  final resource = _map(value, 'app');
-  final attributes = _map(resource['attributes'], 'app.attributes');
-  return ApiResource<AppAttributes>(
-    type: _string(resource['type'], 'app.type'),
-    id: _string(resource['id'], 'app.id'),
-    attributes: AppAttributes(
-      name: _string(attributes['name'], 'app.name'),
-      bundleId: _string(attributes['bundleId'], 'app.bundleId'),
-      sku: _string(attributes['sku'], 'app.sku'),
-      primaryLocale: _string(attributes['primaryLocale'], 'app.primaryLocale'),
-    ),
-  );
-}
-
-ApiResource<PrereleaseVersionAttributes> _prereleaseResource(Object? value) {
-  final resource = _map(value, 'preReleaseVersion');
-  final attributes = _map(
-    resource['attributes'],
-    'preReleaseVersion.attributes',
-  );
-  return ApiResource<PrereleaseVersionAttributes>(
-    type: _string(resource['type'], 'preReleaseVersion.type'),
-    id: _string(resource['id'], 'preReleaseVersion.id'),
-    attributes: PrereleaseVersionAttributes(
-      version: _string(attributes['version'], 'preReleaseVersion.version'),
-      platform: _string(attributes['platform'], 'preReleaseVersion.platform'),
-    ),
-  );
-}
-
-ApiResource<BuildAttributes> _buildResource(Object? value) {
-  final resource = _map(value, 'build');
-  final attributes = _map(resource['attributes'], 'build.attributes');
-  return ApiResource<BuildAttributes>(
-    type: _string(resource['type'], 'build.type'),
-    id: _string(resource['id'], 'build.id'),
-    attributes: BuildAttributes(
-      version: _string(attributes['version'], 'build.version'),
-      processingState: _string(
-        attributes['processingState'],
-        'build.processingState',
-      ),
-      uploadedDate: _optionalString(
-        attributes['uploadedDate'],
-        'build.uploadedDate',
-      ),
-      expired: _optionalBool(attributes['expired'], 'build.expired') ?? false,
-      usesNonExemptEncryption: _optionalBool(
-        attributes['usesNonExemptEncryption'],
-        'build.usesNonExemptEncryption',
-      ),
-    ),
-  );
-}
-
-ApiResource<AppStoreVersionAttributes> _appStoreVersionResource(Object? value) {
-  final resource = _map(value, 'appStoreVersion');
-  final attributes = _map(resource['attributes'], 'appStoreVersion.attributes');
-  return ApiResource<AppStoreVersionAttributes>(
-    type: _string(resource['type'], 'appStoreVersion.type'),
-    id: _string(resource['id'], 'appStoreVersion.id'),
-    attributes: AppStoreVersionAttributes(
-      platform: _string(attributes['platform'], 'appStoreVersion.platform'),
-      versionString: _string(
-        attributes['versionString'],
-        'appStoreVersion.versionString',
-      ),
-      appStoreState: _string(
-        attributes['appStoreState'],
-        'appStoreVersion.appStoreState',
-      ),
-      releaseType: _string(
-        attributes['releaseType'],
-        'appStoreVersion.releaseType',
-      ),
-      earliestReleaseDate: _optionalString(
-        attributes['earliestReleaseDate'],
-        'appStoreVersion.earliestReleaseDate',
-      ),
-    ),
-  );
-}
-
-ApiResource<Map<String, Object?>> _genericResource(Object? value) {
-  final resource = _map(value, 'resource');
-  return ApiResource<Map<String, Object?>>(
-    type: _string(resource['type'], 'resource.type'),
-    id: _string(resource['id'], 'resource.id'),
-    attributes: _map(resource['attributes'], 'resource.attributes'),
-  );
-}
-
-({String type, String id}) _mapResourceIdentifier(Object? value) {
-  final resource = _map(value, 'resource identifier');
-  return (
-    type: _string(resource['type'], 'resource identifier.type'),
-    id: _string(resource['id'], 'resource identifier.id'),
-  );
-}
-
-Map<String, Object?> _map(Object? value, String path) {
-  if (value is! Map<Object?, Object?>) {
-    throw ShipError('$path must be an object.', 'APP_STORE_CONNECT_RESPONSE');
+  String? _reviewSubmissionVersionId(Map<String, Object?> submission) {
+    final relationshipsValue = submission['relationships'];
+    if (relationshipsValue == null) return null;
+    final relationships = _map(
+      relationshipsValue,
+      'review submission.relationships',
+    );
+    final versionValue = relationships['appStoreVersionForReview'];
+    if (versionValue == null) return null;
+    final version = _map(
+      versionValue,
+      'review submission.relationships.appStoreVersionForReview',
+    );
+    final dataValue = version['data'];
+    if (dataValue == null) return null;
+    final data = _map(
+      dataValue,
+      'review submission.relationships.appStoreVersionForReview.data',
+    );
+    return _optionalString(
+      data['id'],
+      'review submission.relationships.appStoreVersionForReview.data.id',
+    );
   }
-  final result = <String, Object?>{};
-  for (final entry in value.entries) {
-    final key = entry.key;
-    if (key is! String) {
+
+  ApiResource<AppAttributes> _appResource(Object? value) {
+    return _resource(
+      value,
+      path: 'app',
+      attributesFromJson: AppAttributes.fromJson,
+    );
+  }
+
+  ApiResource<PrereleaseVersionAttributes> _prereleaseResource(Object? value) {
+    return _resource(
+      value,
+      path: 'preReleaseVersion',
+      attributesFromJson: PrereleaseVersionAttributes.fromJson,
+    );
+  }
+
+  ApiResource<BuildAttributes> _buildResource(Object? value) {
+    return _resource(
+      value,
+      path: 'build',
+      attributesFromJson: BuildAttributes.fromJson,
+    );
+  }
+
+  ApiResource<AppStoreVersionAttributes> _appStoreVersionResource(
+    Object? value,
+  ) {
+    return _resource(
+      value,
+      path: 'appStoreVersion',
+      attributesFromJson: AppStoreVersionAttributes.fromJson,
+    );
+  }
+
+  ApiResource<Map<String, Object?>> _genericResource(Object? value) {
+    return _resource(
+      value,
+      path: 'resource',
+      attributesFromJson: (Map<String, Object?> json) => json,
+    );
+  }
+
+  ApiResource<T> _resource<T>(
+    Object? value, {
+    required String path,
+    required T Function(Map<String, Object?>) attributesFromJson,
+  }) {
+    try {
+      return ApiResource<T>.fromJson(
+        _map(value, path),
+        (Object? attributes) =>
+            attributesFromJson(_map(attributes, '$path.attributes')),
+      );
+    } on CheckedFromJsonException catch (error) {
       throw ShipError(
-        '$path contains a non-string key.',
+        '$path contains invalid response data.',
         'APP_STORE_CONNECT_RESPONSE',
+        cause: error,
       );
     }
-    result[key] = entry.value;
   }
-  return result;
-}
 
-List<Object?> _list(Object? value, String path) {
-  if (value is! List<Object?>) {
-    throw ShipError('$path must be a list.', 'APP_STORE_CONNECT_RESPONSE');
-  }
-  return value;
-}
-
-String _string(Object? value, String path) {
-  if (value is! String) {
-    throw ShipError('$path must be a string.', 'APP_STORE_CONNECT_RESPONSE');
-  }
-  return value;
-}
-
-String? _optionalString(Object? value, String path) {
-  if (value == null) return null;
-  return _string(value, path);
-}
-
-bool? _optionalBool(Object? value, String path) {
-  if (value == null) return null;
-  if (value is! bool) {
-    throw ShipError('$path must be a boolean.', 'APP_STORE_CONNECT_RESPONSE');
-  }
-  return value;
-}
-
-Object? _decodeResponseBody(String body) {
-  try {
-    return jsonDecode(body);
-  } on FormatException catch (error) {
-    throw ShipError(
-      'App Store Connect returned malformed JSON.',
-      'APP_STORE_CONNECT_RESPONSE',
-      cause: error,
+  ({String type, String id}) _mapResourceIdentifier(Object? value) {
+    final resource = _map(value, 'resource identifier');
+    return (
+      type: _string(resource['type'], 'resource identifier.type'),
+      id: _string(resource['id'], 'resource identifier.id'),
     );
+  }
+
+  Map<String, Object?> _map(Object? value, String path) {
+    if (value is! Map<Object?, Object?>) {
+      throw ShipError('$path must be an object.', 'APP_STORE_CONNECT_RESPONSE');
+    }
+    final result = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is! String) {
+        throw ShipError(
+          '$path contains a non-string key.',
+          'APP_STORE_CONNECT_RESPONSE',
+        );
+      }
+      result[key] = entry.value;
+    }
+    return result;
+  }
+
+  List<Object?> _list(Object? value, String path) {
+    if (value is! List<Object?>) {
+      throw ShipError('$path must be a list.', 'APP_STORE_CONNECT_RESPONSE');
+    }
+    return value;
+  }
+
+  String _string(Object? value, String path) {
+    if (value is! String) {
+      throw ShipError('$path must be a string.', 'APP_STORE_CONNECT_RESPONSE');
+    }
+    return value;
+  }
+
+  String? _optionalString(Object? value, String path) {
+    if (value == null) return null;
+    return _string(value, path);
+  }
+
+  Object? _decodeResponseBody(String body) {
+    try {
+      return jsonDecode(body);
+    } on FormatException catch (error) {
+      throw ShipError(
+        'App Store Connect returned malformed JSON.',
+        'APP_STORE_CONNECT_RESPONSE',
+        cause: error,
+      );
+    }
   }
 }

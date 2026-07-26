@@ -9,40 +9,11 @@ import '../error.dart';
 import '../model.dart' hide Platform;
 import '../process_runner.dart';
 import '../serialization.dart';
+import 'installed_profile.dart';
+import 'signing_session.dart';
 
-final class InstalledProfile {
-  const InstalledProfile({
-    required this.bundleId,
-    required this.uuid,
-    required this.name,
-    required this.teamId,
-    required this.installedPath,
-  });
-
-  final String bundleId;
-  final String uuid;
-  final String name;
-  final String teamId;
-  final String installedPath;
-}
-
-final class SigningSession {
-  const SigningSession({
-    required this.keychainPath,
-    required this.keychainPassword,
-    required this.profiles,
-    required this.exportOptionsPath,
-    required Future<void> Function() cleanup,
-  }) : _cleanup = cleanup;
-
-  final String keychainPath;
-  final String keychainPassword;
-  final List<InstalledProfile> profiles;
-  final String exportOptionsPath;
-  final Future<void> Function() _cleanup;
-
-  Future<void> cleanup() => _cleanup();
-}
+export 'installed_profile.dart';
+export 'signing_session.dart';
 
 Map<String, String> _parseProfileInput(String value, String bundleId) {
   final trimmed = value.trim();

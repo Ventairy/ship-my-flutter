@@ -12,11 +12,18 @@ Requirements:
 
 ```bash
 dart pub get
+dart run build_runner build
+git diff --exit-code -- lib
 dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos
 dart test
 dart pub publish --dry-run
 ```
+
+Freezed and json_serializable outputs under `lib/` are committed package source
+so consumers never need code generation. Run the generator after changing an
+annotated model or DTO, review both the authored and generated diffs, and never
+edit generated files directly.
 
 The core is a shared package, so its generated `pubspec.lock` is intentionally
 ignored. CI resolves the newest compatible graph on Dart 3.10 and stable, and
@@ -37,6 +44,11 @@ use its platform scope, for example
 The Dart library is the product. Keep release decisions, GitHub behavior,
 signing, and store delivery in `lib/`; the companion Action is only an adapter
 that invokes the CLI.
+
+Use Freezed for immutable, non-secret value models that benefit from deep
+equality and `copyWith`. Use json_serializable for persisted and transport DTO
+boundaries. Never apply generated value semantics to credentials or tokens,
+because generated diagnostics may expose field values.
 
 CLI success output is one JSON value on stdout. Human diagnostics and errors go
 to stderr. Never add a command-line flag that accepts a raw secret—use a

@@ -2,10 +2,13 @@ import 'changelog.dart';
 import 'config.dart';
 import 'error.dart';
 import 'git.dart';
+import 'github/dtos/release_pull_request_result.dart';
 import 'github_api.dart';
 import 'hooks.dart';
 import 'manifest_files.dart';
 import 'model.dart';
+
+export 'github/dtos/release_pull_request_result.dart';
 
 String releaseBranchName(ShipConfig config, Platform platform) =>
     '${config.releaseBranchPrefix}/${platform.value}';
@@ -50,16 +53,6 @@ Future<String> _ensureReleaseBranch(
     ]);
   }
   return branch;
-}
-
-final class ReleasePullRequestResult {
-  const ReleasePullRequestResult({
-    required this.branch,
-    required this.pullRequestNumber,
-  });
-
-  final String branch;
-  final int pullRequestNumber;
 }
 
 Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(

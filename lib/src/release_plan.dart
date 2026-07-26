@@ -65,7 +65,7 @@ final class ReleasePlanner {
       bump: bump,
       baseSha: baseSha,
       headSha: headSha,
-      changes: List<ConventionalChange>.unmodifiable(changes),
+      changes: changes,
     );
   }
 }

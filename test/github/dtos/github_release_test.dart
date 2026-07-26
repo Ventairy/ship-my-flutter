@@ -1,0 +1,15 @@
+import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('when decoding a GitHub release, it should map the API URL field', () {
+    final release = GitHubRelease.fromJson(<String, Object?>{
+      'html_url': 'https://github.com/Ventairy/example/releases/tag/v1.0.0',
+    });
+
+    expect(
+      release.htmlUrl,
+      'https://github.com/Ventairy/example/releases/tag/v1.0.0',
+    );
+  });
+}

@@ -49,7 +49,7 @@ CandidateReceipt validateCandidateReceipt(
       sourceFingerprint: sourceFingerprint,
       ipaSha256: ipaSha256,
       uploadedAt: uploadedAt,
-      testflightGroups: List<String>.unmodifiable(groups),
+      testflightGroups: groups,
     );
   } on ShipError catch (error) {
     throw ShipError(

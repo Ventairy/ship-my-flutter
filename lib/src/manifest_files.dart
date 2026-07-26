@@ -40,20 +40,15 @@ Future<void> applyReleasePlan(
   );
 
   final nextManifest = switch (plan.platform) {
-    Platform.ios => ShipManifest(
-      schemaVersion: manifest.schemaVersion,
-      ios: PlatformManifest(
+    Platform.ios => manifest.copyWith(
+      ios: manifest.ios.copyWith(
         version: plan.nextVersion,
-        baselineSha: manifest.ios.baselineSha,
         pendingRelease: true,
       ),
     ),
   };
   final nextChangelog = switch (plan.platform) {
-    Platform.ios => ChangelogManifest(
-      schemaVersion: changelog.schemaVersion,
-      iosReleases: Map<String, ChangelogRelease>.unmodifiable(releases),
-    ),
+    Platform.ios => changelog.copyWith(iosReleases: releases),
   };
   await (
     writeJson(paths.manifest, nextManifest.toJson()),
