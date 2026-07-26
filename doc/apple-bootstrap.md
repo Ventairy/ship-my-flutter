@@ -12,7 +12,19 @@ Declare the app’s export-compliance status as well. For apps that qualify, set
 
 ## 2. Create an App Store Connect API key
 
-The Account Holder must first enable App Store Connect API access. Create a team key with the least role that can upload builds and perform the configured submission mode.
+The Account Holder must first enable App Store Connect API access. The Account
+Holder or an Admin then creates a team key whose role covers the configured
+workflow:
+
+- `Developer` is sufficient for an `upload-only` workflow that does not assign
+  the build to TestFlight groups.
+- `App Manager` is the minimum role for the complete workflow: assigning
+  testers to builds and submitting an app version for review. `Admin` and
+  `Account Holder` also have those permissions.
+
+Do not grant `Admin` or `Account Holder` merely to make automation work. If
+`testflight.groups` is non-empty or `appStore.mode` is `submit`, use at least
+`App Manager`.
 
 Record:
 
@@ -46,3 +58,22 @@ Encode the `.p8`, `.p12`, and profiles as Base64 without adding them to the repo
 ## Validation boundary
 
 The local test suite validates request contracts with mock Apple responses. A real organization must still exercise certificate import, its entitlements/profiles, build processing, metadata completeness, and API-key permissions before treating production delivery as proven.
+
+Use a disposable release branch for the first live acceptance run and verify
+all of the following before publishing the core package or the `v1` Action
+tag:
+
+1. the macOS candidate job imports the real certificate and every required
+   provisioning profile;
+2. Xcode exports an IPA with the expected application and extension bundle
+   identifiers;
+3. App Store Connect accepts and finishes processing that exact build;
+4. configured TestFlight groups receive the build and localized beta notes;
+5. the committed candidate receipt names the processed App Store Connect build;
+6. after merging the release PR, promotion selects that same build and the
+   configured upload-only or review-submission behavior succeeds;
+7. the immutable `ios-vX.Y.Z` GitHub Release points at the promoted source.
+
+The first live run uses real Apple credentials and can create a TestFlight
+build or review submission. Keep it as an explicitly authorized release
+operation rather than a CI smoke test.

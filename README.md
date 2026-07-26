@@ -369,7 +369,10 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 - A committed, current `pubspec.lock`; release builds enforce it rather than resolving new dependency versions in CI.
 - A GitHub-hosted or self-hosted macOS runner capable of Xcode 26 builds.
 - An existing App Store Connect app record; Apple does not let the API create one.
-- An App Store Connect API key, Apple Distribution certificate, and App Store provisioning profile.
+- An App Store Connect API key with `Developer` access for upload-only delivery
+  without TestFlight groups, or at least `App Manager` access for group
+  assignment and App Review submission; plus an Apple Distribution certificate
+  and App Store provisioning profile.
 - Required App Store product metadata already configured for the app.
 
 Run `dart run ship_my_flutter validate` locally to catch repository
