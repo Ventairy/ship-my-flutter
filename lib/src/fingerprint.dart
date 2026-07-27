@@ -66,9 +66,8 @@ Stream<List<int>> _fingerprintBytes(String root, List<String> files) async* {
           'project_path': ios['project_path'] ?? '.',
           if (ios.containsKey('bundle_id')) 'bundle_id': ios['bundle_id'],
           if (ios.containsKey('scheme')) 'scheme': ios['scheme'],
-          'build_command':
-              ios['build_command'] ?? 'flutter build ipa --release',
-          'artifact_path': ios['artifact_path'] ?? 'build/ios/ipa',
+          'build_command': ios['build_command'] ?? 'auto',
+          'ipa_output_path': ios['ipa_output_path'] ?? 'build/ios/ipa',
           if (hooks is Map<Object?, Object?> &&
               hooks.containsKey('before_candidate'))
             'before_candidate': hooks['before_candidate'],

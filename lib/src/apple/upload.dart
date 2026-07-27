@@ -12,16 +12,16 @@ import '../serialization.dart';
 /// Both lexical paths and resolved symlinks must remain under [projectRoot].
 Future<String> findIpa(
   String projectRoot, {
-  String artifactPath = 'build/ios/ipa',
+  String ipaOutputPath = 'build/ios/ipa',
 }) async {
   final repositoryProjectRoot = p.normalize(p.absolute(projectRoot));
   final configuredPath = p.normalize(
-    p.absolute(repositoryProjectRoot, artifactPath),
+    p.absolute(repositoryProjectRoot, ipaOutputPath),
   );
   invariant(
     p.equals(configuredPath, repositoryProjectRoot) ||
         p.isWithin(repositoryProjectRoot, configuredPath),
-    'The configured IPA artifact_path must stay inside project_path.',
+    'The configured ipa_output_path must stay inside project_path.',
     'IPA_PATH_ESCAPE',
   );
 
@@ -40,14 +40,14 @@ Future<String> findIpa(
       configuredPath,
     ).resolveSymbolicLinks(),
     _ => throw const ShipError(
-      'The configured IPA artifact_path must be a file or directory.',
+      'The configured ipa_output_path must be a file or directory.',
       'IPA_NOT_FOUND',
     ),
   };
   invariant(
     p.equals(realConfiguredPath, realProjectRoot) ||
         p.isWithin(realProjectRoot, realConfiguredPath),
-    'The configured IPA artifact_path resolves outside project_path.',
+    'The configured ipa_output_path resolves outside project_path.',
     'IPA_PATH_ESCAPE',
   );
 
@@ -85,15 +85,45 @@ Future<String> findIpa(
   return ipas.single;
 }
 
+/// Selects the configured iOS build command or the repository-aware default.
+///
+/// When [configuredCommand] is omitted, a project using a current or legacy
+/// FVM configuration runs `fvm flutter`; other projects run `flutter`
+/// directly. FVM configuration is discovered from [projectRoot] up to the
+/// nearest Git repository boundary.
+Future<String> resolveIosBuildCommand(
+  String projectRoot, {
+  String? configuredCommand,
+}) async {
+  if (configuredCommand != null) return configuredCommand;
+
+  var directory = p.normalize(p.absolute(projectRoot));
+  while (true) {
+    final usesFvm =
+        await File(p.join(directory, '.fvmrc')).exists() ||
+        await File(p.join(directory, '.fvm', 'fvm_config.json')).exists();
+    if (usesFvm) return 'fvm flutter build ipa --release';
+
+    final gitBoundary =
+        await File(p.join(directory, '.git')).exists() ||
+        await Directory(p.join(directory, '.git')).exists();
+    final parent = p.dirname(directory);
+    if (gitBoundary || parent == directory) break;
+    directory = parent;
+  }
+
+  return 'flutter build ipa --release';
+}
+
 /// Runs the project-owned build command with managed Apple build arguments.
 ///
 /// The consumer must install the command's Flutter/FVM toolchain. This appends
 /// immutable version, build number, export-options, and optional flavor
-/// arguments, then validates [artifactPath].
+/// arguments, then validates [ipaOutputPath].
 Future<String> runIosBuildCommand({
   required String projectRoot,
   required String command,
-  required String artifactPath,
+  required String ipaOutputPath,
   required String version,
   required String buildNumber,
   required String exportOptionsPath,
@@ -101,7 +131,7 @@ Future<String> runIosBuildCommand({
   ProcessRunner processRunner = const SystemProcessRunner(),
 }) async {
   final resolvedArtifactPath = p.normalize(
-    p.absolute(projectRoot, artifactPath),
+    p.absolute(projectRoot, ipaOutputPath),
   );
   final managedCommand = StringBuffer(command)
     ..write(r''' \
@@ -121,13 +151,13 @@ Future<String> runIosBuildCommand({
         'SHIP_MY_FLUTTER_VERSION': version,
         'SHIP_MY_FLUTTER_BUILD_NUMBER': buildNumber,
         'SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH': exportOptionsPath,
-        'SHIP_MY_FLUTTER_ARTIFACT_PATH': resolvedArtifactPath,
+        'SHIP_MY_FLUTTER_IPA_OUTPUT_PATH': resolvedArtifactPath,
         'SHIP_MY_FLUTTER_SCHEME': ?scheme,
       },
     ),
     processRunner: processRunner,
   );
-  return findIpa(projectRoot, artifactPath: artifactPath);
+  return findIpa(projectRoot, ipaOutputPath: ipaOutputPath);
 }
 
 Future<void> uploadIpa(

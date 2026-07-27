@@ -18,7 +18,7 @@ typedef BuildIosIpa =
     Future<String> Function({
       required String projectRoot,
       required String command,
-      required String artifactPath,
+      required String ipaOutputPath,
       required String version,
       required String buildNumber,
       required String exportOptionsPath,

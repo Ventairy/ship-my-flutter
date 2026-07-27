@@ -74,9 +74,23 @@ jobs:
           ref: ${{ needs.plan.outputs.branch }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') != '' }}
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
         with:
-          flutter-version-file: ${{ hashFiles('.fvmrc') != '' && '.fvmrc' || '' }}
+          sdk: 3.10.0
+      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') != '' }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/fvm/versions
+          key: fvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') }}
+      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') != '' }}
+        run: |
+          dart pub global activate fvm 4.1.2
+          fvm install
+      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') == '' }}
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
           cache: true
           pub-cache: true
       - uses: Ventairy/ship-my-flutter-action@v1

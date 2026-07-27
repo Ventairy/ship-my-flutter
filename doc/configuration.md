@@ -101,19 +101,20 @@ signing, and certificate credentials are removed from both hook environments.
 | `project_path` | `.` | Flutter project root relative to the repository |
 | `bundle_id` | detected on macOS | App Store bundle identifier; explicit configuration is recommended |
 | `scheme` | unset | Custom Flutter flavor/Xcode scheme |
-| `build_command` | `flutter build ipa --release` | Project-owned command that builds one IPA |
-| `artifact_path` | `build/ios/ipa` | IPA file or directory relative to `project_path` |
+| `build_command` | auto-detected | Optional project-owned command that builds one IPA |
+| `ipa_output_path` | `build/ios/ipa` | IPA file or directory relative to `project_path` |
 
 The consumer owns the build toolchain. `ship-my-flutter-action` does not install
 Flutter or FVM. Set them up in the workflow before the candidate Action step,
 using the exact version selected by the project.
 
-For a standard Flutter app, omit both build fields. The defaults follow
-Flutter's standard release command and IPA output:
+For a standard Flutter app, omit both build fields. If `.fvmrc` or legacy
+`.fvm/fvm_config.json` exists at the project or repository level, the default
+command is `fvm flutter build ipa --release`; otherwise it is
+`flutter build ipa --release`. Flutter's standard output is:
 
 ```yaml
-build_command: flutter build ipa --release
-artifact_path: build/ios/ipa
+ipa_output_path: build/ios/ipa
 ```
 
 `build_command` is one shell command invocation, not a preparation hook.
@@ -158,12 +159,16 @@ SHIP_MY_FLUTTER_PLATFORM
 SHIP_MY_FLUTTER_VERSION
 SHIP_MY_FLUTTER_BUILD_NUMBER
 SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH
-SHIP_MY_FLUTTER_ARTIFACT_PATH
+SHIP_MY_FLUTTER_IPA_OUTPUT_PATH
 SHIP_MY_FLUTTER_SCHEME
 ```
 
-`artifact_path` may name one `.ipa` file or a directory containing exactly one
-IPA. It cannot escape `project_path`, including through a symlink.
+`ipa_output_path` may name one `.ipa` file or a directory containing exactly
+one IPA. It cannot escape `project_path`, including through a symlink. Keep it
+omitted for normal Flutter and FVM builds. Its concrete use case is a custom
+single-command wrapper that deliberately emits or moves the IPA to a different
+project-relative location; explicit configuration prevents stale or ambiguous
+IPA discovery.
 
 Omit `scheme` for a standard unflavored Flutter app. Bundle-ID detection uses
 the Runner scheme when no scheme is configured.
@@ -215,10 +220,11 @@ Version 2 replaces camelCase configuration keys and the Flutter-specific
 | `releaseType` | `release_type` |
 | `earliestReleaseDate` | `earliest_release_date` |
 
-Override `build_command` or `artifact_path` only when the project differs from
-Flutter's defaults, and optionally add `before_candidate`. State files such as
-`manifest.json`, `changelog.json`, and candidate receipts remain versioned JSON
-and are not migrated to snake_case.
+Override `build_command` only for a custom build invocation, and
+`ipa_output_path` only when that invocation writes outside `build/ios/ipa`.
+Optionally add `before_candidate`. State files such as `manifest.json`,
+`changelog.json`, and candidate receipts remain versioned JSON and are not
+migrated to snake_case.
 
 ## Signing profiles
 

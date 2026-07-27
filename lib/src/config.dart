@@ -27,7 +27,7 @@ const Set<String> _iosFields = <String>{
   'bundle_id',
   'scheme',
   'build_command',
-  'artifact_path',
+  'ipa_output_path',
   'testflight',
   'app_store',
 };
@@ -169,16 +169,16 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
     _testflightFields,
     'platforms.ios.testflight',
   );
-  final buildCommand = _nonEmptyString(
-    ios['build_command'] ?? 'flutter build ipa --release',
+  final buildCommand = _optionalNonEmptyString(
+    ios['build_command'],
     'platforms.ios.build_command',
   );
-  _validateBuildCommand(buildCommand);
-  final artifactPath = _nonEmptyString(
-    ios['artifact_path'] ?? 'build/ios/ipa',
-    'platforms.ios.artifact_path',
+  if (buildCommand != null) _validateBuildCommand(buildCommand);
+  final ipaOutputPath = _nonEmptyString(
+    ios['ipa_output_path'] ?? 'build/ios/ipa',
+    'platforms.ios.ipa_output_path',
   );
-  _relativePath(artifactPath, 'platforms.ios.artifact_path');
+  _relativePath(ipaOutputPath, 'platforms.ios.ipa_output_path');
   final appStore = _objectMap(
     ios['app_store'] ?? const <String, Object?>{},
     'platforms.ios.app_store',
@@ -194,7 +194,7 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
     ),
     scheme: _optionalNonEmptyString(ios['scheme'], 'platforms.ios.scheme'),
     buildCommand: buildCommand,
-    artifactPath: artifactPath,
+    ipaOutputPath: ipaOutputPath,
     testflight: _parseTestflightConfig(testflight),
     appStore: _parseAppStoreConfig(appStore),
   );

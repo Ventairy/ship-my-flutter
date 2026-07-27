@@ -22,7 +22,8 @@ export 'src/apple/promote.dart'
     show PromotionOptions, PromotionResult, promoteIosRelease;
 export 'src/apple/signing.dart'
     show InstalledProfile, SigningSession, installSigningAssets;
-export 'src/apple/upload.dart' show findIpa, runIosBuildCommand, uploadIpa;
+export 'src/apple/upload.dart'
+    show findIpa, resolveIosBuildCommand, runIosBuildCommand, uploadIpa;
 export 'src/candidate_receipt.dart'
     show loadCandidateReceipt, validateCandidateReceipt;
 export 'src/changelog.dart'

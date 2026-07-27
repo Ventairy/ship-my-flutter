@@ -74,18 +74,17 @@
             "build_command": {
               "type": "string",
               "minLength": 1,
-              "default": "flutter build ipa --release",
-              "description": "One POSIX shell command invocation. Chaining, pipelines, redirections, comments, and command substitution are rejected because ship-my-flutter appends version, build number, export-options, and configured flavor arguments to this invocation.",
+              "description": "Optional POSIX shell build command. When omitted, ship-my-flutter uses fvm flutter build ipa --release if the project or repository has FVM configuration, and flutter build ipa --release otherwise. Chaining, pipelines, redirections, comments, and command substitution are rejected because ship-my-flutter appends version, build number, export-options, and configured flavor arguments to this invocation.",
               "not": {
                 "pattern": "--(build-name|build-number|export-options-plist|flavor)"
               }
             },
-            "artifact_path": {
+            "ipa_output_path": {
               "type": "string",
               "minLength": 1,
               "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
               "default": "build/ios/ipa",
-              "description": "IPA file or directory relative to project_path."
+              "description": "IPA file or directory relative to project_path. Override only when a custom build command writes outside Flutter's standard build/ios/ipa directory."
             },
             "testflight": {
               "type": "object",

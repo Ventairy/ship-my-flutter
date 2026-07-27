@@ -60,9 +60,10 @@ The candidate job:
 6. Queries Apple for the next build number.
 7. Creates a temporary keychain and installs every supplied provisioning
    profile.
-8. Runs the project-owned `build_command`, appending the immutable iOS version,
-   build number, export options, and configured flavor.
-9. Resolves the configured `artifact_path` and rejects path/symlink escapes.
+8. Resolves the explicit build command or automatically selects FVM from
+   repository configuration, then appends the immutable iOS version, build
+   number, export options, and configured flavor.
+9. Resolves `ipa_output_path` and rejects path/symlink escapes.
 10. Refuses upload if the build changed tracked or unignored repository inputs.
 11. Uploads through Apple’s `altool` API-key flow and waits for `VALID`.
 12. Applies TestFlight “What’s New” localizations and beta groups.

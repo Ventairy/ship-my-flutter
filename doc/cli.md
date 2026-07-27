@@ -26,10 +26,11 @@ variables are listed in the main README.
 pushing it. This is an advanced custom-workflow option: the exact receipt still
 must reach the release PR before merge.
 
-Before `candidate`, install the toolchain used by
-`platforms.ios.build_command`. The CLI does not install Flutter, FVM, Melos, or
-project dependencies. Optional preparation belongs in
-`hooks.before_candidate`.
+Before `candidate`, install the project toolchain. When `build_command` is
+omitted, the CLI selects `fvm flutter build ipa --release` for repositories
+with FVM configuration and `flutter build ipa --release` otherwise. The CLI
+does not install Flutter, FVM, Melos, or project dependencies. Optional
+preparation belongs in `hooks.before_candidate`.
 
 `init --force` replaces the generated config, manifest, changelog, store notes,
 candidate placeholder, and workflow. Commit or back up user-owned state first;

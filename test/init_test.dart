@@ -31,7 +31,7 @@ void main() {
     expect(manifest.ios.pendingRelease, isFalse);
     final config = await loadConfig(root.path);
     expect(config.schemaVersion, 2);
-    expect(config.ios.buildCommand, 'flutter build ipa --release');
+    expect(config.ios.buildCommand, isNull);
     expect(config.ios.appStore.mode, ReleaseMode.uploadOnly);
     final configText = await File(
       resolveShipPaths(root.path).config,
@@ -45,8 +45,8 @@ void main() {
       ),
     );
     expect(configText, isNot(contains('build_command:')));
-    expect(configText, isNot(contains('artifact_path:')));
-    expect(config.ios.artifactPath, 'build/ios/ipa');
+    expect(configText, isNot(contains('ipa_output_path:')));
+    expect(config.ios.ipaOutputPath, 'build/ios/ipa');
     expect(
       await File(
         p.join(root.path, '.ship-my-flutter', 'candidates', '.gitkeep'),
@@ -58,7 +58,8 @@ void main() {
     ).readAsString();
     expect(workflow, contains('Ventairy/ship-my-flutter-action@v1'));
     expect(workflow, contains('subosito/flutter-action@'));
-    expect(workflow, contains("hashFiles('.fvmrc')"));
+    expect(workflow, contains("hashFiles('.fvmrc', '.fvm/fvm_config.json')"));
+    expect(workflow, contains('dart pub global activate fvm 4.1.2'));
     expect(workflow, contains('runs-on: macos-26'));
     expect(
       RegExp('persist-credentials: false').allMatches(workflow),

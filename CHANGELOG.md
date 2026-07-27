@@ -12,11 +12,14 @@ The project follows Semantic Versioning and Conventional Commits.
   Freezed and json_serializable while preserving public constructors and wire
   formats.
 - Migrated `config.yaml` to schema version 2 with Flutter-style snake_case keys.
-- Made IPA creation project-owned through `build_command` and `artifact_path`;
+- Made IPA creation project-owned through `build_command` and
+  `ipa_output_path`;
   ship-my-flutter now appends immutable version, build number, signing export
   options, and flavor arguments.
-- Made `build_command` and `artifact_path` optional in generated configuration,
-  defaulting to Flutter's standard release IPA command and output directory.
+- Made `build_command` and `ipa_output_path` optional in generated
+  configuration. The build command now detects repository FVM configuration
+  automatically, while the output defaults to Flutter's standard IPA
+  directory.
 
 ### Added
 

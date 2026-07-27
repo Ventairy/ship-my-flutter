@@ -18,7 +18,7 @@ platforms:
     project_path: .
     bundle_id: dev.example.app
     build_command: "$buildCommand"
-    artifact_path: build/ios/ipa
+    ipa_output_path: build/ios/ipa
     testflight:
       groups:
 ${groups.map((String value) => '        - "$value"').join('\n')}
@@ -83,7 +83,7 @@ void main() {
       expect(await sourceFingerprint(root.path), isNot(before));
     });
 
-    test('normalizes omitted build defaults', () async {
+    test('normalizes omitted IPA output defaults', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
       await git(root.path, const <String>['init', '-b', 'main']);
@@ -97,15 +97,33 @@ void main() {
 
       final explicitDefaults = await sourceFingerprint(root.path);
       await File(paths.config).writeAsString(
-        configYaml()
-            .replaceFirst(
-              '    build_command: "flutter build ipa --release"\n',
-              '',
-            )
-            .replaceFirst('    artifact_path: build/ios/ipa\n', ''),
+        configYaml().replaceFirst('    ipa_output_path: build/ios/ipa\n', ''),
       );
 
       expect(await sourceFingerprint(root.path), explicitDefaults);
+    });
+
+    test('distinguishes automatic and explicit build commands', () async {
+      final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
+      addTearDown(() => root.delete(recursive: true));
+      await git(root.path, const <String>['init', '-b', 'main']);
+      final paths = resolveShipPaths(root.path);
+      await Directory(paths.directory).create(recursive: true);
+      await File(
+        p.join(root.path, 'lib.dart'),
+      ).writeAsString('void main() {}\n');
+      await File(paths.config).writeAsString(configYaml());
+      await git(root.path, const <String>['add', '.']);
+
+      final explicitCommand = await sourceFingerprint(root.path);
+      await File(paths.config).writeAsString(
+        configYaml().replaceFirst(
+          '    build_command: "flutter build ipa --release"\n',
+          '',
+        ),
+      );
+
+      expect(await sourceFingerprint(root.path), isNot(explicitCommand));
     });
 
     test('rejects tracked symlinks to hidden build inputs', () async {

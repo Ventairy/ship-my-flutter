@@ -276,18 +276,17 @@ submission metadata is complete.
 
 The complete contract is in [Configuration](doc/configuration.md).
 
-For a standard Flutter app, no build fields are needed. ship-my-flutter defaults
-to `flutter build ipa --release` and reads the single IPA from
-`build/ios/ipa`, matching Flutter's standard iOS output. Add `build_command` or
-`artifact_path` only when the project uses FVM, Melos, a wrapper, or a custom
-artifact location.
+For a standard Flutter app, no build fields are needed. ship-my-flutter uses
+`fvm flutter build ipa --release` when the project or an ancestor declares FVM,
+and `flutter build ipa --release` otherwise. It reads the single IPA from
+`build/ios/ipa`, matching Flutter's standard iOS output. Add `build_command`
+only for a custom wrapper or build system. Add `ipa_output_path` only when that
+custom command writes the IPA somewhere else.
 
-The generated candidate job installs Flutter before invoking the Action. The
-Action itself does not install Flutter or FVM: the app repository owns the
-exact toolchain used by `build_command`. Keep the generated
-`subosito/flutter-action` step for a normal Flutter setup, or replace it with
-the repository's established FVM/bootstrap steps. The generated setup reads a
-root `.fvmrc` when present and otherwise uses current stable Flutter.
+The generated candidate job installs FVM and the declared project SDK when it
+finds `.fvmrc` or legacy `.fvm/fvm_config.json`; otherwise it installs current
+stable Flutter. The Action itself does not install the consumer's Flutter
+toolchain.
 
 ## Store release notes
 
@@ -334,20 +333,21 @@ hooks:
   before_candidate: fvm dart run melos run prepare:ios --no-select
 ```
 
-The optional `build_command` overrides the default project-owned IPA build
-invocation. ship-my-flutter automatically appends the planned version, next App
-Store build number, generated export-options plist, and configured flavor:
+The optional `build_command` overrides automatic Flutter/FVM selection.
+ship-my-flutter automatically appends the planned version, next App Store build
+number, generated export-options plist, and configured flavor:
 
 ```yaml
 platforms:
   ios:
-    build_command: fvm flutter build ipa --release
-    artifact_path: build/ios/ipa
+    build_command: fvm dart run release:build_ios
+    ipa_output_path: dist/ios
 ```
 
 Keep it to one command invocation, such as `flutter build` or a Dart wrapper
 that accepts those appended arguments. Put chaining, preparation, logging, and
-verification in `hooks.before_candidate`.
+verification in `hooks.before_candidate`. Omit `ipa_output_path` unless the
+wrapper moves the IPA away from Flutter's standard `build/ios/ipa` directory.
 
 See [Configuration](doc/configuration.md) for hook context, managed arguments,
 artifact validation, and schema version 1 migration.

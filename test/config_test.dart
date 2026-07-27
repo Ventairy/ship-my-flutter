@@ -11,7 +11,7 @@ Map<String, Object?> validConfig() => <String, Object?>{
       'enabled': true,
       'project_path': '.',
       'build_command': 'flutter build ipa --release',
-      'artifact_path': 'build/ios/ipa',
+      'ipa_output_path': 'build/ios/ipa',
       'testflight': <String, Object?>{
         'groups': <Object?>[],
         'wait_timeout_minutes': 45,
@@ -39,17 +39,17 @@ void main() {
     });
 
     test(
-      'defaults the standard Flutter IPA command and artifact directory',
+      'defaults automatic toolchain selection and the standard IPA directory',
       () {
         final config = validConfig();
         iosConfig(config)
           ..remove('build_command')
-          ..remove('artifact_path');
+          ..remove('ipa_output_path');
 
         final ios = validateConfig(config).ios;
 
-        expect(ios.buildCommand, 'flutter build ipa --release');
-        expect(ios.artifactPath, 'build/ios/ipa');
+        expect(ios.buildCommand, isNull);
+        expect(ios.ipaOutputPath, 'build/ios/ipa');
       },
     );
 
@@ -116,9 +116,9 @@ void main() {
       iosConfig(config)['project_path'] = '../another-app';
       expect(() => validateConfig(config), throwsA(isA<ShipError>()));
 
-      final artifactConfig = validConfig();
-      iosConfig(artifactConfig)['artifact_path'] = '../outside/app.ipa';
-      expect(() => validateConfig(artifactConfig), throwsA(isA<ShipError>()));
+      final outputConfig = validConfig();
+      iosConfig(outputConfig)['ipa_output_path'] = '../outside/app.ipa';
+      expect(() => validateConfig(outputConfig), throwsA(isA<ShipError>()));
     });
 
     test('rejects unsupported App Store modes', () {

@@ -63,7 +63,7 @@ void main() {
         await runIosBuildCommand(
           projectRoot: root.path,
           command: 'fvm dart run release:build_ios',
-          artifactPath: 'build/ios/ipa',
+          ipaOutputPath: 'build/ios/ipa',
           version: '1.2.0',
           buildNumber: '17',
           exportOptionsPath: '/tmp/ExportOptions.plist',
@@ -119,20 +119,63 @@ void main() {
     },
   );
 
+  test('uses FVM when an ancestor declares the project SDK', () async {
+    final root = await Directory.systemTemp.createTemp('smf-fvm-command-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(p.join(root.path, '.git')).create();
+    await File(
+      p.join(root.path, '.fvmrc'),
+    ).writeAsString('{"flutter":"3.44.0"}\n');
+    final project = await Directory(p.join(root.path, 'app')).create();
+
+    expect(
+      await resolveIosBuildCommand(project.path),
+      'fvm flutter build ipa --release',
+    );
+  });
+
+  test('uses Flutter directly when the repository does not use FVM', () async {
+    final root = await Directory.systemTemp.createTemp('smf-flutter-command-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(p.join(root.path, '.git')).create();
+    final project = await Directory(p.join(root.path, 'app')).create();
+
+    expect(
+      await resolveIosBuildCommand(project.path),
+      'flutter build ipa --release',
+    );
+  });
+
+  test('prefers an explicitly configured build command', () async {
+    final root = await Directory.systemTemp.createTemp('smf-custom-command-');
+    addTearDown(() => root.delete(recursive: true));
+    await File(
+      p.join(root.path, '.fvmrc'),
+    ).writeAsString('{"flutter":"3.44.0"}\n');
+
+    expect(
+      await resolveIosBuildCommand(
+        root.path,
+        configuredCommand: 'melos run build:ios',
+      ),
+      'melos run build:ios',
+    );
+  });
+
   test('passes every managed argument to a custom build executable', () async {
     final root = await Directory.systemTemp.createTemp('smf-build-command-');
     addTearDown(() => root.delete(recursive: true));
     await File(p.join(root.path, 'build.sh')).writeAsString(r'''
 set -eu
-mkdir -p "$(dirname "$SHIP_MY_FLUTTER_ARTIFACT_PATH")"
-printf '%s\n' "$@" > "$SHIP_MY_FLUTTER_ARTIFACT_PATH.args"
-printf 'ipa' > "$SHIP_MY_FLUTTER_ARTIFACT_PATH"
+mkdir -p "$(dirname "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH")"
+printf '%s\n' "$@" > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH.args"
+printf 'ipa' > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH"
 ''');
 
     final ipa = await runIosBuildCommand(
       projectRoot: root.path,
       command: '/bin/sh build.sh',
-      artifactPath: 'build/app.ipa',
+      ipaOutputPath: 'build/app.ipa',
       version: '2.3.0',
       buildNumber: '41',
       exportOptionsPath: '/tmp/Export Options.plist',
@@ -159,7 +202,7 @@ printf 'ipa' > "$SHIP_MY_FLUTTER_ARTIFACT_PATH"
     await File(ipa).create(recursive: true);
 
     expect(
-      await findIpa(root.path, artifactPath: 'artifacts/example.ipa'),
+      await findIpa(root.path, ipaOutputPath: 'artifacts/example.ipa'),
       ipa,
     );
   });
@@ -176,7 +219,7 @@ printf 'ipa' > "$SHIP_MY_FLUTTER_ARTIFACT_PATH"
     await Link(p.join(root.path, 'example.ipa')).create(externalIpa);
 
     await expectLater(
-      findIpa(root.path, artifactPath: 'example.ipa'),
+      findIpa(root.path, ipaOutputPath: 'example.ipa'),
       throwsA(
         isA<ShipError>().having(
           (ShipError error) => error.code,

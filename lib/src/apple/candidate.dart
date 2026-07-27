@@ -11,6 +11,7 @@ import '../serialization.dart';
 import '../validate.dart';
 import 'candidate_options.dart';
 import 'client.dart';
+import 'upload.dart';
 
 export 'candidate_dependencies.dart';
 export 'candidate_options.dart';
@@ -185,8 +186,11 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   try {
     ipaPath = await options.dependencies.buildIpa(
       projectRoot: projectRoot,
-      command: config.ios.buildCommand,
-      artifactPath: config.ios.artifactPath,
+      command: await resolveIosBuildCommand(
+        projectRoot,
+        configuredCommand: config.ios.buildCommand,
+      ),
+      ipaOutputPath: config.ios.ipaOutputPath,
       version: state.version,
       buildNumber: buildNumber,
       exportOptionsPath: signing.exportOptionsPath,
