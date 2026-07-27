@@ -8,10 +8,7 @@ on:
       - completed
 
 permissions:
-  actions: write
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: release-please
@@ -19,50 +16,16 @@ concurrency:
 
 jobs:
   release-please:
+    name: Prepare or publish the GitHub release
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - id: credential
-        name: Check the release credential
-        env:
-          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-        shell: bash
-        run: |
-          if [[ -n "$RELEASE_PLEASE_TOKEN" ]]; then
-            echo "available=true" >>"$GITHUB_OUTPUT"
-          else
-            echo "available=false" >>"$GITHUB_OUTPUT"
-            echo "::warning::Release automation is waiting for the RELEASE_PLEASE_TOKEN repository secret."
-          fi
-
       - id: release
         name: Open or publish the release
-        if: steps.credential.outputs.available == 'true'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-
-      - name: Run CI for the release PR
-        if: >-
-          steps.credential.outputs.available == 'true' &&
-          steps.release.outputs.prs_created == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          RELEASE_PRS: ${{ steps.release.outputs.prs }}
-        shell: bash
-        run: |
-          branch="$(jq -er '
-            if type == "array" and length == 1 then
-              .[0].headBranchName
-            else
-              error("expected exactly one release pull request")
-            end
-          ' <<<"$RELEASE_PRS")"
-          if [[ -z "$branch" ]]; then
-            echo "Release Please did not return a release PR branch." >&2
-            exit 1
-          fi
-          gh workflow run ci.yml --ref "$branch"

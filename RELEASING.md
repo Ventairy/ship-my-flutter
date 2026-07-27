@@ -1,8 +1,9 @@
 # Releasing smf
 
 Release Please owns the core package version, changelog, immutable `vX.Y.Z`
-tag, and GitHub Release. Publishing to pub.dev remains a separately authorized
-step.
+tag, and GitHub Release. The first pub.dev publication remains a separately
+authorized manual step. Later immutable tags use trusted publishing after the
+maintainer explicitly enables it.
 
 ## Release PR
 
@@ -13,10 +14,10 @@ baseline and opens or updates one release PR.
 Add a repository secret named `RELEASE_PLEASE_TOKEN` before enabling releases.
 Use a GitHub App installation token or a narrowly scoped fine-grained personal
 access token that can read repository metadata and write contents, issues,
-pull requests, and Actions. The default `GITHUB_TOKEN` is deliberately not
-used: GitHub otherwise requires the broader repository setting that also lets
-Actions approve pull requests. Without the secret, the workflow succeeds with
-a warning and performs no release mutation.
+and pull requests. The default `GITHUB_TOKEN` is deliberately not used: GitHub
+otherwise requires approval before CI runs on an automation-created release
+pull request. A missing or invalid secret fails the workflow so broken release
+automation cannot appear healthy.
 
 The release PR updates these synchronized version surfaces:
 
@@ -25,8 +26,9 @@ The release PR updates these synchronized version surfaces:
 - `CHANGELOG.md`;
 - `.release-please-manifest.json`.
 
-The CI workflow is dispatched for the generated release branch. Do not merge
-the release PR until that exact branch passes the complete hosted gate.
+The external release credential lets the generated pull request trigger the
+normal `pull_request` CI workflow without manual approval. Do not merge the
+release PR until that exact branch passes the complete hosted gate.
 
 Before merging:
 
@@ -42,7 +44,9 @@ and matching GitHub Release. Do not create, reuse, or move these tags manually.
 ## pub.dev
 
 Automated publishing cannot create a new pub.dev package. The first release
-must be published manually from the exact immutable Release Please tag:
+must be published manually from the exact immutable Release Please tag. Leave
+the `PUB_DEV_AUTOMATION_ENABLED` repository variable unset during this
+bootstrap release so `.github/workflows/publish.yml` safely skips publication:
 
 1. Check out the immutable tag in a clean worktree.
 2. Repeat the complete gate and inspect the package archive.
@@ -51,11 +55,20 @@ must be published manually from the exact immutable Release Please tag:
 5. In a clean Flutter consumer, verify `dart pub add --dev smf` and invoke the
    installed package with `dart run smf --help`.
 
-Only after the first version exists may maintainers configure pub.dev automated
-publishing for `Ventairy/smf`. Use the tag pattern
-`v{{version}}`, require a protected GitHub environment named `pub.dev`, and add
-a tag-triggered OIDC publishing workflow. Keep publication separate from the
-Release Please job so a publication failure cannot rewrite release history.
+Only after the first version exists, configure trusted publishing:
+
+1. In the package's pub.dev **Admin** tab, enable publishing from GitHub
+   Actions for repository `Ventairy/smf` with tag pattern `v{{version}}`.
+2. Create a protected GitHub environment named `pub.dev`. Restrict deployment
+   branches and tags to the release policy and add required reviewers.
+3. Add the repository variable `PUB_DEV_AUTOMATION_ENABLED` with value `true`.
+
+Future Release Please tags then invoke the Dart-maintained reusable publishing
+workflow with a short-lived GitHub OIDC identity. The workflow requires the
+protected `pub.dev` environment, validates the package archive again, and
+publishes the exact immutable tag without a long-lived pub.dev credential.
+Keep publication separate from Release Please so a publication failure cannot
+rewrite release history.
 
 ## GitHub Action
 
