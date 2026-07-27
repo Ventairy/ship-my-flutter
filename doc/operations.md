@@ -11,7 +11,7 @@ Do not merge a release PR until:
    `.ship-my-flutter/candidates/ios-<version>.json`;
 2. the recorded build is visible and valid in TestFlight;
 3. the exact candidate has been tested;
-4. the localized store notes in the PR are correct.
+4. any localized store notes supplied in the PR are correct.
 
 The PR checkboxes are a human review aid; GitHub does not complete them
 automatically. In the generated same-run workflow, the candidate job belongs to

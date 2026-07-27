@@ -11,6 +11,7 @@ abstract class IosConfig with _$IosConfig {
   /// Creates iOS configuration.
   const factory IosConfig({
     @Default(true) bool enabled,
+    @Default('0.0.0') String initialVersion,
     String? bundleId,
     String? buildCommand,
     @Default('build/ios/ipa') String ipaOutputPath,

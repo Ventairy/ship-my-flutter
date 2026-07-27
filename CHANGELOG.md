@@ -26,6 +26,9 @@ The project follows Semantic Versioning and Conventional Commits.
 - Made `app_path` global so iOS and future Android delivery share the same
   Flutter application root.
 - Added one optional global `flavor` shared by every platform build.
+- Reduced initialization to the required configuration and GitHub workflow.
+  Release manifests, changelogs, and candidate receipts are now generated only
+  when needed, while absent store notes no longer create an empty file.
 
 ### Added
 

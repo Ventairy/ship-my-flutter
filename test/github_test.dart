@@ -158,6 +158,20 @@ void main() {
     expect(
       await git(origin.path, const <String>[
         'show',
+        'ship-my-flutter/ios:.ship-my-flutter/changelog.json',
+      ]),
+      contains('"1.1.0"'),
+    );
+    expect(
+      await git(origin.path, const <String>[
+        'show',
+        'ship-my-flutter/ios:.ship-my-flutter/store-release-notes.json',
+      ], allowFailure: true),
+      isEmpty,
+    );
+    expect(
+      await git(origin.path, const <String>[
+        'show',
         'ship-my-flutter/ios:generated-release-notes.txt',
       ]),
       'generated',

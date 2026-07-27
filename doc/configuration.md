@@ -25,6 +25,7 @@ hooks: {}
 platforms:
   ios:
     enabled: true
+    initial_version: 1.0.0
     bundle_id: com.example.app
     testflight:
       groups:
@@ -126,6 +127,7 @@ Explicit `platforms.ios.bundle_id` configuration remains recommended.
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `enabled` | `true` | Enables iOS planning and delivery |
+| `initial_version` | `0.0.0` | Current iOS marketing version used to bootstrap the first release |
 | `bundle_id` | detected on macOS | App Store bundle identifier; explicit configuration is recommended |
 | `build_command` | auto-detected | Optional project-owned command that builds one IPA |
 | `ipa_output_path` | `build/ios/ipa` | IPA file or directory relative to `app_path` |
@@ -133,6 +135,11 @@ Explicit `platforms.ios.bundle_id` configuration remains recommended.
 The consumer owns the build toolchain. `ship-my-flutter-action` does not install
 Flutter or FVM. Set them up in the workflow before the candidate Action step,
 using the exact version selected by the project.
+
+`initial_version` is read only while no generated `manifest.json` exists. The
+initializer detects it from `pubspec.yaml`, or uses the explicit
+`--current-version` value. After the first release PR creates the manifest,
+platform state—not this bootstrap field—owns subsequent versions.
 
 For a standard Flutter app, omit both build fields. If `.fvmrc` or legacy
 `.fvm/fvm_config.json` exists at the project or repository level, the default

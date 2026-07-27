@@ -64,6 +64,12 @@
               "default": true,
               "description": "Enable iOS release planning and delivery."
             },
+            "initial_version": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "default": "0.0.0",
+              "description": "Current iOS marketing version used only until the first generated release manifest exists."
+            },
             "bundle_id": {
               "type": "string",
               "minLength": 1,

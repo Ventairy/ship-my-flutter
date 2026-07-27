@@ -4,7 +4,7 @@ const String configSchemaUrl =
     'https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/'
     'schemas/config.schema.json';
 
-String generatedConfigYaml({String? bundleId}) {
+String generatedConfigYaml({required String initialVersion, String? bundleId}) {
   final bundleLine = bundleId == null
       ? ''
       : '    bundle_id: ${jsonEncode(bundleId)}\n';
@@ -19,6 +19,7 @@ hooks: {}
 platforms:
   ios:
     enabled: true
+    initial_version: $initialVersion
 $bundleLine    testflight:
       groups: []
       wait_timeout_minutes: 45

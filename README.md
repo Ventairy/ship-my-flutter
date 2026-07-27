@@ -85,19 +85,19 @@ value depends on the workspace layout.
 This creates:
 
 ```text
-.ship-my-flutter/
-├── candidates/
-├── changelog.json
-├── config.yaml
-├── manifest.json
-└── store-release-notes.json
+.ship-my-flutter/config.yaml
 .github/workflows/ship-my-flutter.yml
 ```
 
-Commit those files with a non-release message such as
+Commit both files with a non-release message such as
 `chore: configure ship-my-flutter` before merging new release-worthy work. The
-initializer records the pre-initialization commit as the release baseline, so
-existing repository history is not released accidentally.
+first plan derives the release baseline from the commit that introduced
+`config.yaml`, so existing repository history is not released accidentally.
+
+The release flow creates `manifest.json`, `changelog.json`, and candidate
+receipts only when they first carry release state. Users do not create or edit
+those machine-owned files. `store-release-notes.json` is different: it remains
+absent unless a maintainer or hook supplies at least one localized note.
 
 ### CLI and Dart API
 
@@ -294,7 +294,9 @@ toolchain.
 
 ## Store release notes
 
-Notes are user-owned. Add them to `.ship-my-flutter/store-release-notes.json` under the platform, version, and Apple locale:
+Notes are optional and user-owned. Create
+`.ship-my-flutter/store-release-notes.json` only when a release has localized
+notes, under the platform, version, and Apple locale:
 
 ```json
 {
@@ -307,7 +309,10 @@ Notes are user-owned. Add them to `.ship-my-flutter/store-release-notes.json` un
 }
 ```
 
-Omitting a version is allowed; ship-my-flutter will not invent notes. Apple may still require “What’s New” for an App Store update and will return a precise submission error if the version metadata is incomplete.
+If the file or a version is absent, ship-my-flutter sends no notes and does not
+create an empty placeholder. Apple may still require “What’s New” for an App
+Store update and will return a precise submission error if the version metadata
+is incomplete.
 
 ### Generate notes before the PR opens
 

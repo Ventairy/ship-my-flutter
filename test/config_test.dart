@@ -10,6 +10,7 @@ Map<String, Object?> validConfig() => <String, Object?>{
   'platforms': <String, Object?>{
     'ios': <String, Object?>{
       'enabled': true,
+      'initial_version': '1.0.0',
       'build_command': 'flutter build ipa --release',
       'ipa_output_path': 'build/ios/ipa',
       'testflight': <String, Object?>{
@@ -41,7 +42,14 @@ void main() {
       expect(validateConfig(config).flavor, 'production');
     });
 
-    test('rejects the removed iOS scheme field with migration guidance', () {
+    test('rejects a prerelease initial iOS version', () {
+      final config = validConfig();
+      iosConfig(config)['initial_version'] = '1.0.0-beta.1';
+
+      expect(() => validateConfig(config), throwsA(isA<ShipError>()));
+    });
+
+    test('rejects the removed iOS scheme field', () {
       final config = validConfig();
       iosConfig(config)['scheme'] = 'production';
 

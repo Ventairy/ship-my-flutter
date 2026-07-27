@@ -5,6 +5,7 @@ import 'package:pub_semver/pub_semver.dart';
 import 'package:yaml/yaml.dart';
 
 import 'error.dart';
+import 'git.dart';
 import 'model.dart';
 import 'paths.dart';
 import 'serialization.dart';
@@ -23,6 +24,7 @@ const Set<String> _hookConfigFields = <String>{'run', 'commit'};
 const Set<String> _platformFields = <String>{'ios'};
 const Set<String> _iosFields = <String>{
   'enabled',
+  'initial_version',
   'bundle_id',
   'build_command',
   'ipa_output_path',
@@ -54,28 +56,78 @@ Future<ShipConfig> loadConfig([String? root]) async {
   }
 }
 
+/// Loads generated release state or derives the initial state without writing.
+///
+/// Before the first release PR, the version comes from `initial_version` and
+/// the baseline comes from the commit that introduced `config.yaml`.
 Future<ShipManifest> loadManifest([String? root]) async {
   final paths = resolveShipPaths(root);
+  if (!(await fileExists(paths.manifest))) {
+    final config = await loadConfig(paths.root);
+    return ShipManifest(
+      ios: PlatformManifest(
+        version: config.ios.initialVersion,
+        baselineSha: await _initialBaselineSha(paths),
+        pendingRelease: false,
+      ),
+    );
+  }
   return validateManifest(
     await _loadJson(paths.manifest),
     source: paths.manifest,
   );
 }
 
+/// Loads generated changelog state.
+///
+/// Returns an empty history before the generated file exists.
 Future<ChangelogManifest> loadChangelog([String? root]) async {
   final paths = resolveShipPaths(root);
+  if (!(await fileExists(paths.changelog))) {
+    return const ChangelogManifest(iosReleases: <String, ChangelogRelease>{});
+  }
   return validateChangelog(
     await _loadJson(paths.changelog),
     source: paths.changelog,
   );
 }
 
+/// Loads optional localized notes, returning an empty map when no file exists.
 Future<StoreReleaseNotes> loadStoreReleaseNotes([String? root]) async {
   final paths = resolveShipPaths(root);
+  if (!(await fileExists(paths.storeReleaseNotes))) {
+    return const <Platform, Map<String, Map<String, String>>>{};
+  }
   return validateStoreReleaseNotes(
     await _loadJson(paths.storeReleaseNotes),
     source: paths.storeReleaseNotes,
   );
+}
+
+Future<String> _initialBaselineSha(ShipPaths paths) async {
+  final relativeConfig = p
+      .relative(paths.config, from: paths.root)
+      .replaceAll(r'\', '/');
+  final additions = await git(paths.root, <String>[
+    'log',
+    '--diff-filter=A',
+    '--format=%H',
+    '--reverse',
+    '--',
+    relativeConfig,
+  ]);
+  if (additions.isEmpty) return currentSha(paths.root);
+
+  final introductionSha = additions.split('\n').first;
+  final ancestry = await git(paths.root, <String>[
+    'rev-list',
+    '--parents',
+    '-n',
+    '1',
+    introductionSha,
+  ]);
+  final commits = ancestry.split(RegExp(r'\s+'));
+  return commits.length > 1 ? commits[1] : introductionSha;
 }
 
 Future<Object?> _loadJson(String filePath) async {
@@ -186,6 +238,10 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
 
   return IosConfig(
     enabled: _boolean(ios['enabled'] ?? true, 'platforms.ios.enabled'),
+    initialVersion: _stableVersion(
+      ios['initial_version'] ?? '0.0.0',
+      'platforms.ios.initial_version',
+    ),
     bundleId: _optionalNonEmptyString(
       ios['bundle_id'],
       'platforms.ios.bundle_id',

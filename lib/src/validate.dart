@@ -5,7 +5,6 @@ import 'package:path/path.dart' as p;
 import 'config.dart';
 import 'error.dart';
 import 'git.dart';
-import 'model.dart';
 import 'paths.dart';
 import 'serialization.dart';
 
@@ -25,24 +24,29 @@ Future<String?> _findWorkspaceLockfile(
 
 Future<void> validateRepository(String root) async {
   final paths = resolveShipPaths(root);
-  final (config, manifest, changelog, notes) = await (
+  final (config, manifest, changelog, _) = await (
     loadConfig(root),
     loadManifest(root),
     loadChangelog(root),
     loadStoreReleaseNotes(root),
   ).wait;
+  invariant(
+    await fileExists(paths.config),
+    '${p.relative(paths.config, from: root)} is missing.',
+    'STATE_PATH_MISSING',
+  );
+  invariant(
+    !(await Link(paths.config).exists()),
+    '${p.relative(paths.config, from: root)} must not be a symbolic link.',
+    'STATE_PATH_SYMLINK',
+  );
   for (final statePath in <String>[
-    paths.config,
     paths.manifest,
     paths.changelog,
     paths.storeReleaseNotes,
     paths.candidates,
   ]) {
-    invariant(
-      await fileExists(statePath),
-      '${p.relative(statePath, from: root)} is missing.',
-      'STATE_PATH_MISSING',
-    );
+    if (!(await fileExists(statePath))) continue;
     invariant(
       !(await Link(statePath).exists()),
       '${p.relative(statePath, from: root)} must not be a symbolic link.',
@@ -116,8 +120,4 @@ Future<void> validateRepository(String root) async {
     );
   }
   invariant(changelog.schemaVersion == 1, 'Unsupported changelog schema.');
-  invariant(
-    notes.containsKey(Platform.ios),
-    'Store notes must contain an ios object.',
-  );
 }

@@ -10,7 +10,7 @@ commands write one JSON value to stdout and diagnostics to stderr.
 
 | Command | Runner and branch | Credentials | Side effects |
 | --- | --- | --- | --- |
-| `init` | Any OS; run against the Git root | None | Creates `.ship-my-flutter` and the starter workflow |
+| `init` | Any OS; run against the Git root | None | Creates `config.yaml` and the starter workflow |
 | `validate` | Any OS; any branch | None | Read-only repository/configuration checks |
 | `plan` | Any OS; any branch | None | Read-only next-version calculation; it does not choose the Action's workflow phase |
 | `open-pr` / `release` | Any OS; target branch, clean tree | GitHub token and `owner/repo` | Creates/updates the release branch, commits state, pushes, and opens/updates the PR |
@@ -32,9 +32,9 @@ with FVM configuration and `flutter build ipa --release` otherwise. The CLI
 does not install Flutter, FVM, Melos, or project dependencies. Optional
 preparation belongs in `hooks.before_build.run`.
 
-`init --force` replaces the generated config, manifest, changelog, store notes,
-candidate placeholder, and workflow. Commit or back up user-owned state first;
-do not use it as a routine update command.
+`init --force` replaces the generated config and workflow. It preserves
+manifest, changelog, store notes, and candidate receipts. Commit or back up
+configuration changes first; do not use it as a routine update command.
 
 Run `dart run ship_my_flutter <command> --help` for parser options. Raw secret
 arguments are intentionally unsupported.

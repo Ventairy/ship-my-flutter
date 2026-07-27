@@ -25,13 +25,18 @@ package.
 
 | File                        | Purpose                                                       |
 | --------------------------- | ------------------------------------------------------------- |
-| `config.yaml`               | Schema-linked user choices and platform configuration         |
-| `manifest.json`             | Current independent platform version and bootstrap baseline   |
-| `changelog.json`            | Machine-readable release history and Conventional Commit data |
-| `store-release-notes.json`  | User-owned localized store copy                               |
-| `candidates/ios-X.Y.Z.json` | Immutable receipt for the processed TestFlight build          |
+| `config.yaml`               | Required schema-linked user choices and platform configuration |
+| `manifest.json`             | Lazily generated independent platform release state            |
+| `changelog.json`            | Lazily generated release history and Conventional Commit data  |
+| `store-release-notes.json`  | Optional user-owned localized store copy                        |
+| `candidates/ios-X.Y.Z.json` | Lazily generated receipt for the processed TestFlight build     |
 
 No secret is valid in any of these files.
+
+Initialization creates only `config.yaml` and the GitHub workflow. The first
+release PR generates the manifest and changelog. Candidate delivery creates its
+receipt directory when needed. Store notes are never generated as an empty
+placeholder; the file exists only when a maintainer or hook supplies notes.
 
 ## State machine
 
@@ -39,7 +44,8 @@ No secret is valid in any of these files.
 
 On a push to the target branch, the planner:
 
-1. Finds the latest `ios-vX.Y.Z` tag, or uses the initializer’s `baselineSha`.
+1. Finds the latest `ios-vX.Y.Z` tag, or derives the initial baseline from the
+   commit that introduced `config.yaml`.
 2. Parses commits in chronological order.
 3. Applies unscoped and non-platform-scoped commits to iOS.
 4. Applies `ios` commits only to iOS and excludes other recognized platform scopes.

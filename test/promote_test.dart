@@ -10,8 +10,11 @@ import 'support/fake_github.dart';
 
 const encoder = JsonEncoder.withIndent('  ');
 
-Future<void> writeObject(String path, Object? value) =>
-    File(path).writeAsString('${encoder.convert(value)}\n');
+Future<void> writeObject(String path, Object? value) async {
+  final file = File(path);
+  await file.parent.create(recursive: true);
+  await file.writeAsString('${encoder.convert(value)}\n');
+}
 
 void main() {
   test(
@@ -90,6 +93,13 @@ void main() {
           '1.1.0': <String, Object?>{'en-US': 'Ready for launch.'},
         },
       });
+      await git(root.path, const <String>['add', '.']);
+      await git(root.path, const <String>[
+        'commit',
+        '-m',
+        'chore(ios): release 1.1.0',
+      ]);
+      final sourceSha = await currentSha(root.path);
       final fingerprint = await sourceFingerprint(root.path);
       final receipt = CandidateReceipt(
         version: '1.1.0',
@@ -97,7 +107,7 @@ void main() {
         buildId: 'build-7',
         appId: 'app-1',
         bundleId: 'dev.example.app',
-        sourceSha: baselineSha,
+        sourceSha: sourceSha,
         sourceFingerprint: fingerprint,
         ipaSha256: List<String>.filled(64, 'a').join(),
         uploadedAt: DateTime.utc(2026, 7, 26),
@@ -111,7 +121,7 @@ void main() {
       await git(root.path, const <String>[
         'commit',
         '-m',
-        'chore(ios): release 1.1.0',
+        'chore(ios): record candidate',
       ]);
 
       final appStore = FakeAppStoreConnectApi(

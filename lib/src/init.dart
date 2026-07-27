@@ -4,9 +4,6 @@ import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
 
 import 'error.dart';
-import 'git.dart';
-import 'manifest_files.dart';
-import 'model.dart';
 import 'paths.dart';
 import 'serialization.dart';
 import 'templates.dart';
@@ -47,7 +44,7 @@ Future<void> initialize(InitOptions options) async {
   if (await fileExists(paths.config) && !options.force) {
     throw ShipError(
       '${paths.config} already exists. Pass --force to replace the generated '
-          'files.',
+          'configuration and workflow.',
       'ALREADY_INITIALIZED',
     );
   }
@@ -68,14 +65,6 @@ Future<void> initialize(InitOptions options) async {
     '$version must be a stable major.minor.patch version',
     'SEMVER',
   );
-  final baselineSha = await currentSha(root);
-  final manifest = ShipManifest(
-    ios: PlatformManifest(
-      version: parsedVersion.toString(),
-      baselineSha: baselineSha,
-      pendingRelease: false,
-    ),
-  );
   final workflowPath = p.join(
     root,
     '.github',
@@ -83,17 +72,14 @@ Future<void> initialize(InitOptions options) async {
     'ship-my-flutter.yml',
   );
 
-  await Directory(paths.candidates).create(recursive: true);
+  await File(paths.config).parent.create(recursive: true);
   final writes = <Future<void>>[
-    File(
-      paths.config,
-    ).writeAsString(generatedConfigYaml(bundleId: options.bundleId)),
-    writeJson(paths.manifest, manifest.toJson()),
-    writeJson(paths.changelog, emptyChangelog().toJson()),
-    writeJson(paths.storeReleaseNotes, <String, Object?>{
-      'ios': <String, Object?>{},
-    }),
-    File(p.join(paths.candidates, '.gitkeep')).writeAsString(''),
+    File(paths.config).writeAsString(
+      generatedConfigYaml(
+        initialVersion: parsedVersion.toString(),
+        bundleId: options.bundleId,
+      ),
+    ),
   ];
   if (options.force || !(await fileExists(workflowPath))) {
     await File(workflowPath).parent.create(recursive: true);
