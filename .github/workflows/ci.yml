@@ -42,6 +42,7 @@ jobs:
         run: git diff --exit-code -- packages
 
       - name: Verify formatting
+        if: matrix.sdk == 'stable'
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze
