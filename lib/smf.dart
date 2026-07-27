@@ -92,4 +92,3 @@ export 'src/release_branch.dart' show releaseBranchName;
 export 'src/release_plan.dart'
     show ReleasePlanner, createReleasePlan, releaseNeedsPromotion, releaseTag;
 export 'src/validate.dart' show validateRepository;
-export 'src/version.dart' show smfVersion;

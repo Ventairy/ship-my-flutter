@@ -5,13 +5,7 @@
     ".": {
       "release-type": "dart",
       "include-component-in-tag": false,
-      "include-v-in-tag": true,
-      "extra-files": [
-        {
-          "type": "generic",
-          "path": "lib/src/version.dart"
-        }
-      ]
+      "include-v-in-tag": true
     }
   }
 }

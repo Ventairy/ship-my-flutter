@@ -22,7 +22,6 @@ automation cannot appear healthy.
 The release PR updates these synchronized version surfaces:
 
 - `pubspec.yaml`;
-- `lib/src/version.dart`;
 - `CHANGELOG.md`;
 - `.release-please-manifest.json`.
 

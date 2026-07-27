@@ -8,12 +8,6 @@ import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
 void main() {
-  test('package version constant matches the package version', () async {
-    final pubspec = loadYaml(await File('pubspec.yaml').readAsString());
-    expect(pubspec, isA<YamlMap>());
-    expect((pubspec as YamlMap)['version'], smfVersion);
-  });
-
   test('publishes only operation-specific package entrypoints', () async {
     final pubspec =
         loadYaml(await File('pubspec.yaml').readAsString()) as YamlMap;

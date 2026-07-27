@@ -130,7 +130,7 @@ redesign.
 - Do not accept raw secrets in command-line flags.
 - The Action machine protocol and public output fields are compatibility
   boundaries.
-- `smfVersion` and `pubspec.yaml` must remain synchronized.
+- `pubspec.yaml` is the package version source of truth.
 
 ---
 
