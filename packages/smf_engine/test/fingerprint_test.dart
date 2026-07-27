@@ -19,7 +19,7 @@ ${flavor == null ? '' : 'flavor: $flavor\n'}platforms:
     ipa_output_path: build/ios/ipa
     testflight:
       groups:
-${groups.map((String value) => '        - "$value"').join('\n')}
+${groups.map((value) => '        - "$value"').join('\n')}
     app_store:
       mode: $mode
 ''';
@@ -38,7 +38,7 @@ void main() {
         sourceFingerprint(root.path),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'SMF_NOT_FOUND',
           ),
@@ -152,7 +152,7 @@ void main() {
         sourceFingerprint(root.path),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'SOURCE_SYMLINK_ESCAPE',
           ),
@@ -176,7 +176,7 @@ void main() {
         sourceFingerprint(root.path),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'SOURCE_SYMLINK_UNTRACKED',
           ),

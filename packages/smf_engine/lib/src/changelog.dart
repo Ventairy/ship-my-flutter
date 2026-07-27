@@ -1,4 +1,4 @@
-import 'model.dart';
+import 'package:smf_engine/src/model.dart';
 
 const Map<String, String> _sectionNames = <String, String>{
   'feat': 'Features',
@@ -25,7 +25,7 @@ String releaseNotesMarkdown(Platform platform, ChangelogRelease release) {
   }
   final sections = grouped.entries
       .map(
-        (MapEntry<String, List<ConventionalChange>> entry) =>
+        (entry) =>
             '## ${entry.key}\n\n'
             '${entry.value.map(formatChange).join('\n')}',
       )

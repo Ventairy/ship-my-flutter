@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'error.dart';
-import 'model.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/model.dart';
 
 const String smfDirectoryName = 'smf';
 const String smfConfigFileName = 'config.yaml';
@@ -146,7 +146,7 @@ String _discoverSmfDirectory(String start) {
   matches.sort();
   if (matches.length > 1) {
     final candidates = matches
-        .map((String match) => '  - ${p.relative(match, from: start)}')
+        .map((match) => '  - ${p.relative(match, from: start)}')
         .join('\n');
     throw SmfError(
       'Multiple SMF directories were found below $start:\n$candidates\n'
@@ -176,8 +176,7 @@ void _collectSmfDirectories(
 
   final entries = Directory(directory).listSync(followLinks: false)
     ..sort(
-      (FileSystemEntity left, FileSystemEntity right) =>
-          left.path.compareTo(right.path),
+      (left, right) => left.path.compareTo(right.path),
     );
   for (final entry in entries) {
     if (FileSystemEntity.typeSync(entry.path, followLinks: false) ==

@@ -43,8 +43,11 @@ void main() {
       ).readAsString();
       expect(
         configText,
+        contains(r'# yaml-language-server: $schema='),
+      );
+      expect(
+        configText,
         contains(
-          '# yaml-language-server: \$schema='
           'https://raw.githubusercontent.com/Ventairy/smf/main/'
           'packages/smf_engine/schemas/config.schema.json',
         ),

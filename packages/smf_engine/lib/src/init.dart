@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
 
-import 'error.dart';
-import 'paths.dart';
-import 'serialization.dart';
-import 'templates.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/serialization.dart';
+import 'package:smf_engine/src/templates.dart';
 
 final class InitOptions {
   const InitOptions({

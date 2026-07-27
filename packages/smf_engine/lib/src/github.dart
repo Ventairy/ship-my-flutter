@@ -1,15 +1,15 @@
-import 'changelog.dart';
-import 'config.dart';
-import 'error.dart';
-import 'git.dart';
-import 'github/dtos/release_pull_request_result.dart';
-import 'github_api.dart';
-import 'hooks.dart';
-import 'manifest_files.dart';
-import 'model.dart';
-import 'paths.dart';
-import 'process_runner.dart';
-import 'release_branch.dart';
+import 'package:smf_engine/src/changelog.dart';
+import 'package:smf_engine/src/config.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/github/dtos/release_pull_request_result.dart';
+import 'package:smf_engine/src/github_api.dart';
+import 'package:smf_engine/src/hooks.dart';
+import 'package:smf_engine/src/manifest_files.dart';
+import 'package:smf_engine/src/model.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/process_runner.dart';
+import 'package:smf_engine/src/release_branch.dart';
 
 export 'github/dtos/release_pull_request_result.dart';
 
@@ -104,7 +104,7 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
       plan,
       processRunner: hookProcessRunner,
     );
-    if (commitHookChanges == true) {
+    if (commitHookChanges ?? false) {
       await _commitAllChanges(
         repositoryRoot,
         'chore(${plan.platform.value}): apply before_create_pr hook for '

@@ -2,13 +2,12 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/model.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/serialization.dart';
 import 'package:yaml/yaml.dart';
-
-import 'error.dart';
-import 'git.dart';
-import 'model.dart';
-import 'paths.dart';
-import 'serialization.dart';
 
 const Set<String> _rootConfigFields = <String>{
   'schema_version',
@@ -475,8 +474,7 @@ ConventionalChange _parseChange(Object? value, String path) {
     bump: Bump.maybeParse(change['bump']),
     platforms: platformsValue
         .map(
-          (Object? item) =>
-              Platform.parse(_nonEmptyString(item, '$path.platforms')),
+          (item) => Platform.parse(_nonEmptyString(item, '$path.platforms')),
         )
         .toList(),
     releaseAs: change['releaseAs'] == null

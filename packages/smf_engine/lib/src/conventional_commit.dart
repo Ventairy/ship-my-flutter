@@ -1,6 +1,6 @@
 import 'package:pub_semver/pub_semver.dart';
 
-import 'model.dart';
+import 'package:smf_engine/src/model.dart';
 
 const Set<String> _platformScopes = <String>{
   'ios',
@@ -16,7 +16,7 @@ final RegExp _headerPattern = RegExp(
   caseSensitive: false,
 );
 final RegExp _breakingFooterPattern = RegExp(
-  r'^(?:BREAKING CHANGE|BREAKING-CHANGE):',
+  '^(?:BREAKING CHANGE|BREAKING-CHANGE):',
   caseSensitive: false,
   multiLine: true,
 );
@@ -50,10 +50,10 @@ List<Platform> _platformForScope(String? scope) {
   final scopes = scope
       .toLowerCase()
       .split(RegExp(r'[,/\\|]'))
-      .map((String value) => value.trim())
-      .where((String value) => value.isNotEmpty);
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty);
   final explicit = scopes
-      .where((String value) => _platformScopes.contains(value))
+      .where((value) => _platformScopes.contains(value))
       .toList();
   if (explicit.isEmpty || explicit.contains('ios')) {
     return const <Platform>[Platform.ios];

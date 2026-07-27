@@ -35,7 +35,7 @@ void main() {
       validateRepository(root.path),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.message,
+          (error) => error.message,
           'message',
           contains('No committed pubspec.lock'),
         ),
@@ -46,7 +46,7 @@ void main() {
       validateRepository(root.path),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.message,
+          (error) => error.message,
           'message',
           contains('pubspec.lock must be committed'),
         ),

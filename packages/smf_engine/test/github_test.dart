@@ -245,7 +245,7 @@ void main() {
       ),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'CREATE_PR_HOOK_DIRTY_WORKTREE',
         ),
@@ -321,7 +321,7 @@ void main() {
         ),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'COMMAND_FAILED',
           ),

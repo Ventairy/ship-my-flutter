@@ -27,11 +27,11 @@ Future<String> resolveBundleId(
   final entries = await Directory(iosDirectory).list().toList();
   final workspace = entries
       .whereType<Directory>()
-      .where((Directory item) => item.path.endsWith('.xcworkspace'))
+      .where((item) => item.path.endsWith('.xcworkspace'))
       .firstOrNull;
   final project = entries
       .whereType<Directory>()
-      .where((Directory item) => item.path.endsWith('.xcodeproj'))
+      .where((item) => item.path.endsWith('.xcodeproj'))
       .firstOrNull;
   final scheme = flavor ?? 'Runner';
   final arguments = workspace != null

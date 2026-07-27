@@ -9,7 +9,7 @@ import 'package:test/test.dart';
 final class ClientFixture {
   ClientFixture(List<http.Response> responses)
     : _responses = List<http.Response>.of(responses) {
-    httpClient = MockClient((http.Request request) async {
+    httpClient = MockClient((request) async {
       requests.add(request);
       if (_responses.isEmpty) {
         throw StateError('Unexpected request ${request.method} ${request.url}');
@@ -52,7 +52,7 @@ void main() {
           privateKey: 'unused',
         ),
         httpClient: MockClient(
-          (http.Request request) async =>
+          (request) async =>
               throw http.ClientException('connection failed', request.url),
         ),
         tokenProvider: () async => 'test-token',
@@ -62,7 +62,7 @@ void main() {
         client.findApp('dev.example.app'),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'APP_STORE_CONNECT_API',
           ),
@@ -79,7 +79,7 @@ void main() {
         fixture.client.findApp('dev.example.app'),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'APP_STORE_CONNECT_RESPONSE',
           ),
@@ -108,7 +108,7 @@ void main() {
           fixture.client.getBuild('build-1'),
           throwsA(
             isA<SmfError>().having(
-              (SmfError error) => error.code,
+              (error) => error.code,
               'code',
               'APP_STORE_CONNECT_RESPONSE',
             ),
@@ -150,7 +150,7 @@ void main() {
         fixture.client.findApp('dev.example.missing'),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('No App Store Connect app found'),
           ),
@@ -244,7 +244,7 @@ void main() {
         malicious.client.listPrereleaseVersions('app-1'),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'APP_STORE_CONNECT_ORIGIN',
           ),
@@ -324,7 +324,7 @@ void main() {
         ),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('marked 1.2.0 (13) as INVALID'),
           ),
@@ -362,7 +362,7 @@ void main() {
       final data = requestBody(created.requests[1])['data'];
       expect(data, isA<Map<String, Object?>>());
       expect(
-        data as Map<String, Object?>,
+        data! as Map<String, Object?>,
         containsPair('attributes', <String, Object?>{
           'locale': 'pt-BR',
           'whatsNew': 'Novo',
@@ -580,7 +580,7 @@ void main() {
         fixture.client.findApp('dev.example.app'),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             allOf(contains('ENTITY_ERROR'), contains('Missing metadata')),
           ),

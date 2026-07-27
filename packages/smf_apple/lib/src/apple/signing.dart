@@ -3,12 +3,11 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:path/path.dart' as p;
+import 'package:smf_apple/src/apple/installed_profile.dart';
+import 'package:smf_apple/src/apple/signing_session.dart';
+import 'package:smf_apple/src/models/signing_credentials.dart';
 import 'package:smf_engine/smf_engine.dart' hide Platform;
 import 'package:xml/xml.dart';
-
-import '../models/signing_credentials.dart';
-import 'installed_profile.dart';
-import 'signing_session.dart';
 
 export 'installed_profile.dart';
 export 'signing_session.dart';
@@ -240,8 +239,8 @@ Future<SigningSession> installSigningAssets(
     );
     previousKeychains = existingKeychains.stdout
         .split('\n')
-        .map((String line) => line.trim().replaceAll(RegExp(r'^"|"$'), ''))
-        .where((String line) => line.isNotEmpty)
+        .map((line) => line.trim().replaceAll(RegExp(r'^"|"$'), ''))
+        .where((line) => line.isNotEmpty)
         .toList();
     await processRunner.run('security', <String>[
       'list-keychains',
@@ -336,11 +335,7 @@ Future<SigningSession> installSigningAssets(
     }
     invariant(profiles.isNotEmpty, 'No provisioning profiles supplied.');
     invariant(
-      profiles
-              .map((InstalledProfile profile) => profile.teamId)
-              .toSet()
-              .length ==
-          1,
+      profiles.map((profile) => profile.teamId).toSet().length == 1,
       'All provisioning profiles must belong to the same Apple team.',
       'PROFILE_TEAM_MISMATCH',
     );
@@ -419,7 +414,7 @@ String _randomToken(int bytes) {
   return List<int>.generate(
     bytes,
     (_) => random.nextInt(256),
-  ).map((int value) => value.toRadixString(16).padLeft(2, '0')).join();
+  ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
 }
 
 bool _bytesEqual(List<int> first, List<int> second) {

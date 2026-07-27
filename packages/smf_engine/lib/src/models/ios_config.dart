@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'app_store_config.dart';
-import 'testflight_config.dart';
+import 'package:smf_engine/src/models/app_store_config.dart';
+import 'package:smf_engine/src/models/testflight_config.dart';
 
 part 'ios_config.freezed.dart';
 

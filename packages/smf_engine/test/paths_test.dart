@@ -43,12 +43,12 @@ void main() {
       throwsA(
         isA<SmfError>()
             .having(
-              (SmfError error) => error.code,
+              (error) => error.code,
               'code',
               'MULTIPLE_SMF_DIRECTORIES',
             )
             .having(
-              (SmfError error) => error.message,
+              (error) => error.message,
               'message',
               allOf(contains('apps/consumer/smf'), contains('apps/worker/smf')),
             ),
@@ -101,7 +101,7 @@ void main() {
       ),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'INVALID_SMF_PATH',
         ),

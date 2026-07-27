@@ -29,7 +29,7 @@ final class FakeAppStoreConnectApi implements AppStoreConnectApi {
       <({String versionId, String locale, String whatsNew})>[];
   String? attachedBuildId;
   bool? releaseAutomatically;
-  var submitted = false;
+  bool submitted = false;
 
   @override
   Future<void> addBuildToGroups(

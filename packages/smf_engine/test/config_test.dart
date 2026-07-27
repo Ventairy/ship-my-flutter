@@ -46,7 +46,7 @@ void main() {
         () => validateConfig(config),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             allOf(contains('unknown field'), contains('release_branch_prefix')),
           ),
@@ -69,7 +69,7 @@ void main() {
         () => validateConfig(config),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             allOf(contains('unknown field'), contains('scheme')),
           ),
@@ -127,7 +127,7 @@ void main() {
           () => validateConfig(createConfig()),
           throwsA(
             isA<SmfError>().having(
-              (SmfError error) => error.message,
+              (error) => error.message,
               'message',
               contains('unknown field'),
             ),
@@ -157,7 +157,7 @@ void main() {
         () => validateConfig(config),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('auto, review, or upload'),
           ),
@@ -190,7 +190,7 @@ void main() {
           () => validateConfig(config),
           throwsA(
             isA<SmfError>().having(
-              (SmfError error) => error.message,
+              (error) => error.message,
               'message',
               allOf(contains('unknown field'), contains(field)),
             ),
@@ -215,7 +215,7 @@ void main() {
           () => validateConfig(config),
           throwsA(
             isA<SmfError>().having(
-              (SmfError error) => error.message,
+              (error) => error.message,
               'message',
               allOf(contains('unknown field'), contains(field)),
             ),
@@ -245,7 +245,7 @@ void main() {
             () => validateConfig(config),
             throwsA(
               isA<SmfError>().having(
-                (SmfError error) => error.message,
+                (error) => error.message,
                 'message',
                 contains('must be one shell command invocation'),
               ),
@@ -261,13 +261,13 @@ void main() {
       () {
         final config = validConfig();
         iosConfig(config)['build_command'] =
-            r'flutter build ipa '
-            r'--dart-define="URL=https://example.test?a=1&b=2" '
+            'flutter build ipa '
+            '--dart-define="URL=https://example.test?a=1&b=2" '
             r'--dart-define=LABEL=release\;candidate';
 
         expect(
           validateConfig(config).ios.buildCommand,
-          contains('release\\;candidate'),
+          contains(r'release\;candidate'),
         );
       },
     );
@@ -279,7 +279,7 @@ void main() {
         '--build-number=99',
         '"--build-number=99"',
         '--export-options-plist custom.plist',
-        r'--dart-define=FORBIDDEN=--export-options-plist',
+        '--dart-define=FORBIDDEN=--export-options-plist',
         '--flavor production',
       ]) {
         final config = validConfig();
@@ -288,7 +288,7 @@ void main() {
           () => validateConfig(config),
           throwsA(
             isA<SmfError>().having(
-              (SmfError error) => error.message,
+              (error) => error.message,
               'message',
               contains('appends it automatically'),
             ),
@@ -306,7 +306,7 @@ void main() {
         () => validateConfig(config),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('schema_version must be 1'),
           ),
@@ -328,7 +328,7 @@ void main() {
         }),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('stable major.minor.patch'),
           ),
@@ -367,7 +367,7 @@ void main() {
         }),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('must match its release key'),
           ),

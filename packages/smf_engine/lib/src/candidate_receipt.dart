@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'error.dart';
-import 'model.dart';
-import 'serialization.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/model.dart';
+import 'package:smf_engine/src/serialization.dart';
 
 CandidateReceipt validateCandidateReceipt(
   Object? value, {

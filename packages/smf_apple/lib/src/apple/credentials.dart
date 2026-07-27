@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'dart:io' as io;
 
+import 'package:smf_apple/src/models/apple_credentials.dart';
+import 'package:smf_apple/src/models/signing_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
-
-import '../models/apple_credentials.dart';
-import '../models/signing_credentials.dart';
 
 final class CredentialProvider {
   const CredentialProvider({required this.environment});

@@ -1,9 +1,8 @@
+import 'package:smf_apple/src/apple/candidate_dependencies.dart';
+import 'package:smf_apple/src/apple/client.dart';
+import 'package:smf_apple/src/models/apple_credentials.dart';
+import 'package:smf_apple/src/models/signing_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
-
-import '../models/apple_credentials.dart';
-import '../models/signing_credentials.dart';
-import 'candidate_dependencies.dart';
-import 'client.dart';
 
 /// Inputs and injectable adapters for creating an iOS candidate.
 final class CandidateOptions {

@@ -10,7 +10,7 @@ void main() {
       ),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'COMMAND_FAILED',
         ),
@@ -31,9 +31,9 @@ void main() {
           },
         );
         const command =
-            'printf "%s|%s|%s" "\$GITHUB_TOKEN" '
-            '"\$SMF_IOS_CERTIFICATE_PASSWORD" '
-            '"\$SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH"';
+            r'printf "%s|%s|%s" "$GITHUB_TOKEN" '
+            r'"$SMF_IOS_CERTIFICATE_PASSWORD" '
+            r'"$SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH"';
         final result = await runner.run('/bin/sh', const <String>[
           '-c',
           command,
@@ -51,7 +51,7 @@ void main() {
         ]),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             isNot(contains('certificate-password')),
           ),
@@ -67,7 +67,7 @@ void main() {
         ]),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('build failed safely'),
           ),

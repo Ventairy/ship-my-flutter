@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'config.dart';
-import 'error.dart';
-import 'git.dart';
-import 'paths.dart';
-import 'serialization.dart';
+import 'package:smf_engine/src/config.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/serialization.dart';
 
 Future<String?> _findWorkspaceLockfile(
   String repositoryRoot,

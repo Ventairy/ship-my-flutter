@@ -29,7 +29,8 @@ String generatedWorkflowYaml({required String smfPath}) {
   return workflowTemplate.replaceAll('__SMF_PATH__', jsonEncode(smfPath));
 }
 
-const String workflowTemplate = r'''name: SMF
+const String workflowTemplate = r'''
+name: SMF
 
 on:
   push:

@@ -10,6 +10,10 @@ Requirements:
 - Git
 - macOS with Xcode only for real iOS signing/build integration
 
+The workspace includes `very_good_analysis` 10.1.0 exactly. That is the newest
+stable preset compatible with the Dart 3.10 floor and keeps every CI SDK on the
+same lint rules.
+
 ```bash
 dart pub get
 dart run melos run generate --no-select

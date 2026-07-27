@@ -34,7 +34,7 @@ void main() {
       loadCandidateReceipt(path),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'INVALID_CANDIDATE_RECEIPT',
         ),
@@ -57,7 +57,7 @@ void main() {
         () => validateCandidateReceipt(malformed),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('candidate receipt is invalid'),
           ),

@@ -6,7 +6,6 @@ void main() {
     'when copying configuration, it should preserve unchanged nested values',
     () {
       const config = SmfConfig(
-        targetBranch: 'main',
         ios: IosConfig(bundleId: 'dev.example.app'),
       );
 

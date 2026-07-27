@@ -1,4 +1,4 @@
-import 'installed_profile.dart';
+import 'package:smf_apple/src/apple/installed_profile.dart';
 
 /// Temporary signing assets installed for one build operation.
 ///

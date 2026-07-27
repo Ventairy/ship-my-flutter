@@ -1,15 +1,14 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:smf_engine/src/config.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/model.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/process_runner.dart';
+import 'package:smf_engine/src/serialization.dart';
 import 'package:smf_hooks/smf_hooks.dart' show SmfHookPhase;
-
-import 'config.dart';
-import 'error.dart';
-import 'git.dart';
-import 'model.dart';
-import 'paths.dart';
-import 'process_runner.dart';
-import 'serialization.dart';
 
 Future<bool?> runBeforeCreatePrHook(
   String workingDirectory,
@@ -127,10 +126,10 @@ Future<bool?> _runHook({
           'SMF_FLAVOR': ?config.flavor,
           ...environment,
         },
-        onStdout: (String output) {
+        onStdout: (output) {
           if (output.isNotEmpty) stderr.write(output);
         },
-        onStderr: (String output) {
+        onStderr: (output) {
           if (output.isNotEmpty) stderr.write(output);
         },
       ),

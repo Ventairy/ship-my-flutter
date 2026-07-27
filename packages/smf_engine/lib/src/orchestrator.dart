@@ -1,12 +1,12 @@
-import 'config.dart';
-import 'git.dart';
-import 'github.dart';
-import 'github_api.dart';
-import 'model.dart';
-import 'paths.dart';
-import 'release_branch.dart';
-import 'release_plan.dart';
-import 'validate.dart';
+import 'package:smf_engine/src/config.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/github.dart';
+import 'package:smf_engine/src/github_api.dart';
+import 'package:smf_engine/src/model.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/release_branch.dart';
+import 'package:smf_engine/src/release_plan.dart';
+import 'package:smf_engine/src/validate.dart';
 
 final class ReleaseOrchestrator {
   const ReleaseOrchestrator({this.githubApi});
@@ -15,8 +15,8 @@ final class ReleaseOrchestrator {
 
   Future<CommandResult> plan({
     required String workingDirectory,
-    String? smfPath,
     required GitHubContext github,
+    String? smfPath,
   }) async {
     final paths = resolveSmfPaths(workingDirectory, smfPath: smfPath);
     final repositoryRoot = paths.repositoryRoot;
@@ -79,8 +79,8 @@ final class ReleaseOrchestrator {
 
 Future<CommandResult> planGitHubRelease({
   required String workingDirectory,
-  String? smfPath,
   required GitHubContext github,
+  String? smfPath,
   GitHubApi? githubApi,
 }) => ReleaseOrchestrator(
   githubApi: githubApi,

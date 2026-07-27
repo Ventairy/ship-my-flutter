@@ -1,13 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'error.dart';
-import 'process/run_options.dart';
-import 'process/run_result.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/process/run_options.dart';
+import 'package:smf_engine/src/process/run_result.dart';
 
 export 'process/run_options.dart';
 export 'process/run_result.dart';
 
+// This interface is an intentional process-boundary injection seam.
+// ignore: one_member_abstracts
 abstract interface class ProcessRunner {
   Future<RunResult> run(
     String executable,
@@ -74,9 +76,7 @@ final class SystemProcessRunner implements ProcessRunner {
     final environment = Map<String, String>.of(
       parentEnvironment ?? Platform.environment,
     );
-    for (final name in _sensitiveEnvironmentNames) {
-      environment.remove(name);
-    }
+    _sensitiveEnvironmentNames.forEach(environment.remove);
     environment.addAll(options.environment);
 
     late final Process process;

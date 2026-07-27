@@ -1,9 +1,8 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:smf_apple/src/models/apple_credentials.dart';
 import 'package:smf_engine/smf_engine.dart' hide Platform;
-
-import '../models/apple_credentials.dart';
 
 /// Resolves one IPA from a project-relative file or directory.
 ///
@@ -71,8 +70,8 @@ Future<String> findIpa(
   final ipas =
       entries
           .whereType<File>()
-          .where((File item) => item.path.endsWith('.ipa'))
-          .map((File item) => item.path)
+          .where((item) => item.path.endsWith('.ipa'))
+          .map((item) => item.path)
           .toList()
         ..sort();
   invariant(
@@ -132,13 +131,14 @@ Future<String> runIosBuildCommand({
     p.absolute(projectRoot, ipaOutputPath),
   );
   final managedCommand = StringBuffer(command)
-    ..write(r''' \
-  --build-name "$SMF_PLATFORM_VERSION" \
-  --build-number "$SMF_BUILD_NUMBER" \
-  --export-options-plist "$SMF_EXPORT_OPTIONS_PATH"''');
+    ..write(
+      ' \\\n'
+      '  --build-name "\$SMF_PLATFORM_VERSION" \\\n'
+      '  --build-number "\$SMF_BUILD_NUMBER" \\\n'
+      r'  --export-options-plist "$SMF_EXPORT_OPTIONS_PATH"',
+    );
   if (flavor != null) {
-    managedCommand.write(r''' \
-  --flavor "$SMF_FLAVOR"''');
+    managedCommand.write(' \\\n  --flavor "\$SMF_FLAVOR"');
   }
   await runShellCommand(
     managedCommand.toString(),

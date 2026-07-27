@@ -3,14 +3,13 @@ import 'dart:convert';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
 import 'package:json_annotation/json_annotation.dart';
+import 'package:smf_apple/src/apple/dtos/api_resource.dart';
+import 'package:smf_apple/src/apple/dtos/app_attributes.dart';
+import 'package:smf_apple/src/apple/dtos/app_store_version_attributes.dart';
+import 'package:smf_apple/src/apple/dtos/build_attributes.dart';
+import 'package:smf_apple/src/apple/dtos/prerelease_version_attributes.dart';
+import 'package:smf_apple/src/models/apple_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
-
-import '../models/apple_credentials.dart';
-import 'dtos/api_resource.dart';
-import 'dtos/app_attributes.dart';
-import 'dtos/app_store_version_attributes.dart';
-import 'dtos/build_attributes.dart';
-import 'dtos/prerelease_version_attributes.dart';
 
 export 'dtos/api_resource.dart';
 export 'dtos/app_attributes.dart';
@@ -153,7 +152,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
         final errors = document['errors'];
         if (errors is List<Object?>) {
           details = errors
-              .map((Object? value) {
+              .map((value) {
                 final error = _map(value, 'error');
                 return <Object?>[
                   error['code'],
@@ -161,7 +160,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
                   error['detail'],
                 ].whereType<String>().join(': ');
               })
-              .where((String value) => value.isNotEmpty)
+              .where((value) => value.isNotEmpty)
               .join('; ');
         }
       } on FormatException {
@@ -255,7 +254,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     final versions = await listPrereleaseVersions(appId, version: version);
     final matching = versions
         .where(
-          (ApiResource<PrereleaseVersionAttributes> item) =>
+          (item) =>
               item.attributes.version == version &&
               item.attributes.platform == 'IOS',
         )
@@ -274,13 +273,13 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
   @override
   Future<String> nextBuildNumber(String appId, String version) async {
     final builds = await buildsForVersion(appId, version);
-    final numeric = builds.map((ApiResource<BuildAttributes> build) {
+    final numeric = builds.map((build) {
       return int.tryParse(build.attributes.version);
     }).whereType<int>();
     final latest = numeric.isEmpty
         ? 0
         : numeric.reduce(
-            (int first, int second) => first > second ? first : second,
+            (first, second) => first > second ? first : second,
           );
     return '${latest + 1}';
   }
@@ -298,8 +297,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
       final builds = await buildsForVersion(appId, version);
       final build = builds
           .where(
-            (ApiResource<BuildAttributes> item) =>
-                item.attributes.version == buildNumber,
+            (item) => item.attributes.version == buildNumber,
           )
           .firstOrNull;
       if (build?.attributes.processingState == 'VALID') return build!;
@@ -333,8 +331,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     final existing = localizations
         .map(_genericResource)
         .where(
-          (ApiResource<Map<String, Object?>> item) =>
-              item.attributes['locale'] == locale,
+          (item) => item.attributes['locale'] == locale,
         )
         .firstOrNull;
     if (existing != null) {
@@ -387,8 +384,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     for (final name in names) {
       final group = groups
           .where(
-            (ApiResource<Map<String, Object?>> item) =>
-                item.attributes['name'] == name,
+            (item) => item.attributes['name'] == name,
           )
           .firstOrNull;
       invariant(
@@ -438,8 +434,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     ];
     final match = existing
         .where(
-          (ApiResource<AppStoreVersionAttributes> item) =>
-              item.attributes.versionString == version,
+          (item) => item.attributes.versionString == version,
         )
         .firstOrNull;
     if (match != null) {
@@ -535,8 +530,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     )).map(_genericResource);
     final localization = localizations
         .where(
-          (ApiResource<Map<String, Object?>> item) =>
-              item.attributes['locale'] == locale,
+          (item) => item.attributes['locale'] == locale,
         )
         .firstOrNull;
     invariant(
@@ -713,7 +707,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     return _resource(
       value,
       path: 'resource',
-      attributesFromJson: (Map<String, Object?> json) => json,
+      attributesFromJson: (json) => json,
     );
   }
 
@@ -725,7 +719,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     try {
       return ApiResource<T>.fromJson(
         _map(value, path),
-        (Object? attributes) =>
+        (attributes) =>
             attributesFromJson(_map(attributes, '$path.attributes')),
       );
     } on CheckedFromJsonException catch (error) {

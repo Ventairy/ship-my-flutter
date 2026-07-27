@@ -1,9 +1,8 @@
 import 'package:path/path.dart' as p;
+import 'package:smf_apple/src/apple/client.dart';
+import 'package:smf_apple/src/apple/dtos/promotion_result.dart';
+import 'package:smf_apple/src/apple/promotion_options.dart';
 import 'package:smf_engine/smf_engine.dart';
-
-import 'client.dart';
-import 'dtos/promotion_result.dart';
-import 'promotion_options.dart';
 
 export 'dtos/promotion_result.dart';
 export 'promotion_options.dart';
@@ -75,7 +74,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
   );
   final versionBuilds = await client.buildsForVersion(app.id, state.version);
   final build = versionBuilds
-      .where((ApiResource<BuildAttributes> item) => item.id == receipt.buildId)
+      .where((item) => item.id == receipt.buildId)
       .firstOrNull;
   invariant(
     build?.attributes.processingState == 'VALID' &&

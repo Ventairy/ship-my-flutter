@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'config.dart';
-import 'git.dart';
-import 'model.dart';
-import 'paths.dart';
-import 'release_plan.dart';
-import 'serialization.dart';
+import 'package:smf_engine/src/config.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/model.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/release_plan.dart';
+import 'package:smf_engine/src/serialization.dart';
 
 Future<void> applyReleasePlan(
   String root,

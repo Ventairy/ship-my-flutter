@@ -1,32 +1,17 @@
-include: package:lints/recommended.yaml
+include: package:very_good_analysis/analysis_options.yaml
 
 analyzer:
   exclude:
     - "**/*.freezed.dart"
     - "**/*.g.dart"
-  language:
-    strict-casts: true
-    strict-inference: true
-    strict-raw-types: true
   errors:
     invalid_annotation_target: ignore
-    missing_required_param: error
-    missing_return: error
 
 linter:
   rules:
-    - always_declare_return_types
-    - avoid_catches_without_on_clauses
-    - avoid_catching_errors
-    - avoid_dynamic_calls
-    - avoid_print
-    - cancel_subscriptions
-    - close_sinks
-    - directives_ordering
-    - discarded_futures
-    - lines_longer_than_80_chars
-    - no_adjacent_strings_in_list
-    - no_default_cases
-    - prefer_final_locals
-    - prefer_single_quotes
-    - unawaited_futures
+    # SMF's curated exports require Dartdoc. Requiring it for every public
+    # declaration in private src/ implementation files creates boilerplate.
+    public_member_api_docs: false
+    # SMF is an I/O-bound CLI and intentionally keeps filesystem work
+    # asynchronous so embedded consumers are not forced onto blocking APIs.
+    avoid_slow_async_io: false

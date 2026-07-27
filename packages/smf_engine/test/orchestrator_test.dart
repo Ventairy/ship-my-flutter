@@ -5,9 +5,6 @@ import 'package:path/path.dart' as p;
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
-String repeated(String value, int count) =>
-    List<String>.filled(count, value).join();
-
 Future<Directory> repository() async {
   final root = await Directory.systemTemp.createTemp('smf-orchestrator-');
   addTearDown(() => root.delete(recursive: true));

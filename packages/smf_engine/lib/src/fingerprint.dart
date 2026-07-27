@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
-import 'error.dart';
-import 'git.dart';
-import 'paths.dart';
-import 'serialization.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/paths.dart';
+import 'package:smf_engine/src/serialization.dart';
 
 Future<String> sourceFingerprint(String workingDirectory) async {
   final paths = resolveSmfPaths(workingDirectory);
@@ -28,7 +28,7 @@ Future<String> sourceFingerprint(String workingDirectory) async {
   final files =
       output
           .split('\u0000')
-          .where((String value) => value.isNotEmpty)
+          .where((value) => value.isNotEmpty)
           .where(shouldInclude)
           .toList()
         ..sort();

@@ -27,9 +27,6 @@ final class ExecutableIo {
   final void Function(Object? value) writeError;
 }
 
-typedef _Operation =
-    Future<Object?> Function(ArgResults arguments, ExecutableIo io);
-
 const String _topLevelUsage = '''
 SMF release automation
 
@@ -107,7 +104,7 @@ Future<int> _runExecutable({
   required String description,
   required List<String> arguments,
   required ArgParser parser,
-  required _Operation operation,
+  required Future<Object?> Function(ArgResults, ExecutableIo) operation,
   ExecutableIo? io,
 }) async {
   final resolvedIo = io ?? ExecutableIo.system();

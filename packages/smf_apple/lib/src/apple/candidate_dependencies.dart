@@ -1,10 +1,9 @@
+import 'package:smf_apple/src/apple/project.dart';
+import 'package:smf_apple/src/apple/signing.dart';
+import 'package:smf_apple/src/apple/upload.dart';
+import 'package:smf_apple/src/models/apple_credentials.dart';
+import 'package:smf_apple/src/models/signing_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
-
-import '../models/apple_credentials.dart';
-import '../models/signing_credentials.dart';
-import 'project.dart';
-import 'signing.dart';
-import 'upload.dart';
 
 /// Installs signing material for a candidate build.
 typedef InstallSigningAssets =

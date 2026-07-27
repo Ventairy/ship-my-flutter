@@ -60,7 +60,7 @@ void main() {
 
       expect(plan?.nextVersion, '1.3.0');
       expect(
-        plan?.changes.map((ConventionalChange change) => change.description),
+        plan?.changes.map((change) => change.description),
         <String>['add widgets'],
       );
     });

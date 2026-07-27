@@ -12,6 +12,7 @@ workspace:
 
 dev_dependencies:
   melos: ^8.2.2
+  very_good_analysis: 10.1.0
 
 melos:
   repository: https://github.com/Ventairy/smf

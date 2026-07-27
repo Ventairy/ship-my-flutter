@@ -1,9 +1,8 @@
 import 'package:path/path.dart' as p;
+import 'package:smf_apple/src/apple/candidate_options.dart';
+import 'package:smf_apple/src/apple/client.dart';
+import 'package:smf_apple/src/apple/upload.dart';
 import 'package:smf_engine/smf_engine.dart';
-
-import 'candidate_options.dart';
-import 'client.dart';
-import 'upload.dart';
 
 export 'candidate_dependencies.dart';
 export 'candidate_options.dart';
@@ -177,7 +176,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     config,
     state.version,
   );
-  if (commitHookChanges == true) {
+  if (commitHookChanges ?? false) {
     await _commitBeforeBuildChanges(
       repositoryRoot,
       state.version,

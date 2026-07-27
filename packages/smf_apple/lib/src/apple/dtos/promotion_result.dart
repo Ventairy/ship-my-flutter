@@ -12,9 +12,9 @@ abstract class PromotionResult with _$PromotionResult {
     required String version,
     required String tag,
     required String buildId,
+    required String githubReleaseUrl,
     String? appStoreVersionId,
     String? reviewSubmissionId,
-    required String githubReleaseUrl,
   }) = _PromotionResult;
 
   /// Decodes promotion evidence from JSON.

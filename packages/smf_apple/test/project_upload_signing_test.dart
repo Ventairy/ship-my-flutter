@@ -109,20 +109,20 @@ void main() {
       );
       expect(
         invocation.arguments.last,
-        contains('--build-name "\$SMF_PLATFORM_VERSION"'),
+        contains(r'--build-name "$SMF_PLATFORM_VERSION"'),
       );
       expect(
         invocation.arguments.last,
-        contains('--build-number "\$SMF_BUILD_NUMBER"'),
+        contains(r'--build-number "$SMF_BUILD_NUMBER"'),
       );
       expect(
         invocation.arguments.last,
         contains(
           '--export-options-plist '
-          '"\$SMF_EXPORT_OPTIONS_PATH"',
+          r'"$SMF_EXPORT_OPTIONS_PATH"',
         ),
       );
-      expect(invocation.arguments.last, contains('--flavor "\$SMF_FLAVOR"'));
+      expect(invocation.arguments.last, contains(r'--flavor "$SMF_FLAVOR"'));
       expect(
         invocation.options.environment,
         containsPair('SMF_PLATFORM_VERSION', '1.2.0'),
@@ -245,7 +245,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       findIpa(root.path, ipaOutputPath: 'example.ipa'),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'IPA_PATH_ESCAPE',
         ),
@@ -263,7 +263,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       ).create();
       final home = await Directory(p.join(root.path, 'home')).create();
       final runner = RecordingProcessRunner(
-        handler: (ProcessInvocation invocation) async {
+        handler: (invocation) async {
           if (invocation.executable == 'security' &&
               invocation.arguments.length == 3 &&
               invocation.arguments.first == 'list-keychains') {
@@ -315,7 +315,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       expect(await File(keychainPath).exists(), isFalse);
       expect(
         runner.invocations.any(
-          (ProcessInvocation value) =>
+          (value) =>
               value.executable == 'security' &&
               value.arguments.first == 'delete-keychain',
         ),
@@ -332,7 +332,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
     ).create();
     final home = await Directory(p.join(root.path, 'home')).create();
     final runner = RecordingProcessRunner(
-      handler: (ProcessInvocation invocation) async {
+      handler: (invocation) async {
         if (invocation.executable == 'security' &&
             invocation.arguments.first == 'list-keychains') {
           return const RunResult(stdout: '', stderr: '', exitCode: 0);
@@ -356,7 +356,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       ),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'INVALID_CERTIFICATE',
         ),
@@ -377,7 +377,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       ),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'INVALID_PROFILE',
         ),
@@ -447,7 +447,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
         ),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'INVALID_CREDENTIAL',
           ),

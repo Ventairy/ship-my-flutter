@@ -1,8 +1,7 @@
+import 'package:smf_apple/src/apple/client.dart';
+import 'package:smf_apple/src/apple/project.dart';
+import 'package:smf_apple/src/models/apple_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
-
-import '../models/apple_credentials.dart';
-import 'client.dart';
-import 'project.dart';
 
 /// Inputs and injectable adapters for promoting an iOS candidate.
 final class PromotionOptions {

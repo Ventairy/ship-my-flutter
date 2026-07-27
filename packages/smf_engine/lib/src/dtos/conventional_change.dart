@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../models/release_enums.dart';
+import 'package:smf_engine/src/models/release_enums.dart';
 
 part 'conventional_change.freezed.dart';
 part 'conventional_change.g.dart';

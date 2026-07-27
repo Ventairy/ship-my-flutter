@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'conventional_change.dart';
-import 'utc_date_time_converter.dart';
+import 'package:smf_engine/src/dtos/conventional_change.dart';
+import 'package:smf_engine/src/dtos/utc_date_time_converter.dart';
 
 part 'changelog_release.freezed.dart';
 part 'changelog_release.g.dart';

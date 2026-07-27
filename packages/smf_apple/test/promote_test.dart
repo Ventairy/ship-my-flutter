@@ -200,7 +200,7 @@ void main() {
         ),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'UNTESTED_SOURCE',
           ),

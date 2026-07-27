@@ -12,7 +12,7 @@ void main() {
       final api = GitHubRestApi(
         context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
         client: MockClient(
-          (http.Request request) async =>
+          (request) async =>
               throw http.ClientException('connection failed', request.url),
         ),
       );
@@ -26,7 +26,7 @@ void main() {
         ),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'GITHUB_API',
           ),
@@ -51,7 +51,7 @@ void main() {
       ];
       final api = GitHubRestApi(
         context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
-        client: MockClient((http.Request request) async {
+        client: MockClient((request) async {
           requests.add(request);
           return responses.removeAt(0);
         }),
@@ -104,12 +104,12 @@ void main() {
       throwsA(
         isA<GitHubApiException>()
             .having(
-              (GitHubApiException error) => error.statusCode,
+              (error) => error.statusCode,
               'statusCode',
               403,
             )
             .having(
-              (GitHubApiException error) => error.path,
+              (error) => error.path,
               'path',
               contains('/labels/pending'),
             ),
@@ -132,7 +132,7 @@ void main() {
       ),
       throwsA(
         isA<SmfError>().having(
-          (SmfError error) => error.code,
+          (error) => error.code,
           'code',
           'GITHUB_RESPONSE',
         ),

@@ -12,6 +12,10 @@ _PromotionResult _$PromotionResultFromJson(Map<String, dynamic> json) =>
         version: $checkedConvert('version', (v) => v as String),
         tag: $checkedConvert('tag', (v) => v as String),
         buildId: $checkedConvert('buildId', (v) => v as String),
+        githubReleaseUrl: $checkedConvert(
+          'githubReleaseUrl',
+          (v) => v as String,
+        ),
         appStoreVersionId: $checkedConvert(
           'appStoreVersionId',
           (v) => v as String?,
@@ -19,10 +23,6 @@ _PromotionResult _$PromotionResultFromJson(Map<String, dynamic> json) =>
         reviewSubmissionId: $checkedConvert(
           'reviewSubmissionId',
           (v) => v as String?,
-        ),
-        githubReleaseUrl: $checkedConvert(
-          'githubReleaseUrl',
-          (v) => v as String,
         ),
       );
       return val;
@@ -33,7 +33,7 @@ Map<String, dynamic> _$PromotionResultToJson(_PromotionResult instance) =>
       'version': instance.version,
       'tag': instance.tag,
       'buildId': instance.buildId,
+      'githubReleaseUrl': instance.githubReleaseUrl,
       'appStoreVersionId': ?instance.appStoreVersionId,
       'reviewSubmissionId': ?instance.reviewSubmissionId,
-      'githubReleaseUrl': instance.githubReleaseUrl,
     };

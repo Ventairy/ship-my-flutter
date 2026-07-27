@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../models/release_enums.dart';
+import 'package:smf_engine/src/models/release_enums.dart';
 
 part 'candidate_receipt.freezed.dart';
 
@@ -9,8 +9,6 @@ part 'candidate_receipt.freezed.dart';
 abstract class CandidateReceipt with _$CandidateReceipt {
   /// Creates candidate evidence.
   const factory CandidateReceipt({
-    @Default(1) int schemaVersion,
-    @Default(Platform.ios) Platform platform,
     required String version,
     required String buildNumber,
     required String buildId,
@@ -21,6 +19,8 @@ abstract class CandidateReceipt with _$CandidateReceipt {
     required String ipaSha256,
     required DateTime uploadedAt,
     required List<String> testflightGroups,
+    @Default(1) int schemaVersion,
+    @Default(Platform.ios) Platform platform,
   }) = _CandidateReceipt;
 
   const CandidateReceipt._();

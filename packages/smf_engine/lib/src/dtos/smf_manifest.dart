@@ -1,7 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-
-import '../models/release_enums.dart';
-import 'platform_manifest.dart';
+import 'package:smf_engine/src/dtos/platform_manifest.dart';
+import 'package:smf_engine/src/models/release_enums.dart';
 
 part 'smf_manifest.freezed.dart';
 
@@ -10,8 +9,8 @@ part 'smf_manifest.freezed.dart';
 abstract class SmfManifest with _$SmfManifest {
   /// Creates the repository release manifest.
   const factory SmfManifest({
-    @Default(1) int schemaVersion,
     required PlatformManifest ios,
+    @Default(1) int schemaVersion,
   }) = _SmfManifest;
 
   const SmfManifest._();

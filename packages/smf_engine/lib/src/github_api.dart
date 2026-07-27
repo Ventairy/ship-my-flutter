@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:json_annotation/json_annotation.dart';
 
-import 'error.dart';
-import 'github/dtos/github_pull_request.dart';
-import 'github/dtos/github_release.dart';
-import 'github/github_api_exception.dart';
-import 'model.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/github/dtos/github_pull_request.dart';
+import 'package:smf_engine/src/github/dtos/github_release.dart';
+import 'package:smf_engine/src/github/github_api_exception.dart';
+import 'package:smf_engine/src/model.dart';
 
 export 'github/dtos/github_pull_request.dart';
 export 'github/dtos/github_release.dart';

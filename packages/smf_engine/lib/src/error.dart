@@ -14,6 +14,8 @@ Never _invalid(String message, [String code = 'INVALID_STATE']) {
 }
 
 void invariant(
+  // This intentionally mirrors Dart's assert(condition, message) convention.
+  // ignore: avoid_positional_boolean_parameters
   bool condition,
   String message, [
   String code = 'INVALID_STATE',

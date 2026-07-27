@@ -25,12 +25,11 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.15.0
+  freezed: ">=3.2.5 <3.2.6"
   # test_core permits 3.2.0, which expects an SDK snapshot removed before our
   # Dart 3.10 floor. Version 4 uses the supported AOT frontend server snapshot.
   frontend_server_client: ^4.0.0
-  freezed: ">=3.2.5 <3.2.6"
   json_serializable: ">=6.13.0 <6.13.1"
-  lints: ^6.0.0
   # 1.31.x pulls analyzer releases whose locked graph requires Dart 3.11.
   # Keep development and the vendored Action runtime reproducible on our 3.10 floor.
   test: 1.30.0

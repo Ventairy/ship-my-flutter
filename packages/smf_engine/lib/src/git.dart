@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'error.dart';
-import 'git/git_commit.dart';
-import 'process_runner.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/git/git_commit.dart';
+import 'package:smf_engine/src/process_runner.dart';
 
 export 'git/git_commit.dart';
 
@@ -90,7 +90,7 @@ final class GitClient {
     String baseSha, [
     String headSha = 'HEAD',
   ]) async {
-    final format = '%H$_fieldSeparator%B$_recordSeparator';
+    const format = '%H$_fieldSeparator%B$_recordSeparator';
     final output = await run(<String>[
       'log',
       '--reverse',
@@ -103,8 +103,8 @@ final class GitClient {
       for (final record
           in output
               .split(_recordSeparator)
-              .map((String value) => value.trim())
-              .where((String value) => value.isNotEmpty))
+              .map((value) => value.trim())
+              .where((value) => value.isNotEmpty))
         _parseCommit(record),
     ];
   }

@@ -3,7 +3,7 @@ import 'dart:io' as io;
 
 import 'package:pub_semver/pub_semver.dart';
 
-import 'models.dart';
+import 'package:smf_hooks/src/models.dart';
 
 /// Repository hook phases supported by SMF.
 enum SmfHookPhase {

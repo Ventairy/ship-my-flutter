@@ -211,7 +211,7 @@ void main() {
         ),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.code,
+            (error) => error.code,
             'code',
             'BUILD_HOOK_DIRTY_WORKTREE',
           ),
@@ -242,7 +242,7 @@ void main() {
         ),
         throwsA(
           isA<SmfError>().having(
-            (SmfError error) => error.message,
+            (error) => error.message,
             'message',
             contains('only runs on smf/ios'),
           ),

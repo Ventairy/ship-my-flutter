@@ -1,9 +1,9 @@
 import 'package:pub_semver/pub_semver.dart';
 
-import 'conventional_commit.dart';
-import 'error.dart';
-import 'git.dart';
-import 'model.dart';
+import 'package:smf_engine/src/conventional_commit.dart';
+import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/model.dart';
 
 String releaseTag(Platform platform, String version) =>
     '${platform.value}-v$version';
@@ -29,11 +29,10 @@ final class ReleasePlanner {
     final commits = await gitClient.commitsBetween(baseSha, headSha);
     final changes = commits
         .map(
-          (GitCommit commit) =>
-              parseConventionalCommit(commit.sha, commit.message),
+          (commit) => parseConventionalCommit(commit.sha, commit.message),
         )
         .where(
-          (ConventionalChange change) =>
+          (change) =>
               change.platforms.contains(platform) &&
               (change.bump != null || change.releaseAs != null),
         )
@@ -41,7 +40,7 @@ final class ReleasePlanner {
     if (changes.isEmpty) return null;
 
     final releaseAsValues = changes
-        .map((ConventionalChange change) => change.releaseAs)
+        .map((change) => change.releaseAs)
         .whereType<String>();
     final releaseAs = releaseAsValues.isEmpty ? null : releaseAsValues.last;
     final bump = highestBump(changes) ?? Bump.patch;
