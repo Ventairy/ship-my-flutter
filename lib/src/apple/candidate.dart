@@ -7,6 +7,7 @@ import '../fingerprint.dart';
 import '../git.dart';
 import '../model.dart';
 import '../paths.dart';
+import '../release_branch.dart';
 import '../serialization.dart';
 import '../validate.dart';
 import 'candidate_options.dart';
@@ -157,9 +158,10 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     'IOS_DISABLED',
   );
   final branch = await currentBranch(root);
+  final releaseBranch = releaseBranchName(Platform.ios);
   invariant(
-    branch == '${config.releaseBranchPrefix}/ios',
-    'The candidate phase only runs on ${config.releaseBranchPrefix}/ios.',
+    branch == releaseBranch,
+    'The candidate phase only runs on $releaseBranch.',
     'CANDIDATE_BRANCH',
   );
   invariant(

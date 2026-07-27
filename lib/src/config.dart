@@ -15,7 +15,6 @@ const Set<String> _rootConfigFields = <String>{
   'app_path',
   'flavor',
   'target_branch',
-  'release_branch_prefix',
   'hooks',
   'platforms',
 };
@@ -171,10 +170,6 @@ ShipConfig validateConfig(Object? value, {String source = 'configuration'}) {
       targetBranch: _nonEmptyString(
         root['target_branch'] ?? 'main',
         'target_branch',
-      ),
-      releaseBranchPrefix: _nonEmptyString(
-        root['release_branch_prefix'] ?? 'ship-my-flutter',
-        'release_branch_prefix',
       ),
       hooks: _parseHooks(hooks),
       ios: _parseIosConfig(ios),

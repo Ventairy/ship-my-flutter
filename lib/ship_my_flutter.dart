@@ -58,8 +58,7 @@ export 'src/github.dart'
     show
         ReleasePullRequestResult,
         createOrUpdateReleasePullRequest,
-        findReleasePullRequest,
-        releaseBranchName;
+        findReleasePullRequest;
 export 'src/github_api.dart'
     show
         GitHubApi,
@@ -81,6 +80,7 @@ export 'src/process_runner.dart'
         RunResult,
         SystemProcessRunner,
         runShellCommand;
+export 'src/release_branch.dart' show releaseBranchName;
 export 'src/release_plan.dart'
     show ReleasePlanner, createReleasePlan, releaseNeedsPromotion, releaseTag;
 export 'src/validate.dart' show validateRepository;

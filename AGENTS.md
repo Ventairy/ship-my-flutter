@@ -90,7 +90,7 @@ redesign.
   the iOS changelog or determine its bump.
 - Unscoped commits and non-platform feature scopes apply to every enabled
   platform.
-- Platform branches use `<release_branch_prefix>/<platform>`.
+- Platform branches use the internal `ship-my-flutter/<platform>` convention.
 - Platform tags use `<platform>-v<version>`.
 - `pubspec.yaml` is the package/application manifest, not a shared platform
   release manifest.

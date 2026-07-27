@@ -7,11 +7,9 @@ import 'github_api.dart';
 import 'hooks.dart';
 import 'manifest_files.dart';
 import 'model.dart';
+import 'release_branch.dart';
 
 export 'github/dtos/release_pull_request_result.dart';
-
-String releaseBranchName(ShipConfig config, Platform platform) =>
-    '${config.releaseBranchPrefix}/${platform.value}';
 
 Future<void> _commitAllChanges(String root, String message) async {
   await git(root, const <String>['add', '.']);
@@ -30,7 +28,7 @@ Future<String> _ensureReleaseBranch(
   Platform platform,
   String token,
 ) async {
-  final branch = releaseBranchName(config, platform);
+  final branch = releaseBranchName(platform);
   await authenticatedGit(root, <String>[
     'fetch',
     'origin',
@@ -180,7 +178,7 @@ Future<int?> findReleasePullRequest(
   final pulls = await (githubApi ?? GitHubRestApi(context: context))
       .listPullRequests(
         state: 'all',
-        head: '${context.owner}:${releaseBranchName(config, platform)}',
+        head: '${context.owner}:${releaseBranchName(platform)}',
         base: config.targetBranch,
         perPage: 10,
       );

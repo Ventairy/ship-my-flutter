@@ -253,7 +253,6 @@ schema_version: 1
 app_path: .
 # flavor: production
 target_branch: main
-release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:

@@ -14,7 +14,6 @@ String generatedConfigYaml({required String initialVersion, String? bundleId}) {
 schema_version: 1
 app_path: .
 target_branch: main
-release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:

@@ -5,7 +5,6 @@ Map<String, Object?> validConfig() => <String, Object?>{
   'schema_version': 1,
   'app_path': '.',
   'target_branch': 'main',
-  'release_branch_prefix': 'ship-my-flutter',
   'hooks': <String, Object?>{},
   'platforms': <String, Object?>{
     'ios': <String, Object?>{
@@ -40,6 +39,21 @@ void main() {
       final config = validConfig()..['flavor'] = 'production';
 
       expect(validateConfig(config).flavor, 'production');
+    });
+
+    test('rejects the removed release branch prefix', () {
+      final config = validConfig()..['release_branch_prefix'] = 'releases';
+
+      expect(
+        () => validateConfig(config),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.message,
+            'message',
+            allOf(contains('unknown field'), contains('release_branch_prefix')),
+          ),
+        ),
+      );
     });
 
     test('rejects a prerelease initial iOS version', () {

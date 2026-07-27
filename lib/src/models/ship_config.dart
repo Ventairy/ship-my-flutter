@@ -14,7 +14,6 @@ abstract class ShipConfig with _$ShipConfig {
     @Default('.') String appPath,
     String? flavor,
     @Default('main') String targetBranch,
-    @Default('ship-my-flutter') String releaseBranchPrefix,
     @Default(HooksConfig()) HooksConfig hooks,
     required IosConfig ios,
   }) = _ShipConfig;

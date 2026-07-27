@@ -29,6 +29,8 @@ The project follows Semantic Versioning and Conventional Commits.
 - Reduced initialization to the required configuration and GitHub workflow.
   Release manifests, changelogs, and candidate receipts are now generated only
   when needed, while absent store notes no longer create an empty file.
+- Made the `ship-my-flutter/<platform>` release branch convention internal and
+  removed the unnecessary `release_branch_prefix` configuration field.
 
 ### Added
 

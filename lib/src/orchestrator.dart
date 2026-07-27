@@ -3,6 +3,7 @@ import 'git.dart';
 import 'github.dart';
 import 'github_api.dart';
 import 'model.dart';
+import 'release_branch.dart';
 import 'release_plan.dart';
 import 'validate.dart';
 
@@ -21,7 +22,7 @@ final class ReleaseOrchestrator {
     ).wait;
     if (!config.ios.enabled) return const CommandResult(phase: 'noop');
     final branch = await currentBranch(root);
-    final releaseBranch = releaseBranchName(config, Platform.ios);
+    final releaseBranch = releaseBranchName(Platform.ios);
     if (branch != releaseBranch && branch != config.targetBranch) {
       return const CommandResult(phase: 'noop');
     }

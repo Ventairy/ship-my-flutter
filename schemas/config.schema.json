@@ -29,12 +29,6 @@
       "default": "main",
       "description": "Branch whose commits feed release pull requests."
     },
-    "release_branch_prefix": {
-      "type": "string",
-      "minLength": 1,
-      "default": "ship-my-flutter",
-      "description": "Prefix for generated platform release branches."
-    },
     "hooks": {
       "type": "object",
       "default": {},

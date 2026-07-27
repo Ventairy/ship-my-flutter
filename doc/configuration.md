@@ -20,7 +20,6 @@ schema_version: 1
 app_path: .
 # flavor: production
 target_branch: main
-release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:
@@ -43,7 +42,6 @@ platforms:
 | `app_path` | `.` | Flutter app root shared by every platform |
 | `flavor` | unset | One optional Flutter flavor shared by every platform build |
 | `target_branch` | `main` | Branch whose commits feed release PRs |
-| `release_branch_prefix` | `ship-my-flutter` | Prefix for platform release branches |
 
 ## Shell hooks
 
