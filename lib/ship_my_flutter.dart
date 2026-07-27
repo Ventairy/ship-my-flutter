@@ -67,7 +67,7 @@ export 'src/github_api.dart'
         GitHubPullRequest,
         GitHubRelease,
         GitHubRestApi;
-export 'src/hooks.dart' show runBeforeCandidateHook, runBeforeReleasePrHook;
+export 'src/hooks.dart' show runBeforeBuildHook, runBeforeCreatePrHook;
 export 'src/init.dart' show InitOptions, initialize;
 export 'src/manifest_files.dart' show applyReleasePlan, emptyChangelog;
 export 'src/model.dart';

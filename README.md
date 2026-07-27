@@ -78,8 +78,9 @@ dart run ship_my_flutter init \
   --bundle-id com.example.myapp
 ```
 
-Then set `platforms.ios.project_path` to the app path relative to the repository
-root. The exact `--root` value depends on the workspace layout.
+Then set the root `app_path` to the Flutter app path relative to the repository
+root. iOS and future Android delivery share this location. The exact `--root`
+value depends on the workspace layout.
 
 This creates:
 
@@ -248,14 +249,14 @@ add TestFlight group names if builds should be assigned automatically:
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
 
-schema_version: 2
+schema_version: 3
+app_path: .
 target_branch: main
 release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:
     enabled: true
-    project_path: .
     bundle_id: com.example.myapp
     testflight:
       groups:
@@ -309,11 +310,12 @@ Omitting a version is allowed; ship-my-flutter will not invent notes. Apple may 
 
 ### Generate notes before the PR opens
 
-Set any repository-owned shell command as `hooks.before_release_pr`:
+Set any repository-owned shell command as `hooks.before_create_pr.run`:
 
 ```yaml
 hooks:
-  before_release_pr: fvm dart run release:generate_store_release_notes
+  before_create_pr:
+    run: fvm dart run release:generate_store_release_notes
 ```
 
 The command receives:
@@ -328,12 +330,18 @@ SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
 
 The changelog and next version already exist when the hook runs, so an AI or translation script can write deterministic drafts into the release PR for human review.
 
-Project preparation can use the matching candidate hook:
+Project preparation can use the matching build hook:
 
 ```yaml
 hooks:
-  before_candidate: fvm dart run melos run prepare:ios --no-select
+  before_build:
+    run: fvm dart run melos run prepare:ios --no-select
 ```
+
+Each hook defaults to `commit: true`, so every tracked or unignored file it
+leaves is committed to the release branch. Set `commit: false` only when the
+hook leaves the worktree clean, produces ignored/external output, or performs
+its own commit.
 
 The optional `build_command` overrides automatic Flutter/FVM selection.
 ship-my-flutter automatically appends the planned version, next App Store build
@@ -348,11 +356,11 @@ platforms:
 
 Keep it to one command invocation, such as `flutter build` or a Dart wrapper
 that accepts those appended arguments. Put chaining, preparation, logging, and
-verification in `hooks.before_candidate`. Omit `ipa_output_path` unless the
+verification in `hooks.before_build.run`. Omit `ipa_output_path` unless the
 wrapper moves the IPA away from Flutter's standard `build/ios/ipa` directory.
 
 See [Configuration](doc/configuration.md) for hook context, managed arguments,
-artifact validation, and schema version 1 migration.
+artifact validation, and configuration migration.
 
 ## Version overrides
 

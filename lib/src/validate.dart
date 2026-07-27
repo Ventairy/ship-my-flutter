@@ -52,13 +52,11 @@ Future<void> validateRepository(String root) async {
 
   if (config.ios.enabled) {
     final repositoryRoot = p.normalize(p.absolute(root));
-    final projectRoot = p.normalize(
-      p.absolute(repositoryRoot, config.ios.projectPath),
-    );
+    final projectRoot = p.normalize(p.absolute(repositoryRoot, config.appPath));
     invariant(
       await Directory(projectRoot).exists(),
-      'The Flutter project_path does not exist.',
-      'PROJECT_PATH_NOT_FOUND',
+      'The Flutter app_path does not exist.',
+      'APP_PATH_NOT_FOUND',
     );
     final (repositoryRealPath, projectRealPath) = await (
       Directory(repositoryRoot).resolveSymbolicLinks(),
@@ -67,12 +65,12 @@ Future<void> validateRepository(String root) async {
     invariant(
       projectRealPath == repositoryRealPath ||
           p.isWithin(repositoryRealPath, projectRealPath),
-      'The Flutter project_path resolves outside the repository.',
-      'PROJECT_PATH_ESCAPE',
+      'The Flutter app_path resolves outside the repository.',
+      'APP_PATH_ESCAPE',
     );
     invariant(
       await fileExists(p.join(projectRoot, 'pubspec.yaml')),
-      'No pubspec.yaml exists under ${config.ios.projectPath}.',
+      'No pubspec.yaml exists under ${config.appPath}.',
       'PUBSPEC_NOT_FOUND',
     );
     final lockfile = await _findWorkspaceLockfile(repositoryRoot, projectRoot);
@@ -95,7 +93,7 @@ Future<void> validateRepository(String root) async {
     final iosPath = p.join(projectRoot, 'ios');
     invariant(
       await Directory(iosPath).exists(),
-      'No ios directory exists under ${config.ios.projectPath}.',
+      'No ios directory exists under ${config.appPath}.',
       'IOS_PROJECT_NOT_FOUND',
     );
     final iosRealPath = await Directory(iosPath).resolveSymbolicLinks();

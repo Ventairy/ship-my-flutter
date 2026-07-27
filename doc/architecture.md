@@ -52,8 +52,9 @@ The release branch is merged with the latest target branch instead of being recr
 
 The candidate job:
 
-1. Runs the optional repository-owned `before_candidate` preparation hook.
-2. Rejects tracked or unignored changes left by that hook.
+1. Runs the optional repository-owned `before_build` preparation hook.
+2. By default commits and pushes everything left by the hook; with
+   `commit: false`, requires the hook to leave a clean worktree.
 3. Resolves the bundle ID and App Store Connect app.
 4. Computes a fingerprint over tracked build inputs.
 5. Reuses an existing valid receipt when the fingerprint matches.

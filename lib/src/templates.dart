@@ -11,14 +11,14 @@ String generatedConfigYaml({String? bundleId}) {
   return '''
 # yaml-language-server: \$schema=$configSchemaUrl
 
-schema_version: 2
+schema_version: 3
+app_path: .
 target_branch: main
 release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:
     enabled: true
-    project_path: .
 $bundleLine    testflight:
       groups: []
       wait_timeout_minutes: 45

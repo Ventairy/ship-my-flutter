@@ -399,7 +399,7 @@ Xcode, or other subprocesses.
 - Preserve the caller's starting branch after temporary release-branch work.
 - Keep internal subprocess invocation argument-based; do not construct shell
   commands from API responses, credentials, or machine-generated input.
-- `hooks.before_release_pr`, `hooks.before_candidate`, and
+- `hooks.before_create_pr.run`, `hooks.before_build.run`, and
   `platforms.ios.build_command` are explicit trusted exceptions. Run these
   repository-owned POSIX shell commands with fail-fast settings, pass
   calculated values through environment variables, and never interpolate

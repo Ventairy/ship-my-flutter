@@ -13,7 +13,7 @@ void main() {
     final runner = RecordingProcessRunner();
     const command = 'fvm dart run release:generate_store_release_notes';
     const config = ShipConfig(
-      hooks: HooksConfig(beforeReleasePr: command),
+      hooks: HooksConfig(beforeCreatePr: HookConfig(run: command)),
       ios: IosConfig(),
     );
     const plan = ReleasePlan(
@@ -26,12 +26,7 @@ void main() {
       changes: <ConventionalChange>[],
     );
 
-    await runBeforeReleasePrHook(
-      root.path,
-      config,
-      plan,
-      processRunner: runner,
-    );
+    await runBeforeCreatePrHook(root.path, config, plan, processRunner: runner);
 
     final invocation = runner.invocations.single;
     expect(invocation.executable, '/bin/bash');
@@ -43,27 +38,25 @@ void main() {
     );
   });
 
-  test('runs before_candidate from the repository root', () async {
+  test('runs before_build from the repository root', () async {
     final root = await Directory.systemTemp.createTemp('smf-hook-');
     addTearDown(() => root.delete(recursive: true));
     final runner = RecordingProcessRunner();
     const config = ShipConfig(
-      hooks: HooksConfig(beforeCandidate: 'fvm dart run release:prepare_ios'),
-      ios: IosConfig(projectPath: 'apps/mobile'),
+      appPath: 'apps/mobile',
+      hooks: HooksConfig(
+        beforeBuild: HookConfig(run: 'fvm dart run release:prepare_ios'),
+      ),
+      ios: IosConfig(),
     );
 
-    await runBeforeCandidateHook(
-      root.path,
-      config,
-      '2.3.0',
-      processRunner: runner,
-    );
+    await runBeforeBuildHook(root.path, config, '2.3.0', processRunner: runner);
 
     final invocation = runner.invocations.single;
     expect(invocation.options.workingDirectory, root.path);
     expect(
       invocation.options.environment,
-      containsPair('SHIP_MY_FLUTTER_PROJECT_PATH', 'apps/mobile'),
+      containsPair('SHIP_MY_FLUTTER_APP_PATH', 'apps/mobile'),
     );
     expect(
       invocation.options.environment,
@@ -77,14 +70,16 @@ void main() {
     final output = p.join(root.path, 'result.txt');
     const config = ShipConfig(
       hooks: HooksConfig(
-        beforeCandidate:
-            'printf first > result.txt && printf second >> '
-            'result.txt',
+        beforeBuild: HookConfig(
+          run:
+              'printf first > result.txt && printf second >> '
+              'result.txt',
+        ),
       ),
       ios: IosConfig(),
     );
 
-    await runBeforeCandidateHook(root.path, config, '1.0.0');
+    await runBeforeBuildHook(root.path, config, '1.0.0');
 
     expect(await File(output).readAsString(), 'firstsecond');
   });

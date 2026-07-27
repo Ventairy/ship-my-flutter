@@ -30,7 +30,7 @@ Before `candidate`, install the project toolchain. When `build_command` is
 omitted, the CLI selects `fvm flutter build ipa --release` for repositories
 with FVM configuration and `flutter build ipa --release` otherwise. The CLI
 does not install Flutter, FVM, Melos, or project dependencies. Optional
-preparation belongs in `hooks.before_candidate`.
+preparation belongs in `hooks.before_build.run`.
 
 `init --force` replaces the generated config, manifest, changelog, store notes,
 candidate placeholder, and workflow. Commit or back up user-owned state first;

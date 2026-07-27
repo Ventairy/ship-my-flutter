@@ -60,7 +60,11 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
 
   final client =
       options.client ?? AppStoreConnectClient(options.appleCredentials);
-  final bundleId = await options.resolveBundleIdentifier(root, config.ios);
+  final bundleId = await options.resolveBundleIdentifier(
+    root,
+    config.appPath,
+    config.ios,
+  );
   invariant(
     receipt.bundleId == bundleId,
     'The candidate receipt bundle identifier does not match the current iOS '

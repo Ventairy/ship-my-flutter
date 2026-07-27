@@ -8,13 +8,14 @@ String configYaml({
   String buildCommand = 'flutter build ipa --release',
   List<String> groups = const <String>[],
   String mode = 'upload',
-  String? beforeCandidate,
+  String? beforeBuild,
+  bool beforeBuildCommit = true,
 }) =>
     '''
-${beforeCandidate == null ? 'hooks: {}' : 'hooks:\n  before_candidate: "$beforeCandidate"'}
+${beforeBuild == null ? 'hooks: {}' : 'hooks:\n  before_build:\n    run: "$beforeBuild"\n    commit: $beforeBuildCommit'}
+app_path: .
 platforms:
   ios:
-    project_path: .
     bundle_id: dev.example.app
     build_command: "$buildCommand"
     ipa_output_path: build/ios/ipa
@@ -68,7 +69,7 @@ void main() {
 
       await File(
         paths.config,
-      ).writeAsString(configYaml(beforeCandidate: 'dart run release:prepare'));
+      ).writeAsString(configYaml(beforeBuild: 'dart run release:prepare'));
       expect(await sourceFingerprint(root.path), isNot(before));
 
       await File(
@@ -118,6 +119,31 @@ void main() {
       );
 
       expect(await sourceFingerprint(root.path), isNot(explicitCommand));
+    });
+
+    test('ignores the before_build commit policy', () async {
+      final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
+      addTearDown(() => root.delete(recursive: true));
+      await git(root.path, const <String>['init', '-b', 'main']);
+      final paths = resolveShipPaths(root.path);
+      await Directory(paths.directory).create(recursive: true);
+      await File(
+        p.join(root.path, 'lib.dart'),
+      ).writeAsString('void main() {}\n');
+      await File(
+        paths.config,
+      ).writeAsString(configYaml(beforeBuild: 'dart run release:prepare'));
+      await git(root.path, const <String>['add', '.']);
+
+      final committed = await sourceFingerprint(root.path);
+      await File(paths.config).writeAsString(
+        configYaml(
+          beforeBuild: 'dart run release:prepare',
+          beforeBuildCommit: false,
+        ),
+      );
+
+      expect(await sourceFingerprint(root.path), committed);
     });
 
     test('rejects tracked symlinks to hidden build inputs', () async {

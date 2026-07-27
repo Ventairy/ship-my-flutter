@@ -21,7 +21,7 @@ Future<String> findIpa(
   invariant(
     p.equals(configuredPath, repositoryProjectRoot) ||
         p.isWithin(repositoryProjectRoot, configuredPath),
-    'The configured ipa_output_path must stay inside project_path.',
+    'The configured ipa_output_path must stay inside app_path.',
     'IPA_PATH_ESCAPE',
   );
 
@@ -47,7 +47,7 @@ Future<String> findIpa(
   invariant(
     p.equals(realConfiguredPath, realProjectRoot) ||
         p.isWithin(realProjectRoot, realConfiguredPath),
-    'The configured ipa_output_path resolves outside project_path.',
+    'The configured ipa_output_path resolves outside app_path.',
     'IPA_PATH_ESCAPE',
   );
 

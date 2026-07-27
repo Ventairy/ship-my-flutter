@@ -11,19 +11,17 @@ import 'serialization.dart';
 
 const Set<String> _rootConfigFields = <String>{
   'schema_version',
+  'app_path',
   'target_branch',
   'release_branch_prefix',
   'hooks',
   'platforms',
 };
-const Set<String> _hookFields = <String>{
-  'before_release_pr',
-  'before_candidate',
-};
+const Set<String> _hookFields = <String>{'before_create_pr', 'before_build'};
+const Set<String> _hookConfigFields = <String>{'run', 'commit'};
 const Set<String> _platformFields = <String>{'ios'};
 const Set<String> _iosFields = <String>{
   'enabled',
-  'project_path',
   'bundle_id',
   'scheme',
   'build_command',
@@ -112,8 +110,11 @@ ShipConfig validateConfig(Object? value, {String source = 'configuration'}) {
     _rejectUnknownFields(platforms, _platformFields, 'platforms');
     final ios = _objectMap(platforms['ios'], 'platforms.ios');
     _rejectUnknownFields(ios, _iosFields, 'platforms.ios');
+    final appPath = _nonEmptyString(root['app_path'] ?? '.', 'app_path');
+    _relativePath(appPath, 'app_path');
 
     return ShipConfig(
+      appPath: appPath,
       targetBranch: _nonEmptyString(
         root['target_branch'] ?? 'main',
         'target_branch',
@@ -138,24 +139,25 @@ ShipConfig validateConfig(Object? value, {String source = 'configuration'}) {
 
 HooksConfig _parseHooks(Map<String, Object?> hooks) {
   return HooksConfig(
-    beforeReleasePr: _optionalString(
-      hooks['before_release_pr'],
-      'hooks.before_release_pr',
+    beforeCreatePr: _parseHookConfig(
+      hooks['before_create_pr'],
+      'hooks.before_create_pr',
     ),
-    beforeCandidate: _optionalString(
-      hooks['before_candidate'],
-      'hooks.before_candidate',
-    ),
+    beforeBuild: _parseHookConfig(hooks['before_build'], 'hooks.before_build'),
+  );
+}
+
+HookConfig? _parseHookConfig(Object? value, String path) {
+  if (value == null) return null;
+  final hook = _objectMap(value, path);
+  _rejectUnknownFields(hook, _hookConfigFields, path);
+  return HookConfig(
+    run: _nonEmptyString(hook['run'], '$path.run'),
+    commit: _boolean(hook['commit'] ?? true, '$path.commit'),
   );
 }
 
 IosConfig _parseIosConfig(Map<String, Object?> ios) {
-  final projectPath = _nonEmptyString(
-    ios['project_path'] ?? '.',
-    'platforms.ios.project_path',
-  );
-  _relativePath(projectPath, 'platforms.ios.project_path');
-
   final testflight = _objectMap(
     ios['testflight'] ?? const <String, Object?>{},
     'platforms.ios.testflight',
@@ -183,7 +185,6 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
 
   return IosConfig(
     enabled: _boolean(ios['enabled'] ?? true, 'platforms.ios.enabled'),
-    projectPath: projectPath,
     bundleId: _optionalNonEmptyString(
       ios['bundle_id'],
       'platforms.ios.bundle_id',
@@ -269,7 +270,7 @@ bool _isShellWhitespace(int codeUnit) =>
 Never _invalidBuildCommandShape() => _fail(
   'platforms.ios.build_command must be one shell command invocation; '
   'put pipelines, chained commands, redirections, comments, and preparation '
-  'steps in hooks.before_candidate',
+  'steps in hooks.before_build.run',
 );
 
 TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
@@ -474,10 +475,10 @@ void _schemaVersion(Map<String, Object?> value, String source) {
 }
 
 void _configSchemaVersion(Map<String, Object?> value, String source) {
-  if (value['schema_version'] != 2) {
+  if (value['schema_version'] != 3) {
     _fail(
-      '$source.schema_version must be 2. Migrate camelCase configuration '
-      'keys to snake_case.',
+      '$source.schema_version must be 3. Move platforms.ios.project_path to '
+      'the root app_path field and migrate hook names and objects.',
     );
   }
 }
@@ -515,9 +516,6 @@ String _nonEmptyString(Object? value, String path) {
   }
   return value;
 }
-
-String? _optionalString(Object? value, String path) =>
-    value == null ? null : _nonEmptyString(value, path);
 
 String? _optionalNonEmptyString(Object? value, String path) =>
     value == null ? null : _nonEmptyString(value, path);

@@ -22,7 +22,7 @@ ship-my-flutter handles high-value signing material. Its defaults are intentiona
   Both are trusted at the same boundary as the workflow and application source.
   Credential variables are removed before they run, but maintainers must still
   review command changes before exposing release secrets.
-- `ipa_output_path` must stay under `project_path`; resolved symlinks are
+- `ipa_output_path` must stay under `app_path`; resolved symlinks are
   checked again after the build.
 
 GitHub should restrict release environments, secret access, and workflow modification to trusted maintainers. Do not run the candidate phase for untrusted fork code with secrets.

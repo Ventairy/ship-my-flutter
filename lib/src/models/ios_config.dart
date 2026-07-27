@@ -11,7 +11,6 @@ abstract class IosConfig with _$IosConfig {
   /// Creates iOS configuration.
   const factory IosConfig({
     @Default(true) bool enabled,
-    @Default('.') String projectPath,
     String? bundleId,
     String? scheme,
     String? buildCommand,

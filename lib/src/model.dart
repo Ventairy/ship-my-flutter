@@ -9,6 +9,7 @@ export 'dtos/ship_manifest.dart';
 export 'models/app_store_config.dart';
 export 'models/apple_credentials.dart';
 export 'models/github_context.dart';
+export 'models/hook_config.dart';
 export 'models/hooks_config.dart';
 export 'models/ios_config.dart';
 export 'models/release_enums.dart';

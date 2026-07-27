@@ -67,6 +67,44 @@ Future<void> _commitCandidateReceipt(
   }
 }
 
+Future<void> _commitBeforeBuildChanges(
+  String root,
+  String version,
+  String startingSha,
+  GitHubContext? github,
+) async {
+  await configureBotIdentity(root);
+  await git(root, const <String>['add', '.']);
+  final staged = await git(root, const <String>[
+    'diff',
+    '--cached',
+    '--name-only',
+  ]);
+  if (staged.isNotEmpty) {
+    await git(root, <String>[
+      'commit',
+      '-m',
+      'chore(ios): apply before_build hook for $version',
+    ]);
+  }
+  if (await currentSha(root) == startingSha) return;
+  final branch = await currentBranch(root);
+  invariant(
+    branch.isNotEmpty,
+    'Candidate checkout must be on a branch.',
+    'DETACHED_HEAD',
+  );
+  if (github == null) {
+    await git(root, <String>['push', 'origin', branch]);
+  } else {
+    await authenticatedGit(root, <String>[
+      'push',
+      'origin',
+      branch,
+    ], github.token);
+  }
+}
+
 Future<void> _applyTestflightMetadata({
   required String root,
   required String version,
@@ -135,16 +173,28 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     'The iOS manifest does not contain a pending release.',
     'NO_PENDING_RELEASE',
   );
-  await options.dependencies.runBeforeCandidate(root, config, state.version);
-  invariant(
-    await isClean(root),
-    'The before_candidate hook changed tracked or unignored files. Commit '
-        'deterministic candidate inputs before producing a build.',
-    'CANDIDATE_HOOK_DIRTY_WORKTREE',
-  );
-  final projectRoot = p.normalize(p.absolute(root, config.ios.projectPath));
+  final beforeBuild = config.hooks.beforeBuild;
+  final hookStartingSha = beforeBuild == null ? null : await currentSha(root);
+  await options.dependencies.runBeforeBuild(root, config, state.version);
+  if (beforeBuild != null && beforeBuild.commit) {
+    await _commitBeforeBuildChanges(
+      root,
+      state.version,
+      hookStartingSha!,
+      options.github,
+    );
+  } else {
+    invariant(
+      await isClean(root),
+      'The before_build hook changed tracked or unignored files while '
+          'commit is false. Commit or ignore those files in the hook.',
+      'BUILD_HOOK_DIRTY_WORKTREE',
+    );
+  }
+  final projectRoot = p.normalize(p.absolute(root, config.appPath));
   final bundleId = await options.dependencies.resolveBundleIdentifier(
     root,
+    config.appPath,
     config.ios,
   );
   final client =

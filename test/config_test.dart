@@ -2,14 +2,14 @@ import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> validConfig() => <String, Object?>{
-  'schema_version': 2,
+  'schema_version': 3,
+  'app_path': '.',
   'target_branch': 'main',
   'release_branch_prefix': 'ship-my-flutter',
   'hooks': <String, Object?>{},
   'platforms': <String, Object?>{
     'ios': <String, Object?>{
       'enabled': true,
-      'project_path': '.',
       'build_command': 'flutter build ipa --release',
       'ipa_output_path': 'build/ios/ipa',
       'testflight': <String, Object?>{
@@ -57,6 +57,15 @@ void main() {
           final config = validConfig();
           final hooks = config['hooks']! as Map<String, Object?>;
           hooks['unexpected'] = true;
+          return config;
+        },
+        () {
+          final config = validConfig();
+          final hooks = config['hooks']! as Map<String, Object?>;
+          hooks['before_build'] = <String, Object?>{
+            'run': 'dart run prepare',
+            'unexpected': true,
+          };
           return config;
         },
         () {
@@ -109,7 +118,7 @@ void main() {
 
     test('rejects paths that escape the repository', () {
       final config = validConfig();
-      iosConfig(config)['project_path'] = '../another-app';
+      config['app_path'] = '../another-app';
       expect(() => validateConfig(config), throwsA(isA<ShipError>()));
 
       final outputConfig = validConfig();
@@ -171,16 +180,21 @@ void main() {
       final config = validConfig();
       iosConfig(config)['build_command'] = 'fvm dart run release:build_ios';
       final hooks = config['hooks']! as Map<String, Object?>;
-      hooks['before_release_pr'] =
-          'fvm dart run release:notes && test -f "\$OUTPUT"';
-      hooks['before_candidate'] =
-          'fvm dart run release:prepare | tee prepare.log';
+      hooks['before_create_pr'] = <String, Object?>{
+        'run': 'fvm dart run release:notes && test -f "\$OUTPUT"',
+      };
+      hooks['before_build'] = <String, Object?>{
+        'run': 'fvm dart run release:prepare | tee prepare.log',
+        'commit': false,
+      };
 
       final parsed = validateConfig(config);
 
       expect(parsed.ios.buildCommand, contains('release:build_ios'));
-      expect(parsed.hooks.beforeReleasePr, contains('release:notes'));
-      expect(parsed.hooks.beforeCandidate, contains('release:prepare'));
+      expect(parsed.hooks.beforeCreatePr?.run, contains('release:notes'));
+      expect(parsed.hooks.beforeCreatePr?.commit, isTrue);
+      expect(parsed.hooks.beforeBuild?.run, contains('release:prepare'));
+      expect(parsed.hooks.beforeBuild?.commit, isFalse);
     });
 
     test(
@@ -256,7 +270,7 @@ void main() {
       }
     });
 
-    test('rejects the camelCase version 1 configuration contract', () {
+    test('rejects older configuration contracts with migration guidance', () {
       final config = validConfig()
         ..remove('schema_version')
         ..['schemaVersion'] = 1;
@@ -267,7 +281,7 @@ void main() {
           isA<ShipError>().having(
             (ShipError error) => error.message,
             'message',
-            contains('Migrate camelCase configuration keys to snake_case'),
+            contains('schema_version must be 3'),
           ),
         ),
       );

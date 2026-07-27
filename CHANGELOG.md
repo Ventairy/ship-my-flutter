@@ -23,12 +23,14 @@ The project follows Semantic Versioning and Conventional Commits.
 - Replaced the App Store delivery policy with three explicit modes: `upload`,
   `review`, and `auto`. Review mode waits for manual release after approval,
   while auto mode releases automatically after approval.
+- Moved the shared Flutter root from `platforms.ios.project_path` to global
+  `app_path` and advanced configuration to schema version 3.
 
 ### Added
 
-- Shell-command `before_release_pr` and `before_candidate` lifecycle hooks for
-  release-note generation, codegen, environment preparation, and custom
-  workflows.
+- Structured `before_create_pr` and `before_build` lifecycle hooks with
+  default-on commits for generated release notes, code, environment inputs,
+  and other hook output.
 
 ### Fixed
 

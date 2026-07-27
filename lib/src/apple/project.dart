@@ -7,10 +7,15 @@ import '../model.dart' hide Platform;
 import '../process_runner.dart';
 
 typedef ResolveBundleId =
-    Future<String> Function(String repositoryRoot, IosConfig config);
+    Future<String> Function(
+      String repositoryRoot,
+      String appPath,
+      IosConfig config,
+    );
 
 Future<String> resolveBundleId(
   String repositoryRoot,
+  String appPath,
   IosConfig config, {
   ProcessRunner processRunner = const SystemProcessRunner(),
   bool? isMacOS,
@@ -24,9 +29,7 @@ Future<String> resolveBundleId(
     );
   }
 
-  final projectRoot = p.normalize(
-    p.absolute(repositoryRoot, config.projectPath),
-  );
+  final projectRoot = p.normalize(p.absolute(repositoryRoot, appPath));
   final iosDirectory = p.join(projectRoot, 'ios');
   final entries = await Directory(iosDirectory).list().toList();
   final workspace = entries

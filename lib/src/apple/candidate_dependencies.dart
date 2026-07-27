@@ -30,7 +30,7 @@ typedef UploadIpa =
     Future<void> Function(String ipaPath, AppleCredentials credentials);
 
 /// Runs project preparation before candidate fingerprinting.
-typedef RunCandidateHook =
+typedef RunBuildHook =
     Future<void> Function(String root, ShipConfig config, String version);
 
 /// Injectable candidate-build operations.
@@ -41,7 +41,7 @@ final class CandidateDependencies {
     this.buildIpa = runIosBuildCommand,
     this.upload = uploadIpa,
     this.resolveBundleIdentifier = resolveBundleId,
-    this.runBeforeCandidate = runBeforeCandidateHook,
+    this.runBeforeBuild = runBeforeBuildHook,
     this.currentTime = _currentTime,
   });
 
@@ -58,7 +58,7 @@ final class CandidateDependencies {
   final ResolveBundleId resolveBundleIdentifier;
 
   /// Repository-owned candidate preparation.
-  final RunCandidateHook runBeforeCandidate;
+  final RunBuildHook runBeforeBuild;
 
   /// Supplies the receipt timestamp, primarily for deterministic workflows.
   final DateTime Function() currentTime;

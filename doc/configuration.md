@@ -1,6 +1,6 @@
 # Configuration
 
-`.ship-my-flutter/config.yaml` uses snake_case keys and schema version 2. The
+`.ship-my-flutter/config.yaml` uses snake_case keys and schema version 3. The
 generated file starts with a `yaml-language-server` directive linked to
 [`schemas/config.schema.json`](../schemas/config.schema.json), which provides
 editor validation and autocomplete.
@@ -16,14 +16,14 @@ quoting, cross-field rules, and path safety on every supported host platform.
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
 
-schema_version: 2
+schema_version: 3
+app_path: .
 target_branch: main
 release_branch_prefix: ship-my-flutter
 hooks: {}
 platforms:
   ios:
     enabled: true
-    project_path: .
     bundle_id: com.example.app
     testflight:
       groups:
@@ -37,7 +37,8 @@ platforms:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `schema_version` | `2` | Configuration contract version |
+| `schema_version` | `3` | Configuration contract version |
+| `app_path` | `.` | Flutter app root shared by every platform |
 | `target_branch` | `main` | Branch whose commits feed release PRs |
 | `release_branch_prefix` | `ship-my-flutter` | Prefix for platform release branches |
 
@@ -47,8 +48,8 @@ Hooks are optional POSIX shell commands committed by the repository:
 
 | Field | When it runs |
 | --- | --- |
-| `hooks.before_release_pr` | After the next version and changelog are prepared, before the release PR is committed |
-| `hooks.before_candidate` | On the release branch, before source fingerprinting and candidate creation |
+| `hooks.before_create_pr` | After the next version and changelog are prepared, before the release PR is created or updated |
+| `hooks.before_build` | On the release branch, before source fingerprinting and candidate creation |
 
 Commands run from the Git repository root through Bash with `-euo pipefail`.
 They can invoke FVM, Dart executables, Melos, generators, or tracked project
@@ -56,14 +57,17 @@ scripts:
 
 ```yaml
 hooks:
-  before_release_pr: fvm dart run release:generate_store_release_notes
-  before_candidate: |
-    fvm dart run melos run prepare:ios --no-select
-    fvm dart run release:write_production_environment
+  before_create_pr:
+    run: fvm dart run release:generate_store_release_notes
+  before_build:
+    run: |
+      fvm dart run melos run prepare:ios --no-select
+      fvm dart run release:write_production_environment
+    commit: false
 ```
 
 Install every hook dependency before the corresponding Action step. For
-example, a Flutter-dependent `before_release_pr` requires Flutter setup in the
+example, a Flutter-dependent `before_create_pr` requires Flutter setup in the
 plan job as well as the candidate job.
 
 The release-PR hook receives:
@@ -76,32 +80,43 @@ SHIP_MY_FLUTTER_CHANGELOG_PATH
 SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
 ```
 
-The candidate hook receives:
+The build hook receives:
 
 ```text
 SHIP_MY_FLUTTER_PLATFORM
 SHIP_MY_FLUTTER_VERSION
-SHIP_MY_FLUTTER_PROJECT_PATH
+SHIP_MY_FLUTTER_APP_PATH
 SHIP_MY_FLUTTER_CHANGELOG_PATH
 SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
 ```
 
-Changes from `before_release_pr` are intentionally staged into the release PR,
-which is how generated store notes or other reviewable release inputs are
-updated. `before_candidate` must leave tracked and unignored files clean; put
-any generated release input in the release-PR hook instead. GitHub, Apple,
-signing, and certificate credentials are removed from both hook environments.
+Each hook defaults to `commit: true`. ship-my-flutter commits every tracked or
+unignored file left by `before_create_pr` before pushing the release PR, and
+commits and pushes `before_build` output before fingerprinting or building the
+candidate. This makes generated notes, code, and environment inputs part of the
+reviewed and tested release branch.
+
+Set `commit: false` when a hook produces only ignored files or external side
+effects, or when the hook performs its own commit. In that mode the hook must
+leave a clean worktree; ship-my-flutter refuses to create the PR or build from
+uncommitted inputs. GitHub, Apple, signing, and certificate credentials are
+removed from both hook environments.
+
+## `app_path`
+
+`app_path` is global because iOS and future Android delivery operate on the
+same Flutter application. It is relative to the Git repository root and cannot
+escape it, including through a symlink.
 
 ## `platforms.ios`
 
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `enabled` | `true` | Enables iOS planning and delivery |
-| `project_path` | `.` | Flutter project root relative to the repository |
 | `bundle_id` | detected on macOS | App Store bundle identifier; explicit configuration is recommended |
 | `scheme` | unset | Custom Flutter flavor/Xcode scheme |
 | `build_command` | auto-detected | Optional project-owned command that builds one IPA |
-| `ipa_output_path` | `build/ios/ipa` | IPA file or directory relative to `project_path` |
+| `ipa_output_path` | `build/ios/ipa` | IPA file or directory relative to `app_path` |
 
 The consumer owns the build toolchain. `ship-my-flutter-action` does not install
 Flutter or FVM. Set them up in the workflow before the candidate Action step,
@@ -131,7 +146,7 @@ cannot be overridden. Shell chaining, pipelines, redirections, comments, and
 command substitution are also rejected: otherwise Bash could attach the
 managed arguments to a different command or ignore them. Put dependency
 resolution, code generation, environment preparation, logging, or verification
-in `before_candidate`.
+in `before_build.run`.
 
 Examples:
 
@@ -163,7 +178,7 @@ SHIP_MY_FLUTTER_SCHEME
 ```
 
 `ipa_output_path` may name one `.ipa` file or a directory containing exactly
-one IPA. It cannot escape `project_path`, including through a symlink. Keep it
+one IPA. It cannot escape `app_path`, including through a symlink. Keep it
 omitted for normal Flutter and FVM builds. Its concrete use case is a custom
 single-command wrapper that deliberately emits or moves the IPA to a different
 project-relative location; explicit configuration prevents stale or ambiguous
@@ -195,28 +210,21 @@ response; it does not bypass external testing review.
 
 The initializer defaults to `upload`.
 
-## Migrating schema version 1
+## Migrating to schema version 3
 
-Version 2 replaces camelCase configuration keys and the Flutter-specific
-`buildArgs` array:
+Version 3 makes the shared app root global and gives hooks explicit behavior:
 
-| Version 1 | Version 2 |
+| Version 2 | Version 3 |
 | --- | --- |
-| `schemaVersion` | `schema_version: 2` |
-| `targetBranch` | `target_branch` |
-| `releaseBranchPrefix` | `release_branch_prefix` |
-| `hooks.beforeReleasePr` executable path | `hooks.before_release_pr` shell command |
-| `platforms.ios.projectPath` | `platforms.ios.project_path` |
-| `platforms.ios.bundleId` | `platforms.ios.bundle_id` |
-| `platforms.ios.buildArgs` | include project-specific flags in `build_command` |
-| `testflight.waitTimeoutMinutes` | `testflight.wait_timeout_minutes` |
-| `appStore` | `app_store` |
+| `schema_version: 2` | `schema_version: 3` |
+| `platforms.ios.project_path` | root `app_path` |
+| `hooks.before_release_pr: <command>` | `hooks.before_create_pr.run: <command>` |
+| `hooks.before_candidate: <command>` | `hooks.before_build.run: <command>` |
 
-Override `build_command` only for a custom build invocation, and
-`ipa_output_path` only when that invocation writes outside `build/ios/ipa`.
-Optionally add `before_candidate`. State files such as `manifest.json`,
-`changelog.json`, and candidate receipts remain versioned JSON and are not
-migrated to snake_case.
+Both hooks default to `commit: true`; add `commit: false` only for the clean
+worktree cases described above. Other snake_case version 2 keys remain
+unchanged. State files such as `manifest.json`, `changelog.json`, and candidate
+receipts remain versioned JSON.
 
 ## Signing profiles
 

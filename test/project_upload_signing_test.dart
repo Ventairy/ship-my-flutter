@@ -40,6 +40,7 @@ void main() {
     expect(
       await resolveBundleId(
         root.path,
+        '.',
         const IosConfig(),
         processRunner: runner,
         isMacOS: true,

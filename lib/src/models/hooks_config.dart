@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'hook_config.dart';
+
 part 'hooks_config.freezed.dart';
 
 /// Repository-owned lifecycle hooks.
@@ -7,7 +9,7 @@ part 'hooks_config.freezed.dart';
 abstract class HooksConfig with _$HooksConfig {
   /// Creates hook configuration.
   const factory HooksConfig({
-    String? beforeReleasePr,
-    String? beforeCandidate,
+    HookConfig? beforeCreatePr,
+    HookConfig? beforeBuild,
   }) = _HooksConfig;
 }

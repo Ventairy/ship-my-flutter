@@ -127,10 +127,17 @@ void main() {
       repo: 'app',
       token: 'unused',
     );
+    final config = (await loadConfig(root.path)).copyWith(
+      hooks: const HooksConfig(
+        beforeCreatePr: HookConfig(
+          run: 'printf generated > generated-release-notes.txt',
+        ),
+      ),
+    );
 
     final result = await createOrUpdateReleasePullRequest(
       root.path,
-      await loadConfig(root.path),
+      config,
       plan!,
       context,
       githubApi: api,
@@ -147,6 +154,13 @@ void main() {
         'ship-my-flutter/ios:.ship-my-flutter/manifest.json',
       ]),
       contains('"pendingRelease": true'),
+    );
+    expect(
+      await git(origin.path, const <String>[
+        'show',
+        'ship-my-flutter/ios:generated-release-notes.txt',
+      ]),
+      'generated',
     );
     expect(await currentBranch(root.path), 'main');
 
@@ -167,7 +181,7 @@ void main() {
     await git(root.path, const <String>['config', '--unset-all', 'user.email']);
     await createOrUpdateReleasePullRequest(
       root.path,
-      await loadConfig(root.path),
+      config,
       refreshedPlan!,
       context,
       githubApi: api,
@@ -177,6 +191,31 @@ void main() {
     expect(
       await git(root.path, const <String>['config', 'user.name']),
       'ship-my-flutter[bot]',
+    );
+
+    final noCommitConfig = config.copyWith(
+      hooks: const HooksConfig(
+        beforeCreatePr: HookConfig(
+          run: 'printf uncommitted > uncommitted-hook-output.txt',
+          commit: false,
+        ),
+      ),
+    );
+    await expectLater(
+      createOrUpdateReleasePullRequest(
+        root.path,
+        noCommitConfig,
+        refreshedPlan,
+        context,
+        githubApi: api,
+      ),
+      throwsA(
+        isA<ShipError>().having(
+          (ShipError error) => error.code,
+          'code',
+          'CREATE_PR_HOOK_DIRTY_WORKTREE',
+        ),
+      ),
     );
   });
 

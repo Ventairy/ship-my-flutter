@@ -17,7 +17,14 @@ void main() {
     'refreshes notes when reusing the exact valid TestFlight build',
     () async {
       final root = await Directory.systemTemp.createTemp('smf-candidate-');
-      addTearDown(() => root.delete(recursive: true));
+      final origin = await Directory.systemTemp.createTemp(
+        'smf-candidate-origin-',
+      );
+      addTearDown(() async {
+        await root.delete(recursive: true);
+        await origin.delete(recursive: true);
+      });
+      await git(origin.path, const <String>['init', '--bare']);
       await Directory(p.join(root.path, 'ios')).create();
       await File(
         p.join(root.path, 'pubspec.yaml'),
@@ -37,19 +44,30 @@ void main() {
       await initialize(
         InitOptions(root: root.path, bundleId: 'dev.example.app'),
       );
+      final paths = resolveShipPaths(root.path);
+      final configFile = File(paths.config);
+      await configFile.writeAsString(
+        (await configFile.readAsString()).replaceFirst(
+          'hooks: {}',
+          'hooks:\n'
+              '  before_build:\n'
+              '    run: ignored-by-injected-test-hook',
+        ),
+      );
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>[
         'commit',
         '-m',
         'chore: configure releases',
       ]);
+      await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
+      await git(root.path, const <String>['push', '-u', 'origin', 'main']);
       await git(root.path, const <String>[
         'checkout',
         '-b',
         'ship-my-flutter/ios',
       ]);
       final baselineSha = await currentSha(root.path);
-      final paths = resolveShipPaths(root.path);
       final manifest = ShipManifest(
         ios: PlatformManifest(
           version: '1.1.0',
@@ -109,6 +127,12 @@ void main() {
         '-m',
         'chore(ios): prepare fixture release',
       ]);
+      await git(root.path, const <String>[
+        'push',
+        '-u',
+        'origin',
+        'ship-my-flutter/ios',
+      ]);
       final client = FakeAppStoreConnectApi(
         directBuild: const ApiResource<BuildAttributes>(
           type: 'builds',
@@ -133,8 +157,15 @@ void main() {
           ),
           client: client,
           dependencies: CandidateDependencies(
-            runBeforeCandidate: (_, _, _) async {
+            runBeforeBuild: (_, _, _) async {
               candidateHookRan = true;
+              await writeObject(paths.storeReleaseNotes, <String, Object?>{
+                'ios': <String, Object?>{
+                  '1.1.0': <String, Object?>{
+                    'en-US': 'Generated immediately before the build.',
+                  },
+                },
+              });
             },
           ),
         ),
@@ -143,7 +174,71 @@ void main() {
       expect(candidateHookRan, isTrue);
       expect(reused.toJson(), receipt.toJson());
       expect(client.betaNotes.single.locale, 'en-US');
-      expect(client.betaNotes.single.whatsNew, 'Try the refreshed notes.');
+      expect(
+        client.betaNotes.single.whatsNew,
+        'Generated immediately before the build.',
+      );
+      expect(
+        await git(origin.path, const <String>[
+          'show',
+          'ship-my-flutter/ios:.ship-my-flutter/store-release-notes.json',
+        ]),
+        contains('Generated immediately before the build.'),
+      );
+      expect(
+        await git(root.path, const <String>['log', '-1', '--pretty=%s']),
+        'chore(ios): apply before_build hook for 1.1.0',
+      );
+
+      await configFile.writeAsString(
+        (await configFile.readAsString()).replaceFirst(
+          '    run: ignored-by-injected-test-hook',
+          '    run: ignored-by-injected-test-hook\n'
+              '    commit: false',
+        ),
+      );
+      await git(root.path, const <String>['add', '.']);
+      await git(root.path, const <String>[
+        'commit',
+        '-m',
+        'chore: disable hook commits',
+      ]);
+      await expectLater(
+        createIosCandidate(
+          CandidateOptions(
+            root: root.path,
+            appleCredentials: const AppleCredentials(
+              keyId: 'unused',
+              issuerId: 'unused',
+              privateKey: 'unused',
+            ),
+            signingCredentials: const SigningCredentials(
+              certificateBase64: 'unused',
+              certificatePassword: 'unused',
+              provisioningProfiles: 'unused',
+            ),
+            client: client,
+            dependencies: CandidateDependencies(
+              runBeforeBuild: (_, _, _) async {
+                await writeObject(paths.storeReleaseNotes, <String, Object?>{
+                  'ios': <String, Object?>{},
+                });
+              },
+            ),
+          ),
+        ),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.code,
+            'code',
+            'BUILD_HOOK_DIRTY_WORKTREE',
+          ),
+        ),
+      );
+      await git(root.path, const <String>[
+        'restore',
+        '.ship-my-flutter/store-release-notes.json',
+      ]);
 
       await git(root.path, const <String>['checkout', 'main']);
       await expectLater(

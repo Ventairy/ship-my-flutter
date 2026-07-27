@@ -13,6 +13,17 @@ export 'github/dtos/release_pull_request_result.dart';
 String releaseBranchName(ShipConfig config, Platform platform) =>
     '${config.releaseBranchPrefix}/${platform.value}';
 
+Future<void> _commitAllChanges(String root, String message) async {
+  await git(root, const <String>['add', '.']);
+  final staged = await git(root, const <String>[
+    'diff',
+    '--cached',
+    '--name-only',
+  ]);
+  if (staged.isEmpty) return;
+  await git(root, <String>['commit', '-m', message]);
+}
+
 Future<String> _ensureReleaseBranch(
   String root,
   ShipConfig config,
@@ -80,19 +91,25 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
       context.token,
     );
     await applyReleasePlan(root, plan);
-    await runBeforeReleasePrHook(root, config, plan);
-    await git(root, const <String>['add', '.']);
-    final staged = await git(root, const <String>[
-      'diff',
-      '--cached',
-      '--name-only',
-    ]);
-    if (staged.isNotEmpty) {
-      await git(root, <String>[
-        'commit',
-        '-m',
-        'chore(${plan.platform.value}): release ${plan.nextVersion}',
-      ]);
+    await _commitAllChanges(
+      root,
+      'chore(${plan.platform.value}): release ${plan.nextVersion}',
+    );
+    await runBeforeCreatePrHook(root, config, plan);
+    final beforeCreatePr = config.hooks.beforeCreatePr;
+    if (beforeCreatePr != null && beforeCreatePr.commit) {
+      await _commitAllChanges(
+        root,
+        'chore(${plan.platform.value}): apply before_create_pr hook for '
+        '${plan.nextVersion}',
+      );
+    } else {
+      invariant(
+        await isClean(root),
+        'The before_create_pr hook changed tracked or unignored files while '
+            'commit is false. Commit or ignore those files in the hook.',
+        'CREATE_PR_HOOK_DIRTY_WORKTREE',
+      );
     }
     await authenticatedGit(root, <String>[
       'push',
@@ -146,7 +163,8 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
       pullRequestNumber: pull.number,
     );
   } finally {
-    if (startingBranch.isNotEmpty &&
+    if (await isClean(root) &&
+        startingBranch.isNotEmpty &&
         await currentBranch(root) != startingBranch) {
       await git(root, <String>['checkout', startingBranch]);
     }

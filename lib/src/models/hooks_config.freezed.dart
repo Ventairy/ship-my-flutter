@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$HooksConfig {
 
- String? get beforeReleasePr; String? get beforeCandidate;
+ HookConfig? get beforeCreatePr; HookConfig? get beforeBuild;
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $HooksConfigCopyWith<HooksConfig> get copyWith => _$HooksConfigCopyWithImpl<Hook
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HooksConfig&&(identical(other.beforeReleasePr, beforeReleasePr) || other.beforeReleasePr == beforeReleasePr)&&(identical(other.beforeCandidate, beforeCandidate) || other.beforeCandidate == beforeCandidate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HooksConfig&&(identical(other.beforeCreatePr, beforeCreatePr) || other.beforeCreatePr == beforeCreatePr)&&(identical(other.beforeBuild, beforeBuild) || other.beforeBuild == beforeBuild));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeReleasePr,beforeCandidate);
+int get hashCode => Object.hash(runtimeType,beforeCreatePr,beforeBuild);
 
 @override
 String toString() {
-  return 'HooksConfig(beforeReleasePr: $beforeReleasePr, beforeCandidate: $beforeCandidate)';
+  return 'HooksConfig(beforeCreatePr: $beforeCreatePr, beforeBuild: $beforeBuild)';
 }
 
 
@@ -45,11 +45,11 @@ abstract mixin class $HooksConfigCopyWith<$Res>  {
   factory $HooksConfigCopyWith(HooksConfig value, $Res Function(HooksConfig) _then) = _$HooksConfigCopyWithImpl;
 @useResult
 $Res call({
- String? beforeReleasePr, String? beforeCandidate
+ HookConfig? beforeCreatePr, HookConfig? beforeBuild
 });
 
 
-
+$HookConfigCopyWith<$Res>? get beforeCreatePr;$HookConfigCopyWith<$Res>? get beforeBuild;
 
 }
 /// @nodoc
@@ -62,14 +62,38 @@ class _$HooksConfigCopyWithImpl<$Res>
 
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? beforeReleasePr = freezed,Object? beforeCandidate = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? beforeCreatePr = freezed,Object? beforeBuild = freezed,}) {
   return _then(_self.copyWith(
-beforeReleasePr: freezed == beforeReleasePr ? _self.beforeReleasePr : beforeReleasePr // ignore: cast_nullable_to_non_nullable
-as String?,beforeCandidate: freezed == beforeCandidate ? _self.beforeCandidate : beforeCandidate // ignore: cast_nullable_to_non_nullable
-as String?,
+beforeCreatePr: freezed == beforeCreatePr ? _self.beforeCreatePr : beforeCreatePr // ignore: cast_nullable_to_non_nullable
+as HookConfig?,beforeBuild: freezed == beforeBuild ? _self.beforeBuild : beforeBuild // ignore: cast_nullable_to_non_nullable
+as HookConfig?,
   ));
 }
+/// Create a copy of HooksConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$HookConfigCopyWith<$Res>? get beforeCreatePr {
+    if (_self.beforeCreatePr == null) {
+    return null;
+  }
 
+  return $HookConfigCopyWith<$Res>(_self.beforeCreatePr!, (value) {
+    return _then(_self.copyWith(beforeCreatePr: value));
+  });
+}/// Create a copy of HooksConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$HookConfigCopyWith<$Res>? get beforeBuild {
+    if (_self.beforeBuild == null) {
+    return null;
+  }
+
+  return $HookConfigCopyWith<$Res>(_self.beforeBuild!, (value) {
+    return _then(_self.copyWith(beforeBuild: value));
+  });
+}
 }
 
 
@@ -151,10 +175,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? beforeReleasePr,  String? beforeCandidate)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( HookConfig? beforeCreatePr,  HookConfig? beforeBuild)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _HooksConfig() when $default != null:
-return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
+return $default(_that.beforeCreatePr,_that.beforeBuild);case _:
   return orElse();
 
 }
@@ -172,10 +196,10 @@ return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? beforeReleasePr,  String? beforeCandidate)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( HookConfig? beforeCreatePr,  HookConfig? beforeBuild)  $default,) {final _that = this;
 switch (_that) {
 case _HooksConfig():
-return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
+return $default(_that.beforeCreatePr,_that.beforeBuild);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -192,10 +216,10 @@ return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? beforeReleasePr,  String? beforeCandidate)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( HookConfig? beforeCreatePr,  HookConfig? beforeBuild)?  $default,) {final _that = this;
 switch (_that) {
 case _HooksConfig() when $default != null:
-return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
+return $default(_that.beforeCreatePr,_that.beforeBuild);case _:
   return null;
 
 }
@@ -207,11 +231,11 @@ return $default(_that.beforeReleasePr,_that.beforeCandidate);case _:
 
 
 class _HooksConfig implements HooksConfig {
-  const _HooksConfig({this.beforeReleasePr, this.beforeCandidate});
+  const _HooksConfig({this.beforeCreatePr, this.beforeBuild});
   
 
-@override final  String? beforeReleasePr;
-@override final  String? beforeCandidate;
+@override final  HookConfig? beforeCreatePr;
+@override final  HookConfig? beforeBuild;
 
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -223,16 +247,16 @@ _$HooksConfigCopyWith<_HooksConfig> get copyWith => __$HooksConfigCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HooksConfig&&(identical(other.beforeReleasePr, beforeReleasePr) || other.beforeReleasePr == beforeReleasePr)&&(identical(other.beforeCandidate, beforeCandidate) || other.beforeCandidate == beforeCandidate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HooksConfig&&(identical(other.beforeCreatePr, beforeCreatePr) || other.beforeCreatePr == beforeCreatePr)&&(identical(other.beforeBuild, beforeBuild) || other.beforeBuild == beforeBuild));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeReleasePr,beforeCandidate);
+int get hashCode => Object.hash(runtimeType,beforeCreatePr,beforeBuild);
 
 @override
 String toString() {
-  return 'HooksConfig(beforeReleasePr: $beforeReleasePr, beforeCandidate: $beforeCandidate)';
+  return 'HooksConfig(beforeCreatePr: $beforeCreatePr, beforeBuild: $beforeBuild)';
 }
 
 
@@ -243,11 +267,11 @@ abstract mixin class _$HooksConfigCopyWith<$Res> implements $HooksConfigCopyWith
   factory _$HooksConfigCopyWith(_HooksConfig value, $Res Function(_HooksConfig) _then) = __$HooksConfigCopyWithImpl;
 @override @useResult
 $Res call({
- String? beforeReleasePr, String? beforeCandidate
+ HookConfig? beforeCreatePr, HookConfig? beforeBuild
 });
 
 
-
+@override $HookConfigCopyWith<$Res>? get beforeCreatePr;@override $HookConfigCopyWith<$Res>? get beforeBuild;
 
 }
 /// @nodoc
@@ -260,15 +284,39 @@ class __$HooksConfigCopyWithImpl<$Res>
 
 /// Create a copy of HooksConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? beforeReleasePr = freezed,Object? beforeCandidate = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? beforeCreatePr = freezed,Object? beforeBuild = freezed,}) {
   return _then(_HooksConfig(
-beforeReleasePr: freezed == beforeReleasePr ? _self.beforeReleasePr : beforeReleasePr // ignore: cast_nullable_to_non_nullable
-as String?,beforeCandidate: freezed == beforeCandidate ? _self.beforeCandidate : beforeCandidate // ignore: cast_nullable_to_non_nullable
-as String?,
+beforeCreatePr: freezed == beforeCreatePr ? _self.beforeCreatePr : beforeCreatePr // ignore: cast_nullable_to_non_nullable
+as HookConfig?,beforeBuild: freezed == beforeBuild ? _self.beforeBuild : beforeBuild // ignore: cast_nullable_to_non_nullable
+as HookConfig?,
   ));
 }
 
+/// Create a copy of HooksConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$HookConfigCopyWith<$Res>? get beforeCreatePr {
+    if (_self.beforeCreatePr == null) {
+    return null;
+  }
 
+  return $HookConfigCopyWith<$Res>(_self.beforeCreatePr!, (value) {
+    return _then(_self.copyWith(beforeCreatePr: value));
+  });
+}/// Create a copy of HooksConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$HookConfigCopyWith<$Res>? get beforeBuild {
+    if (_self.beforeBuild == null) {
+    return null;
+  }
+
+  return $HookConfigCopyWith<$Res>(_self.beforeBuild!, (value) {
+    return _then(_self.copyWith(beforeBuild: value));
+  });
+}
 }
 
 // dart format on

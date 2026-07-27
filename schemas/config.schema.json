@@ -8,8 +8,15 @@
   "required": ["schema_version", "platforms"],
   "properties": {
     "schema_version": {
-      "const": 2,
+      "const": 3,
       "description": "Configuration contract version."
+    },
+    "app_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
+      "default": ".",
+      "description": "Flutter application root relative to the repository. Shared by every platform."
     },
     "target_branch": {
       "type": "string",
@@ -28,15 +35,13 @@
       "default": {},
       "additionalProperties": false,
       "properties": {
-        "before_release_pr": {
-          "type": "string",
-          "minLength": 1,
-          "description": "POSIX shell command run after the next version and changelog are prepared."
+        "before_create_pr": {
+          "$ref": "#/$defs/hook",
+          "description": "Hook run after the next version and changelog are prepared, before creating or updating the release PR."
         },
-        "before_candidate": {
-          "type": "string",
-          "minLength": 1,
-          "description": "POSIX shell command run before candidate source is fingerprinted and built."
+        "before_build": {
+          "$ref": "#/$defs/hook",
+          "description": "Hook run before candidate source is fingerprinted and built."
         }
       }
     },
@@ -53,13 +58,6 @@
               "type": "boolean",
               "default": true,
               "description": "Enable iOS release planning and delivery."
-            },
-            "project_path": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
-              "default": ".",
-              "description": "Flutter project root relative to the repository."
             },
             "bundle_id": {
               "type": "string",
@@ -84,7 +82,7 @@
               "minLength": 1,
               "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
               "default": "build/ios/ipa",
-              "description": "IPA file or directory relative to project_path. Override only when a custom build command writes outside Flutter's standard build/ios/ipa directory."
+              "description": "IPA file or directory relative to app_path. Override only when a custom build command writes outside Flutter's standard build/ios/ipa directory."
             },
             "testflight": {
               "type": "object",
@@ -122,6 +120,25 @@
               }
             }
           }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run"],
+      "properties": {
+        "run": {
+          "type": "string",
+          "minLength": 1,
+          "description": "POSIX shell command executed from the repository root."
+        },
+        "commit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Commit every tracked or unignored file left by the hook. When false, the hook must leave a clean worktree or commit changes itself."
         }
       }
     }
