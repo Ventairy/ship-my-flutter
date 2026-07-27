@@ -78,7 +78,7 @@ package only after its new dependency is visible on pub.dev.
 1. Run the workspace gate and `pnpm run vendor-core` in the adjacent Action
    checkout.
 2. Run `pnpm install --frozen-lockfile` and `pnpm run check` in `smf-action`.
-3. Confirm `vendor/smf/CORE_COMMIT` names the reviewed workspace commit.
+3. Confirm `vendor/smf/SMF_COMMIT` names the reviewed workspace commit.
 4. Regenerate `dist`, then verify a second build leaves no diff.
 5. Test plan, candidate dispatch, and merged-release dispatch against a
    disposable Flutter repository.

@@ -21,6 +21,10 @@ That external fixture can name the core commit without creating a circular
 self-reference in this repository. Its commits cover only the documented
 non-Apple boundary; they are not a production release.
 
+The [SMF user guide](doc/README.md) is the canonical manual for installation,
+Apple setup, configuration, release operation, recovery, CLI use, and
+security.
+
 `smf` turns the iOS release process into a code review:
 
 1. Merge normal Conventional Commits into `main`.
@@ -112,7 +116,7 @@ first plan derives the release baseline from the commit that introduced
 The release flow creates `manifest.json`, `changelog.json`, and candidate
 receipts only when they first carry release state. Users do not create or edit
 those machine-owned files. `store-release-notes.json` is different: it remains
-absent unless a maintainer or hook supplies at least one localized note.
+absent unless a release owner or hook supplies at least one localized note.
 
 ### CLI and Dart APIs
 
@@ -472,12 +476,13 @@ credentials, and calls no Apple endpoint. Real certificate import, signing, IPA
 upload, TestFlight processing, and App Review submission remain the explicit
 pre-publication acceptance gate in issues #1.
 
-## More detail
+## Documentation
 
-- [Architecture and state machine](doc/architecture.md)
-- [Apple bootstrap](doc/apple-bootstrap.md)
-- [CLI reference](doc/cli.md)
-- [Configuration reference](doc/configuration.md)
-- [Operating release PRs](doc/operations.md)
-- [Security model](doc/security.md)
-- [Releasing smf itself](RELEASING.md)
+The [definitive user guide](doc/README.md) provides the recommended reading
+order and links every user-facing guide.
+
+Project contributors and release owners can use:
+
+- [Contributing](CONTRIBUTING.md)
+- [Maintainer architecture](ARCHITECTURE.md)
+- [Releasing the SMF packages](RELEASING.md)

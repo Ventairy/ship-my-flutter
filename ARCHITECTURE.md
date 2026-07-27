@@ -1,4 +1,4 @@
-# Architecture
+# Maintainer architecture
 
 smf separates release planning from irreversible delivery.
 
@@ -12,7 +12,7 @@ smf separates release planning from irreversible delivery.
   platform adapters without putting terminal behavior in core.
 - `Ventairy/smf-action` vendors the exact Dart workspace source,
   generates and commits a deployment lockfile, records the source commit in
-  `vendor/smf/CORE_COMMIT`, and exposes the three workflow phases
+  `vendor/smf/SMF_COMMIT`, and exposes the three workflow phases
   as one GitHub Action.
 
 The dependency direction is `smf_cli -> smf_engine -> smf_hooks` and
@@ -69,7 +69,7 @@ The `release-candidate` job:
 
 1. Runs the optional repository-owned `before_build` preparation hook.
 2. By default commits and pushes everything left by the hook; with
-   `commit: false`, requires the hook to leave a clean worktree.
+   `commitChanges: false`, requires the hook to leave a clean worktree.
 3. Resolves the bundle ID and App Store Connect app.
 4. Computes a fingerprint over tracked build inputs.
 5. Reuses an existing valid receipt when the fingerprint matches.

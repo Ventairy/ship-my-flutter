@@ -74,6 +74,11 @@ dart run melos run publish:dry-run --no-select
 git diff --check
 ```
 
+Static analysis inherits `very_good_analysis` 10.1.0 from the root
+`analysis_options.yaml`. Keep the version exact so Dart 3.10 and stable enforce
+the same rules. Project-level exceptions require a concrete architectural
+reason beside the override.
+
 After dependency changes, also run:
 
 ```bash
@@ -137,14 +142,39 @@ coverage. Git tests use disposable local repositories; GitHub and Apple tests
 use fakes or mocked HTTP; filesystem/security tests cover escape, symlink,
 permissions, cleanup, and dirty-tree failures.
 
-Keep documentation synchronized:
+The entire `doc/` directory is the consumer product manual. It must contain
+only information that helps someone install, configure, use, secure,
+troubleshoot, or recover SMF. Never put repository/package architecture,
+vendoring, internal classes or source paths, contributor test gates,
+publication/tagging procedure, maintainer acceptance gates, or implementation
+roadmaps in `doc/`.
 
-- `README.md`: product-first onboarding and package choice;
-- `doc/cli.md`: commands, runners, credentials, and side effects;
-- `doc/configuration.md`: configuration and hooks;
-- `doc/architecture.md`: ownership and state machine;
-- `CONTRIBUTING.md`: contributor gate;
-- `RELEASING.md`: independent package publication.
+Put maintainer material in the root files that own it:
+
+- `ARCHITECTURE.md`: package ownership, dependency direction, internals, and
+  implementation state machine;
+- `CONTRIBUTING.md`: development setup and contributor validation;
+- `RELEASING.md`: package and Action publication.
+
+`doc/README.md` is the canonical user-guide index. Every user-facing guide must
+state the prerequisites, exact commands or UI paths, expected result, relevant
+side effects, verification, recovery, and links to the next related guide.
+Write for a first-time user who does not know the repository architecture or
+Apple terminology. Prefer one canonical explanation and cross-link it instead
+of duplicating partial procedures.
+
+Keep these user surfaces synchronized:
+
+- `README.md`: concise product overview and route into `doc/README.md`;
+- `doc/getting-started.md`: shortest safe setup path;
+- `doc/apple-bootstrap.md`: beginner Apple and App Store Connect setup;
+- `doc/configuration.md`: configuration and typed hooks;
+- `doc/how-it-works.md`: user-visible release lifecycle and state;
+- `doc/operations.md`: review, delivery, retry, and recovery;
+- `doc/cli.md`: commands, runners, credentials, outputs, and side effects;
+- `doc/security.md`: consumer credential and workflow security;
+- adjacent `smf-action/README.md`: route users to the canonical guide and never
+  present a partial workflow example as a substitute for `smf init`.
 
 ## Agent and release discipline
 
