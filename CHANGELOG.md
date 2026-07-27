@@ -25,6 +25,8 @@ The project follows Semantic Versioning and Conventional Commits.
   while auto mode releases automatically after approval.
 - Moved the shared Flutter root from `platforms.ios.project_path` to global
   `app_path` and advanced configuration to schema version 3.
+- Replaced the iOS-only `scheme` setting with one optional global `flavor` and
+  advanced configuration to schema version 4.
 
 ### Added
 

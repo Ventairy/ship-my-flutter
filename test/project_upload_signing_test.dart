@@ -50,6 +50,35 @@ void main() {
     expect(runner.invocations.single.arguments, contains('-workspace'));
   });
 
+  test('uses the global Flutter flavor as the Xcode scheme', () async {
+    final root = await Directory.systemTemp.createTemp('smf-flavor-project-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(
+      p.join(root.path, 'ios', 'Runner.xcworkspace'),
+    ).create(recursive: true);
+    final runner = RecordingProcessRunner(
+      handler: (_) async => const RunResult(
+        stdout: 'PRODUCT_BUNDLE_IDENTIFIER = dev.example.app\n',
+        stderr: '',
+        exitCode: 0,
+      ),
+    );
+
+    await resolveBundleId(
+      root.path,
+      '.',
+      const IosConfig(),
+      flavor: 'production',
+      processRunner: runner,
+      isMacOS: true,
+    );
+
+    expect(
+      runner.invocations.single.arguments,
+      containsAllInOrder(<String>['-scheme', 'production']),
+    );
+  });
+
   test(
     'runs the project build command with immutable release context',
     () async {
@@ -68,7 +97,7 @@ void main() {
           version: '1.2.0',
           buildNumber: '17',
           exportOptionsPath: '/tmp/ExportOptions.plist',
-          scheme: 'production',
+          flavor: 'production',
           processRunner: runner,
         ),
         ipa,
@@ -96,7 +125,7 @@ void main() {
       );
       expect(
         invocation.arguments.last,
-        contains('--flavor "\$SHIP_MY_FLUTTER_SCHEME"'),
+        contains('--flavor "\$SHIP_MY_FLUTTER_FLAVOR"'),
       );
       expect(
         invocation.options.environment,
@@ -115,7 +144,7 @@ void main() {
       );
       expect(
         invocation.options.environment,
-        containsPair('SHIP_MY_FLUTTER_SCHEME', 'production'),
+        containsPair('SHIP_MY_FLUTTER_FLAVOR', 'production'),
       );
     },
   );
@@ -180,7 +209,7 @@ printf 'ipa' > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH"
       version: '2.3.0',
       buildNumber: '41',
       exportOptionsPath: '/tmp/Export Options.plist',
-      scheme: 'production',
+      flavor: 'production',
     );
 
     expect(ipa, p.join(root.path, 'build', 'app.ipa'));

@@ -8,7 +8,7 @@
   "required": ["schema_version", "platforms"],
   "properties": {
     "schema_version": {
-      "const": 3,
+      "const": 4,
       "description": "Configuration contract version."
     },
     "app_path": {
@@ -17,6 +17,11 @@
       "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
       "default": ".",
       "description": "Flutter application root relative to the repository. Shared by every platform."
+    },
+    "flavor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional Flutter flavor selected for every platform build."
     },
     "target_branch": {
       "type": "string",
@@ -63,11 +68,6 @@
               "type": "string",
               "minLength": 1,
               "description": "App Store bundle identifier. Explicit configuration is recommended."
-            },
-            "scheme": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Xcode scheme used for bundle identifier detection and exposed to the build command."
             },
             "build_command": {
               "type": "string",

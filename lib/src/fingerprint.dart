@@ -67,8 +67,8 @@ Stream<List<int>> _fingerprintBytes(String root, List<String> files) async* {
             : null;
         final buildInputs = <String, Object?>{
           'app_path': raw['app_path'] ?? '.',
+          if (raw.containsKey('flavor')) 'flavor': raw['flavor'],
           if (ios.containsKey('bundle_id')) 'bundle_id': ios['bundle_id'],
-          if (ios.containsKey('scheme')) 'scheme': ios['scheme'],
           'build_command': ios['build_command'] ?? 'auto',
           'ipa_output_path': ios['ipa_output_path'] ?? 'build/ios/ipa',
           if (beforeBuild is Map<Object?, Object?> &&

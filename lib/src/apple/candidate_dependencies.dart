@@ -22,7 +22,7 @@ typedef BuildIosIpa =
       required String version,
       required String buildNumber,
       required String exportOptionsPath,
-      String? scheme,
+      String? flavor,
     });
 
 /// Uploads an IPA with App Store Connect credentials.

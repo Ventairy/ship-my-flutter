@@ -12,7 +12,6 @@ abstract class IosConfig with _$IosConfig {
   const factory IosConfig({
     @Default(true) bool enabled,
     String? bundleId,
-    String? scheme,
     String? buildCommand,
     @Default('build/ios/ipa') String ipaOutputPath,
     @Default(TestflightConfig()) TestflightConfig testflight,

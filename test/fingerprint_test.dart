@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 
 String configYaml({
   String buildCommand = 'flutter build ipa --release',
+  String? flavor,
   List<String> groups = const <String>[],
   String mode = 'upload',
   String? beforeBuild,
@@ -14,7 +15,7 @@ String configYaml({
     '''
 ${beforeBuild == null ? 'hooks: {}' : 'hooks:\n  before_build:\n    run: "$beforeBuild"\n    commit: $beforeBuildCommit'}
 app_path: .
-platforms:
+${flavor == null ? '' : 'flavor: $flavor\n'}platforms:
   ios:
     bundle_id: dev.example.app
     build_command: "$buildCommand"
@@ -65,6 +66,9 @@ void main() {
       await File(
         paths.config,
       ).writeAsString(configYaml(buildCommand: 'fvm flutter build ipa'));
+      expect(await sourceFingerprint(root.path), isNot(before));
+
+      await File(paths.config).writeAsString(configYaml(flavor: 'production'));
       expect(await sourceFingerprint(root.path), isNot(before));
 
       await File(

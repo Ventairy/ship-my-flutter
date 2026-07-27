@@ -12,6 +12,7 @@ import 'serialization.dart';
 const Set<String> _rootConfigFields = <String>{
   'schema_version',
   'app_path',
+  'flavor',
   'target_branch',
   'release_branch_prefix',
   'hooks',
@@ -23,7 +24,6 @@ const Set<String> _platformFields = <String>{'ios'};
 const Set<String> _iosFields = <String>{
   'enabled',
   'bundle_id',
-  'scheme',
   'build_command',
   'ipa_output_path',
   'testflight',
@@ -115,6 +115,7 @@ ShipConfig validateConfig(Object? value, {String source = 'configuration'}) {
 
     return ShipConfig(
       appPath: appPath,
+      flavor: _optionalNonEmptyString(root['flavor'], 'flavor'),
       targetBranch: _nonEmptyString(
         root['target_branch'] ?? 'main',
         'target_branch',
@@ -189,7 +190,6 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
       ios['bundle_id'],
       'platforms.ios.bundle_id',
     ),
-    scheme: _optionalNonEmptyString(ios['scheme'], 'platforms.ios.scheme'),
     buildCommand: buildCommand,
     ipaOutputPath: ipaOutputPath,
     testflight: _parseTestflightConfig(testflight),
@@ -475,10 +475,10 @@ void _schemaVersion(Map<String, Object?> value, String source) {
 }
 
 void _configSchemaVersion(Map<String, Object?> value, String source) {
-  if (value['schema_version'] != 3) {
+  if (value['schema_version'] != 4) {
     _fail(
-      '$source.schema_version must be 3. Move platforms.ios.project_path to '
-      'the root app_path field and migrate hook names and objects.',
+      '$source.schema_version must be 4. Move platforms.ios.scheme to the '
+      'root flavor field.',
     );
   }
 }

@@ -10,13 +10,15 @@ typedef ResolveBundleId =
     Future<String> Function(
       String repositoryRoot,
       String appPath,
-      IosConfig config,
-    );
+      IosConfig config, {
+      String? flavor,
+    });
 
 Future<String> resolveBundleId(
   String repositoryRoot,
   String appPath,
   IosConfig config, {
+  String? flavor,
   ProcessRunner processRunner = const SystemProcessRunner(),
   bool? isMacOS,
 }) async {
@@ -40,7 +42,7 @@ Future<String> resolveBundleId(
       .whereType<Directory>()
       .where((Directory item) => item.path.endsWith('.xcodeproj'))
       .firstOrNull;
-  final scheme = config.scheme ?? 'Runner';
+  final scheme = flavor ?? 'Runner';
   final arguments = workspace != null
       ? <String>[
           '-workspace',

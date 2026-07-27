@@ -196,6 +196,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     root,
     config.appPath,
     config.ios,
+    flavor: config.flavor,
   );
   final client =
       options.client ?? AppStoreConnectClient(options.appleCredentials);
@@ -244,7 +245,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
       version: state.version,
       buildNumber: buildNumber,
       exportOptionsPath: signing.exportOptionsPath,
-      scheme: config.ios.scheme,
+      flavor: config.flavor,
     );
     invariant(
       await isClean(root),

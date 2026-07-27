@@ -64,6 +64,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     root,
     config.appPath,
     config.ios,
+    flavor: config.flavor,
   );
   invariant(
     receipt.bundleId == bundleId,

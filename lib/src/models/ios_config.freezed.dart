@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$IosConfig {
 
- bool get enabled; String? get bundleId; String? get scheme; String? get buildCommand; String get ipaOutputPath; TestflightConfig get testflight; AppStoreConfig get appStore;
+ bool get enabled; String? get bundleId; String? get buildCommand; String get ipaOutputPath; TestflightConfig get testflight; AppStoreConfig get appStore;
 /// Create a copy of IosConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $IosConfigCopyWith<IosConfig> get copyWith => _$IosConfigCopyWithImpl<IosConfig>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is IosConfig&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.bundleId, bundleId) || other.bundleId == bundleId)&&(identical(other.scheme, scheme) || other.scheme == scheme)&&(identical(other.buildCommand, buildCommand) || other.buildCommand == buildCommand)&&(identical(other.ipaOutputPath, ipaOutputPath) || other.ipaOutputPath == ipaOutputPath)&&(identical(other.testflight, testflight) || other.testflight == testflight)&&(identical(other.appStore, appStore) || other.appStore == appStore));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is IosConfig&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.bundleId, bundleId) || other.bundleId == bundleId)&&(identical(other.buildCommand, buildCommand) || other.buildCommand == buildCommand)&&(identical(other.ipaOutputPath, ipaOutputPath) || other.ipaOutputPath == ipaOutputPath)&&(identical(other.testflight, testflight) || other.testflight == testflight)&&(identical(other.appStore, appStore) || other.appStore == appStore));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,bundleId,scheme,buildCommand,ipaOutputPath,testflight,appStore);
+int get hashCode => Object.hash(runtimeType,enabled,bundleId,buildCommand,ipaOutputPath,testflight,appStore);
 
 @override
 String toString() {
-  return 'IosConfig(enabled: $enabled, bundleId: $bundleId, scheme: $scheme, buildCommand: $buildCommand, ipaOutputPath: $ipaOutputPath, testflight: $testflight, appStore: $appStore)';
+  return 'IosConfig(enabled: $enabled, bundleId: $bundleId, buildCommand: $buildCommand, ipaOutputPath: $ipaOutputPath, testflight: $testflight, appStore: $appStore)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $IosConfigCopyWith<$Res>  {
   factory $IosConfigCopyWith(IosConfig value, $Res Function(IosConfig) _then) = _$IosConfigCopyWithImpl;
 @useResult
 $Res call({
- bool enabled, String? bundleId, String? scheme, String? buildCommand, String ipaOutputPath, TestflightConfig testflight, AppStoreConfig appStore
+ bool enabled, String? bundleId, String? buildCommand, String ipaOutputPath, TestflightConfig testflight, AppStoreConfig appStore
 });
 
 
@@ -62,11 +62,10 @@ class _$IosConfigCopyWithImpl<$Res>
 
 /// Create a copy of IosConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? bundleId = freezed,Object? scheme = freezed,Object? buildCommand = freezed,Object? ipaOutputPath = null,Object? testflight = null,Object? appStore = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? bundleId = freezed,Object? buildCommand = freezed,Object? ipaOutputPath = null,Object? testflight = null,Object? appStore = null,}) {
   return _then(_self.copyWith(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,bundleId: freezed == bundleId ? _self.bundleId : bundleId // ignore: cast_nullable_to_non_nullable
-as String?,scheme: freezed == scheme ? _self.scheme : scheme // ignore: cast_nullable_to_non_nullable
 as String?,buildCommand: freezed == buildCommand ? _self.buildCommand : buildCommand // ignore: cast_nullable_to_non_nullable
 as String?,ipaOutputPath: null == ipaOutputPath ? _self.ipaOutputPath : ipaOutputPath // ignore: cast_nullable_to_non_nullable
 as String,testflight: null == testflight ? _self.testflight : testflight // ignore: cast_nullable_to_non_nullable
@@ -174,10 +173,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  String? bundleId,  String? scheme,  String? buildCommand,  String ipaOutputPath,  TestflightConfig testflight,  AppStoreConfig appStore)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  String? bundleId,  String? buildCommand,  String ipaOutputPath,  TestflightConfig testflight,  AppStoreConfig appStore)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _IosConfig() when $default != null:
-return $default(_that.enabled,_that.bundleId,_that.scheme,_that.buildCommand,_that.ipaOutputPath,_that.testflight,_that.appStore);case _:
+return $default(_that.enabled,_that.bundleId,_that.buildCommand,_that.ipaOutputPath,_that.testflight,_that.appStore);case _:
   return orElse();
 
 }
@@ -195,10 +194,10 @@ return $default(_that.enabled,_that.bundleId,_that.scheme,_that.buildCommand,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  String? bundleId,  String? scheme,  String? buildCommand,  String ipaOutputPath,  TestflightConfig testflight,  AppStoreConfig appStore)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  String? bundleId,  String? buildCommand,  String ipaOutputPath,  TestflightConfig testflight,  AppStoreConfig appStore)  $default,) {final _that = this;
 switch (_that) {
 case _IosConfig():
-return $default(_that.enabled,_that.bundleId,_that.scheme,_that.buildCommand,_that.ipaOutputPath,_that.testflight,_that.appStore);case _:
+return $default(_that.enabled,_that.bundleId,_that.buildCommand,_that.ipaOutputPath,_that.testflight,_that.appStore);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -215,10 +214,10 @@ return $default(_that.enabled,_that.bundleId,_that.scheme,_that.buildCommand,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  String? bundleId,  String? scheme,  String? buildCommand,  String ipaOutputPath,  TestflightConfig testflight,  AppStoreConfig appStore)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  String? bundleId,  String? buildCommand,  String ipaOutputPath,  TestflightConfig testflight,  AppStoreConfig appStore)?  $default,) {final _that = this;
 switch (_that) {
 case _IosConfig() when $default != null:
-return $default(_that.enabled,_that.bundleId,_that.scheme,_that.buildCommand,_that.ipaOutputPath,_that.testflight,_that.appStore);case _:
+return $default(_that.enabled,_that.bundleId,_that.buildCommand,_that.ipaOutputPath,_that.testflight,_that.appStore);case _:
   return null;
 
 }
@@ -230,12 +229,11 @@ return $default(_that.enabled,_that.bundleId,_that.scheme,_that.buildCommand,_th
 
 
 class _IosConfig implements IosConfig {
-  const _IosConfig({this.enabled = true, this.bundleId, this.scheme, this.buildCommand, this.ipaOutputPath = 'build/ios/ipa', this.testflight = const TestflightConfig(), this.appStore = const AppStoreConfig()});
+  const _IosConfig({this.enabled = true, this.bundleId, this.buildCommand, this.ipaOutputPath = 'build/ios/ipa', this.testflight = const TestflightConfig(), this.appStore = const AppStoreConfig()});
   
 
 @override@JsonKey() final  bool enabled;
 @override final  String? bundleId;
-@override final  String? scheme;
 @override final  String? buildCommand;
 @override@JsonKey() final  String ipaOutputPath;
 @override@JsonKey() final  TestflightConfig testflight;
@@ -251,16 +249,16 @@ _$IosConfigCopyWith<_IosConfig> get copyWith => __$IosConfigCopyWithImpl<_IosCon
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _IosConfig&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.bundleId, bundleId) || other.bundleId == bundleId)&&(identical(other.scheme, scheme) || other.scheme == scheme)&&(identical(other.buildCommand, buildCommand) || other.buildCommand == buildCommand)&&(identical(other.ipaOutputPath, ipaOutputPath) || other.ipaOutputPath == ipaOutputPath)&&(identical(other.testflight, testflight) || other.testflight == testflight)&&(identical(other.appStore, appStore) || other.appStore == appStore));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _IosConfig&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.bundleId, bundleId) || other.bundleId == bundleId)&&(identical(other.buildCommand, buildCommand) || other.buildCommand == buildCommand)&&(identical(other.ipaOutputPath, ipaOutputPath) || other.ipaOutputPath == ipaOutputPath)&&(identical(other.testflight, testflight) || other.testflight == testflight)&&(identical(other.appStore, appStore) || other.appStore == appStore));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,bundleId,scheme,buildCommand,ipaOutputPath,testflight,appStore);
+int get hashCode => Object.hash(runtimeType,enabled,bundleId,buildCommand,ipaOutputPath,testflight,appStore);
 
 @override
 String toString() {
-  return 'IosConfig(enabled: $enabled, bundleId: $bundleId, scheme: $scheme, buildCommand: $buildCommand, ipaOutputPath: $ipaOutputPath, testflight: $testflight, appStore: $appStore)';
+  return 'IosConfig(enabled: $enabled, bundleId: $bundleId, buildCommand: $buildCommand, ipaOutputPath: $ipaOutputPath, testflight: $testflight, appStore: $appStore)';
 }
 
 
@@ -271,7 +269,7 @@ abstract mixin class _$IosConfigCopyWith<$Res> implements $IosConfigCopyWith<$Re
   factory _$IosConfigCopyWith(_IosConfig value, $Res Function(_IosConfig) _then) = __$IosConfigCopyWithImpl;
 @override @useResult
 $Res call({
- bool enabled, String? bundleId, String? scheme, String? buildCommand, String ipaOutputPath, TestflightConfig testflight, AppStoreConfig appStore
+ bool enabled, String? bundleId, String? buildCommand, String ipaOutputPath, TestflightConfig testflight, AppStoreConfig appStore
 });
 
 
@@ -288,11 +286,10 @@ class __$IosConfigCopyWithImpl<$Res>
 
 /// Create a copy of IosConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? bundleId = freezed,Object? scheme = freezed,Object? buildCommand = freezed,Object? ipaOutputPath = null,Object? testflight = null,Object? appStore = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? bundleId = freezed,Object? buildCommand = freezed,Object? ipaOutputPath = null,Object? testflight = null,Object? appStore = null,}) {
   return _then(_IosConfig(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,bundleId: freezed == bundleId ? _self.bundleId : bundleId // ignore: cast_nullable_to_non_nullable
-as String?,scheme: freezed == scheme ? _self.scheme : scheme // ignore: cast_nullable_to_non_nullable
 as String?,buildCommand: freezed == buildCommand ? _self.buildCommand : buildCommand // ignore: cast_nullable_to_non_nullable
 as String?,ipaOutputPath: null == ipaOutputPath ? _self.ipaOutputPath : ipaOutputPath // ignore: cast_nullable_to_non_nullable
 as String,testflight: null == testflight ? _self.testflight : testflight // ignore: cast_nullable_to_non_nullable

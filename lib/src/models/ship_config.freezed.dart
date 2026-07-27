@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ShipConfig {
 
- int get schemaVersion; String get appPath; String get targetBranch; String get releaseBranchPrefix; HooksConfig get hooks; IosConfig get ios;
+ int get schemaVersion; String get appPath; String? get flavor; String get targetBranch; String get releaseBranchPrefix; HooksConfig get hooks; IosConfig get ios;
 /// Create a copy of ShipConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $ShipConfigCopyWith<ShipConfig> get copyWith => _$ShipConfigCopyWithImpl<ShipCon
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShipConfig&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.appPath, appPath) || other.appPath == appPath)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch)&&(identical(other.releaseBranchPrefix, releaseBranchPrefix) || other.releaseBranchPrefix == releaseBranchPrefix)&&(identical(other.hooks, hooks) || other.hooks == hooks)&&(identical(other.ios, ios) || other.ios == ios));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShipConfig&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.appPath, appPath) || other.appPath == appPath)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch)&&(identical(other.releaseBranchPrefix, releaseBranchPrefix) || other.releaseBranchPrefix == releaseBranchPrefix)&&(identical(other.hooks, hooks) || other.hooks == hooks)&&(identical(other.ios, ios) || other.ios == ios));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,schemaVersion,appPath,targetBranch,releaseBranchPrefix,hooks,ios);
+int get hashCode => Object.hash(runtimeType,schemaVersion,appPath,flavor,targetBranch,releaseBranchPrefix,hooks,ios);
 
 @override
 String toString() {
-  return 'ShipConfig(schemaVersion: $schemaVersion, appPath: $appPath, targetBranch: $targetBranch, releaseBranchPrefix: $releaseBranchPrefix, hooks: $hooks, ios: $ios)';
+  return 'ShipConfig(schemaVersion: $schemaVersion, appPath: $appPath, flavor: $flavor, targetBranch: $targetBranch, releaseBranchPrefix: $releaseBranchPrefix, hooks: $hooks, ios: $ios)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $ShipConfigCopyWith<$Res>  {
   factory $ShipConfigCopyWith(ShipConfig value, $Res Function(ShipConfig) _then) = _$ShipConfigCopyWithImpl;
 @useResult
 $Res call({
- int schemaVersion, String appPath, String targetBranch, String releaseBranchPrefix, HooksConfig hooks, IosConfig ios
+ int schemaVersion, String appPath, String? flavor, String targetBranch, String releaseBranchPrefix, HooksConfig hooks, IosConfig ios
 });
 
 
@@ -62,11 +62,12 @@ class _$ShipConfigCopyWithImpl<$Res>
 
 /// Create a copy of ShipConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? schemaVersion = null,Object? appPath = null,Object? targetBranch = null,Object? releaseBranchPrefix = null,Object? hooks = null,Object? ios = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? schemaVersion = null,Object? appPath = null,Object? flavor = freezed,Object? targetBranch = null,Object? releaseBranchPrefix = null,Object? hooks = null,Object? ios = null,}) {
   return _then(_self.copyWith(
 schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,appPath: null == appPath ? _self.appPath : appPath // ignore: cast_nullable_to_non_nullable
-as String,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
+as String,flavor: freezed == flavor ? _self.flavor : flavor // ignore: cast_nullable_to_non_nullable
+as String?,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
 as String,releaseBranchPrefix: null == releaseBranchPrefix ? _self.releaseBranchPrefix : releaseBranchPrefix // ignore: cast_nullable_to_non_nullable
 as String,hooks: null == hooks ? _self.hooks : hooks // ignore: cast_nullable_to_non_nullable
 as HooksConfig,ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable
@@ -173,10 +174,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int schemaVersion,  String appPath,  String targetBranch,  String releaseBranchPrefix,  HooksConfig hooks,  IosConfig ios)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int schemaVersion,  String appPath,  String? flavor,  String targetBranch,  String releaseBranchPrefix,  HooksConfig hooks,  IosConfig ios)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ShipConfig() when $default != null:
-return $default(_that.schemaVersion,_that.appPath,_that.targetBranch,_that.releaseBranchPrefix,_that.hooks,_that.ios);case _:
+return $default(_that.schemaVersion,_that.appPath,_that.flavor,_that.targetBranch,_that.releaseBranchPrefix,_that.hooks,_that.ios);case _:
   return orElse();
 
 }
@@ -194,10 +195,10 @@ return $default(_that.schemaVersion,_that.appPath,_that.targetBranch,_that.relea
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int schemaVersion,  String appPath,  String targetBranch,  String releaseBranchPrefix,  HooksConfig hooks,  IosConfig ios)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int schemaVersion,  String appPath,  String? flavor,  String targetBranch,  String releaseBranchPrefix,  HooksConfig hooks,  IosConfig ios)  $default,) {final _that = this;
 switch (_that) {
 case _ShipConfig():
-return $default(_that.schemaVersion,_that.appPath,_that.targetBranch,_that.releaseBranchPrefix,_that.hooks,_that.ios);case _:
+return $default(_that.schemaVersion,_that.appPath,_that.flavor,_that.targetBranch,_that.releaseBranchPrefix,_that.hooks,_that.ios);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -214,10 +215,10 @@ return $default(_that.schemaVersion,_that.appPath,_that.targetBranch,_that.relea
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int schemaVersion,  String appPath,  String targetBranch,  String releaseBranchPrefix,  HooksConfig hooks,  IosConfig ios)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int schemaVersion,  String appPath,  String? flavor,  String targetBranch,  String releaseBranchPrefix,  HooksConfig hooks,  IosConfig ios)?  $default,) {final _that = this;
 switch (_that) {
 case _ShipConfig() when $default != null:
-return $default(_that.schemaVersion,_that.appPath,_that.targetBranch,_that.releaseBranchPrefix,_that.hooks,_that.ios);case _:
+return $default(_that.schemaVersion,_that.appPath,_that.flavor,_that.targetBranch,_that.releaseBranchPrefix,_that.hooks,_that.ios);case _:
   return null;
 
 }
@@ -229,11 +230,12 @@ return $default(_that.schemaVersion,_that.appPath,_that.targetBranch,_that.relea
 
 
 class _ShipConfig implements ShipConfig {
-  const _ShipConfig({this.schemaVersion = 3, this.appPath = '.', this.targetBranch = 'main', this.releaseBranchPrefix = 'ship-my-flutter', this.hooks = const HooksConfig(), required this.ios});
+  const _ShipConfig({this.schemaVersion = 4, this.appPath = '.', this.flavor, this.targetBranch = 'main', this.releaseBranchPrefix = 'ship-my-flutter', this.hooks = const HooksConfig(), required this.ios});
   
 
 @override@JsonKey() final  int schemaVersion;
 @override@JsonKey() final  String appPath;
+@override final  String? flavor;
 @override@JsonKey() final  String targetBranch;
 @override@JsonKey() final  String releaseBranchPrefix;
 @override@JsonKey() final  HooksConfig hooks;
@@ -249,16 +251,16 @@ _$ShipConfigCopyWith<_ShipConfig> get copyWith => __$ShipConfigCopyWithImpl<_Shi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShipConfig&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.appPath, appPath) || other.appPath == appPath)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch)&&(identical(other.releaseBranchPrefix, releaseBranchPrefix) || other.releaseBranchPrefix == releaseBranchPrefix)&&(identical(other.hooks, hooks) || other.hooks == hooks)&&(identical(other.ios, ios) || other.ios == ios));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShipConfig&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.appPath, appPath) || other.appPath == appPath)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch)&&(identical(other.releaseBranchPrefix, releaseBranchPrefix) || other.releaseBranchPrefix == releaseBranchPrefix)&&(identical(other.hooks, hooks) || other.hooks == hooks)&&(identical(other.ios, ios) || other.ios == ios));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,schemaVersion,appPath,targetBranch,releaseBranchPrefix,hooks,ios);
+int get hashCode => Object.hash(runtimeType,schemaVersion,appPath,flavor,targetBranch,releaseBranchPrefix,hooks,ios);
 
 @override
 String toString() {
-  return 'ShipConfig(schemaVersion: $schemaVersion, appPath: $appPath, targetBranch: $targetBranch, releaseBranchPrefix: $releaseBranchPrefix, hooks: $hooks, ios: $ios)';
+  return 'ShipConfig(schemaVersion: $schemaVersion, appPath: $appPath, flavor: $flavor, targetBranch: $targetBranch, releaseBranchPrefix: $releaseBranchPrefix, hooks: $hooks, ios: $ios)';
 }
 
 
@@ -269,7 +271,7 @@ abstract mixin class _$ShipConfigCopyWith<$Res> implements $ShipConfigCopyWith<$
   factory _$ShipConfigCopyWith(_ShipConfig value, $Res Function(_ShipConfig) _then) = __$ShipConfigCopyWithImpl;
 @override @useResult
 $Res call({
- int schemaVersion, String appPath, String targetBranch, String releaseBranchPrefix, HooksConfig hooks, IosConfig ios
+ int schemaVersion, String appPath, String? flavor, String targetBranch, String releaseBranchPrefix, HooksConfig hooks, IosConfig ios
 });
 
 
@@ -286,11 +288,12 @@ class __$ShipConfigCopyWithImpl<$Res>
 
 /// Create a copy of ShipConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? schemaVersion = null,Object? appPath = null,Object? targetBranch = null,Object? releaseBranchPrefix = null,Object? hooks = null,Object? ios = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? schemaVersion = null,Object? appPath = null,Object? flavor = freezed,Object? targetBranch = null,Object? releaseBranchPrefix = null,Object? hooks = null,Object? ios = null,}) {
   return _then(_ShipConfig(
 schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,appPath: null == appPath ? _self.appPath : appPath // ignore: cast_nullable_to_non_nullable
-as String,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
+as String,flavor: freezed == flavor ? _self.flavor : flavor // ignore: cast_nullable_to_non_nullable
+as String?,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
 as String,releaseBranchPrefix: null == releaseBranchPrefix ? _self.releaseBranchPrefix : releaseBranchPrefix // ignore: cast_nullable_to_non_nullable
 as String,hooks: null == hooks ? _self.hooks : hooks // ignore: cast_nullable_to_non_nullable
 as HooksConfig,ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable

@@ -1,6 +1,6 @@
 # Configuration
 
-`.ship-my-flutter/config.yaml` uses snake_case keys and schema version 3. The
+`.ship-my-flutter/config.yaml` uses snake_case keys and schema version 4. The
 generated file starts with a `yaml-language-server` directive linked to
 [`schemas/config.schema.json`](../schemas/config.schema.json), which provides
 editor validation and autocomplete.
@@ -16,8 +16,9 @@ quoting, cross-field rules, and path safety on every supported host platform.
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
 
-schema_version: 3
+schema_version: 4
 app_path: .
+# flavor: production
 target_branch: main
 release_branch_prefix: ship-my-flutter
 hooks: {}
@@ -37,8 +38,9 @@ platforms:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `schema_version` | `3` | Configuration contract version |
+| `schema_version` | `4` | Configuration contract version |
 | `app_path` | `.` | Flutter app root shared by every platform |
+| `flavor` | unset | One optional Flutter flavor shared by every platform build |
 | `target_branch` | `main` | Branch whose commits feed release PRs |
 | `release_branch_prefix` | `ship-my-flutter` | Prefix for platform release branches |
 
@@ -108,13 +110,23 @@ removed from both hook environments.
 same Flutter application. It is relative to the Git repository root and cannot
 escape it, including through a symlink.
 
+## `flavor`
+
+`flavor` selects one Flutter flavor for the build, such as `development`,
+`staging`, or `production`. It is global because the flavor represents the
+same application environment on iOS and future Android builds. Omit it for an
+unflavored Flutter app.
+
+For iOS, ship-my-flutter also uses the flavor name as the Xcode scheme when it
+detects the bundle identifier. This matches Flutter's standard flavor setup.
+Explicit `platforms.ios.bundle_id` configuration remains recommended.
+
 ## `platforms.ios`
 
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `enabled` | `true` | Enables iOS planning and delivery |
 | `bundle_id` | detected on macOS | App Store bundle identifier; explicit configuration is recommended |
-| `scheme` | unset | Custom Flutter flavor/Xcode scheme |
 | `build_command` | auto-detected | Optional project-owned command that builds one IPA |
 | `ipa_output_path` | `build/ios/ipa` | IPA file or directory relative to `app_path` |
 
@@ -138,7 +150,7 @@ ship-my-flutter automatically appends these arguments:
 --build-name <planned version>
 --build-number <next App Store Connect build number>
 --export-options-plist <generated signing export options>
---flavor <scheme>  # only when scheme is configured
+--flavor <flavor>  # only when flavor is configured
 ```
 
 Do not repeat those flags in the command. They are rejected so release identity
@@ -174,7 +186,7 @@ SHIP_MY_FLUTTER_VERSION
 SHIP_MY_FLUTTER_BUILD_NUMBER
 SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH
 SHIP_MY_FLUTTER_IPA_OUTPUT_PATH
-SHIP_MY_FLUTTER_SCHEME
+SHIP_MY_FLUTTER_FLAVOR
 ```
 
 `ipa_output_path` may name one `.ipa` file or a directory containing exactly
@@ -184,8 +196,7 @@ single-command wrapper that deliberately emits or moves the IPA to a different
 project-relative location; explicit configuration prevents stale or ambiguous
 IPA discovery.
 
-Omit `scheme` for a standard unflavored Flutter app. Bundle-ID detection uses
-the Runner scheme when no scheme is configured.
+Bundle-ID detection uses the Runner scheme when no flavor is configured.
 
 ## TestFlight
 
@@ -225,6 +236,19 @@ Both hooks default to `commit: true`; add `commit: false` only for the clean
 worktree cases described above. Other snake_case version 2 keys remain
 unchanged. State files such as `manifest.json`, `changelog.json`, and candidate
 receipts remain versioned JSON.
+
+## Migrating to schema version 4
+
+Version 4 makes Flutter flavor selection global so iOS and future Android
+builds use the same application environment:
+
+| Version 3 | Version 4 |
+| --- | --- |
+| `schema_version: 3` | `schema_version: 4` |
+| `platforms.ios.scheme` | root `flavor` |
+
+Only one flavor can be selected for each run. Projects may define many flavors,
+but the configured value is the one passed to Flutter's `--flavor` option.
 
 ## Signing profiles
 

@@ -127,7 +127,7 @@ Future<String> runIosBuildCommand({
   required String version,
   required String buildNumber,
   required String exportOptionsPath,
-  String? scheme,
+  String? flavor,
   ProcessRunner processRunner = const SystemProcessRunner(),
 }) async {
   final resolvedArtifactPath = p.normalize(
@@ -138,9 +138,9 @@ Future<String> runIosBuildCommand({
   --build-name "$SHIP_MY_FLUTTER_VERSION" \
   --build-number "$SHIP_MY_FLUTTER_BUILD_NUMBER" \
   --export-options-plist "$SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH"''');
-  if (scheme != null) {
+  if (flavor != null) {
     managedCommand.write(r''' \
-  --flavor "$SHIP_MY_FLUTTER_SCHEME"''');
+  --flavor "$SHIP_MY_FLUTTER_FLAVOR"''');
   }
   await runShellCommand(
     managedCommand.toString(),
@@ -152,7 +152,7 @@ Future<String> runIosBuildCommand({
         'SHIP_MY_FLUTTER_BUILD_NUMBER': buildNumber,
         'SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH': exportOptionsPath,
         'SHIP_MY_FLUTTER_IPA_OUTPUT_PATH': resolvedArtifactPath,
-        'SHIP_MY_FLUTTER_SCHEME': ?scheme,
+        'SHIP_MY_FLUTTER_FLAVOR': ?flavor,
       },
     ),
     processRunner: processRunner,

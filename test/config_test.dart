@@ -2,7 +2,7 @@ import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> validConfig() => <String, Object?>{
-  'schema_version': 3,
+  'schema_version': 4,
   'app_path': '.',
   'target_branch': 'main',
   'release_branch_prefix': 'ship-my-flutter',
@@ -33,6 +33,28 @@ void main() {
   group('configuration', () {
     test('accepts the minimal generated configuration', () {
       expect(validateConfig(validConfig()).ios.enabled, isTrue);
+    });
+
+    test('accepts one optional global Flutter flavor', () {
+      final config = validConfig()..['flavor'] = 'production';
+
+      expect(validateConfig(config).flavor, 'production');
+    });
+
+    test('rejects the removed iOS scheme field with migration guidance', () {
+      final config = validConfig();
+      iosConfig(config)['scheme'] = 'production';
+
+      expect(
+        () => validateConfig(config),
+        throwsA(
+          isA<ShipError>().having(
+            (ShipError error) => error.message,
+            'message',
+            allOf(contains('unknown field'), contains('scheme')),
+          ),
+        ),
+      );
     });
 
     test(
@@ -281,7 +303,7 @@ void main() {
           isA<ShipError>().having(
             (ShipError error) => error.message,
             'message',
-            contains('schema_version must be 3'),
+            contains('schema_version must be 4'),
           ),
         ),
       );

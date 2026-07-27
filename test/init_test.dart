@@ -30,7 +30,7 @@ void main() {
     expect(manifest.ios.baselineSha, baselineSha);
     expect(manifest.ios.pendingRelease, isFalse);
     final config = await loadConfig(root.path);
-    expect(config.schemaVersion, 3);
+    expect(config.schemaVersion, 4);
     expect(config.appPath, '.');
     expect(config.ios.buildCommand, isNull);
     expect(config.ios.appStore.mode, ReleaseMode.upload);
