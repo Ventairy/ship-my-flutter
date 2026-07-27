@@ -11,7 +11,7 @@ The project follows Semantic Versioning and Conventional Commits.
 - Refactored immutable release state and Apple/GitHub response models with
   Freezed and json_serializable while preserving public constructors and wire
   formats.
-- Migrated `config.yaml` to schema version 2 with Flutter-style snake_case keys.
+- Defined the initial `config.yaml` schema with Flutter-style snake_case keys.
 - Made IPA creation project-owned through `build_command` and
   `ipa_output_path`;
   ship-my-flutter now appends immutable version, build number, signing export
@@ -23,10 +23,9 @@ The project follows Semantic Versioning and Conventional Commits.
 - Replaced the App Store delivery policy with three explicit modes: `upload`,
   `review`, and `auto`. Review mode waits for manual release after approval,
   while auto mode releases automatically after approval.
-- Moved the shared Flutter root from `platforms.ios.project_path` to global
-  `app_path` and advanced configuration to schema version 3.
-- Replaced the iOS-only `scheme` setting with one optional global `flavor` and
-  advanced configuration to schema version 4.
+- Made `app_path` global so iOS and future Android delivery share the same
+  Flutter application root.
+- Added one optional global `flavor` shared by every platform build.
 
 ### Added
 

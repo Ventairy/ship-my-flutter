@@ -249,7 +249,7 @@ add TestFlight group names if builds should be assigned automatically:
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
 
-schema_version: 4
+schema_version: 1
 app_path: .
 # flavor: production
 target_branch: main

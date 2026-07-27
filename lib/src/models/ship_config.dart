@@ -10,7 +10,7 @@ part 'ship_config.freezed.dart';
 abstract class ShipConfig with _$ShipConfig {
   /// Creates repository configuration.
   const factory ShipConfig({
-    @Default(4) int schemaVersion,
+    @Default(1) int schemaVersion,
     @Default('.') String appPath,
     String? flavor,
     @Default('main') String targetBranch,

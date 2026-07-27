@@ -8,7 +8,7 @@
   "required": ["schema_version", "platforms"],
   "properties": {
     "schema_version": {
-      "const": 4,
+      "const": 1,
       "description": "Configuration contract version."
     },
     "app_path": {

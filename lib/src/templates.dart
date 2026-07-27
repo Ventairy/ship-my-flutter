@@ -11,7 +11,7 @@ String generatedConfigYaml({String? bundleId}) {
   return '''
 # yaml-language-server: \$schema=$configSchemaUrl
 
-schema_version: 4
+schema_version: 1
 app_path: .
 target_branch: main
 release_branch_prefix: ship-my-flutter

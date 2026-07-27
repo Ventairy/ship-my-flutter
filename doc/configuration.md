@@ -1,6 +1,6 @@
 # Configuration
 
-`.ship-my-flutter/config.yaml` uses snake_case keys and schema version 4. The
+`.ship-my-flutter/config.yaml` uses snake_case keys and schema version 1. The
 generated file starts with a `yaml-language-server` directive linked to
 [`schemas/config.schema.json`](../schemas/config.schema.json), which provides
 editor validation and autocomplete.
@@ -16,7 +16,7 @@ quoting, cross-field rules, and path safety on every supported host platform.
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
 
-schema_version: 4
+schema_version: 1
 app_path: .
 # flavor: production
 target_branch: main
@@ -38,7 +38,7 @@ platforms:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `schema_version` | `4` | Configuration contract version |
+| `schema_version` | `1` | Configuration contract version |
 | `app_path` | `.` | Flutter app root shared by every platform |
 | `flavor` | unset | One optional Flutter flavor shared by every platform build |
 | `target_branch` | `main` | Branch whose commits feed release PRs |
@@ -220,35 +220,6 @@ response; it does not bypass external testing review.
 - `auto`: submit the same way and release automatically after Apple approval.
 
 The initializer defaults to `upload`.
-
-## Migrating to schema version 3
-
-Version 3 makes the shared app root global and gives hooks explicit behavior:
-
-| Version 2 | Version 3 |
-| --- | --- |
-| `schema_version: 2` | `schema_version: 3` |
-| `platforms.ios.project_path` | root `app_path` |
-| `hooks.before_release_pr: <command>` | `hooks.before_create_pr.run: <command>` |
-| `hooks.before_candidate: <command>` | `hooks.before_build.run: <command>` |
-
-Both hooks default to `commit: true`; add `commit: false` only for the clean
-worktree cases described above. Other snake_case version 2 keys remain
-unchanged. State files such as `manifest.json`, `changelog.json`, and candidate
-receipts remain versioned JSON.
-
-## Migrating to schema version 4
-
-Version 4 makes Flutter flavor selection global so iOS and future Android
-builds use the same application environment:
-
-| Version 3 | Version 4 |
-| --- | --- |
-| `schema_version: 3` | `schema_version: 4` |
-| `platforms.ios.scheme` | root `flavor` |
-
-Only one flavor can be selected for each run. Projects may define many flavors,
-but the configured value is the one passed to Flutter's `--flavor` option.
 
 ## Signing profiles
 

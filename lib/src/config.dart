@@ -475,11 +475,8 @@ void _schemaVersion(Map<String, Object?> value, String source) {
 }
 
 void _configSchemaVersion(Map<String, Object?> value, String source) {
-  if (value['schema_version'] != 4) {
-    _fail(
-      '$source.schema_version must be 4. Move platforms.ios.scheme to the '
-      'root flavor field.',
-    );
+  if (value['schema_version'] != 1) {
+    _fail('$source.schema_version must be 1');
   }
 }
 

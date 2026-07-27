@@ -2,7 +2,7 @@ import 'package:ship_my_flutter/ship_my_flutter.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> validConfig() => <String, Object?>{
-  'schema_version': 4,
+  'schema_version': 1,
   'app_path': '.',
   'target_branch': 'main',
   'release_branch_prefix': 'ship-my-flutter',
@@ -303,7 +303,7 @@ void main() {
           isA<ShipError>().having(
             (ShipError error) => error.message,
             'message',
-            contains('schema_version must be 4'),
+            contains('schema_version must be 1'),
           ),
         ),
       );

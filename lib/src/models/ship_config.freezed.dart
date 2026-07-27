@@ -230,7 +230,7 @@ return $default(_that.schemaVersion,_that.appPath,_that.flavor,_that.targetBranc
 
 
 class _ShipConfig implements ShipConfig {
-  const _ShipConfig({this.schemaVersion = 4, this.appPath = '.', this.flavor, this.targetBranch = 'main', this.releaseBranchPrefix = 'ship-my-flutter', this.hooks = const HooksConfig(), required this.ios});
+  const _ShipConfig({this.schemaVersion = 1, this.appPath = '.', this.flavor, this.targetBranch = 'main', this.releaseBranchPrefix = 'ship-my-flutter', this.hooks = const HooksConfig(), required this.ios});
   
 
 @override@JsonKey() final  int schemaVersion;
