@@ -19,21 +19,26 @@ export 'dtos/promotion_result.dart';
 export 'promotion_options.dart';
 
 Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
-  final root = p.normalize(p.absolute(options.root));
-  await validateRepository(root);
-  final (config, manifest) = await (loadConfig(root), loadManifest(root)).wait;
+  final workingDirectory = p.normalize(p.absolute(options.workingDirectory));
+  final paths = resolveSmfPaths(workingDirectory, smfPath: options.smfPath);
+  final repositoryRoot = paths.repositoryRoot;
+  await validateRepository(paths.directory);
+  final (config, manifest) = await (
+    loadConfig(paths.directory),
+    loadManifest(paths.directory),
+  ).wait;
   invariant(
     config.ios.enabled,
     'iOS delivery is disabled in configuration.',
     'IOS_DISABLED',
   );
   invariant(
-    await currentBranch(root) == config.targetBranch,
+    await currentBranch(repositoryRoot) == config.targetBranch,
     'Shipping only runs on ${config.targetBranch}.',
     'PROMOTION_BRANCH',
   );
   invariant(
-    await isClean(root),
+    await isClean(repositoryRoot),
     'The promotion checkout must be clean before its source is verified.',
     'DIRTY_WORKTREE',
   );
@@ -44,7 +49,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     'NO_PENDING_RELEASE',
   );
   final receipt = await loadCandidateReceipt(
-    candidatePath(root, Platform.ios, state.version),
+    candidatePath(paths.directory, Platform.ios, state.version),
   );
   invariant(
     receipt.version == state.version && receipt.platform == Platform.ios,
@@ -52,7 +57,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     'CANDIDATE_MISMATCH',
   );
   invariant(
-    await sourceFingerprint(root) == receipt.sourceFingerprint,
+    await sourceFingerprint(paths.directory) == receipt.sourceFingerprint,
     'The merged source does not match the tested TestFlight candidate. '
         'Produce a new candidate before promoting this version.',
     'UNTESTED_SOURCE',
@@ -61,8 +66,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
   final client =
       options.client ?? AppStoreConnectClient(options.appleCredentials);
   final bundleId = await options.resolveBundleIdentifier(
-    root,
-    config.appPath,
+    paths.appRoot,
     config.ios,
     flavor: config.flavor,
   );
@@ -102,7 +106,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     appStoreVersionId = appStoreVersion.id;
     if (appStoreVersion.attributes.appStoreState == 'PREPARE_FOR_SUBMISSION') {
       await client.attachBuildToVersion(appStoreVersion.id, receipt.buildId);
-      final notes = await loadStoreReleaseNotes(root);
+      final notes = await loadStoreReleaseNotes(paths.directory);
       for (final entry
           in (notes[Platform.ios]?[state.version] ?? const <String, String>{})
               .entries) {
@@ -126,10 +130,10 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     );
   }
 
-  final changelog = await loadChangelog(root);
+  final changelog = await loadChangelog(paths.directory);
   final release = changelog.iosReleases[state.version];
   if (release == null) {
-    throw ShipError(
+    throw SmfError(
       'Missing changelog for iOS ${state.version}',
       'MISSING_CHANGELOG',
     );
@@ -140,7 +144,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
       await githubApi.releaseByTag(tag) ??
       await githubApi.createRelease(
         tag: tag,
-        targetCommitish: await currentSha(root),
+        targetCommitish: await currentSha(repositoryRoot),
         name: 'iOS v${state.version}',
         body: releaseNotesMarkdown(Platform.ios, release),
       );

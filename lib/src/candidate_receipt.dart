@@ -51,8 +51,8 @@ CandidateReceipt validateCandidateReceipt(
       uploadedAt: uploadedAt,
       testflightGroups: groups,
     );
-  } on ShipError catch (error) {
-    throw ShipError(
+  } on SmfError catch (error) {
+    throw SmfError(
       '$source is invalid:\n${error.message}',
       'INVALID_CANDIDATE_RECEIPT',
       cause: error,
@@ -64,13 +64,13 @@ Future<CandidateReceipt> loadCandidateReceipt(String filePath) async {
   try {
     return validateCandidateReceipt(await readJson(filePath), source: filePath);
   } on FileSystemException catch (error) {
-    throw ShipError(
+    throw SmfError(
       'Could not read $filePath: ${error.message}',
       'CANDIDATE_RECEIPT_NOT_FOUND',
       cause: error,
     );
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '$filePath contains malformed JSON.',
       'INVALID_CANDIDATE_RECEIPT',
       cause: error,
@@ -122,4 +122,4 @@ DateTime _dateTime(Object? value, String path) {
 }
 
 Never _fail(String message) =>
-    throw ShipError(message, 'INVALID_CANDIDATE_RECEIPT');
+    throw SmfError(message, 'INVALID_CANDIDATE_RECEIPT');

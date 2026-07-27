@@ -21,7 +21,7 @@ Future<String> findIpa(
   invariant(
     p.equals(configuredPath, repositoryProjectRoot) ||
         p.isWithin(repositoryProjectRoot, configuredPath),
-    'The configured ipa_output_path must stay inside app_path.',
+    'The configured ipa_output_path must stay inside the Flutter app.',
     'IPA_PATH_ESCAPE',
   );
 
@@ -39,7 +39,7 @@ Future<String> findIpa(
     FileSystemEntityType.directory => Directory(
       configuredPath,
     ).resolveSymbolicLinks(),
-    _ => throw const ShipError(
+    _ => throw const SmfError(
       'The configured ipa_output_path must be a file or directory.',
       'IPA_NOT_FOUND',
     ),
@@ -47,7 +47,7 @@ Future<String> findIpa(
   invariant(
     p.equals(realConfiguredPath, realProjectRoot) ||
         p.isWithin(realProjectRoot, realConfiguredPath),
-    'The configured ipa_output_path resolves outside app_path.',
+    'The configured ipa_output_path resolves outside the Flutter app.',
     'IPA_PATH_ESCAPE',
   );
 
@@ -64,7 +64,7 @@ Future<String> findIpa(
   try {
     entries = await Directory(configuredPath).list().toList();
   } on FileSystemException catch (error) {
-    throw ShipError(
+    throw SmfError(
       'The build command did not produce an IPA in $configuredPath.',
       'IPA_NOT_FOUND',
       cause: error,
@@ -135,24 +135,24 @@ Future<String> runIosBuildCommand({
   );
   final managedCommand = StringBuffer(command)
     ..write(r''' \
-  --build-name "$SHIP_MY_FLUTTER_VERSION" \
-  --build-number "$SHIP_MY_FLUTTER_BUILD_NUMBER" \
-  --export-options-plist "$SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH"''');
+  --build-name "$SMF_PLATFORM_VERSION" \
+  --build-number "$SMF_BUILD_NUMBER" \
+  --export-options-plist "$SMF_EXPORT_OPTIONS_PATH"''');
   if (flavor != null) {
     managedCommand.write(r''' \
-  --flavor "$SHIP_MY_FLUTTER_FLAVOR"''');
+  --flavor "$SMF_FLAVOR"''');
   }
   await runShellCommand(
     managedCommand.toString(),
     options: RunOptions(
       workingDirectory: projectRoot,
       environment: <String, String>{
-        'SHIP_MY_FLUTTER_PLATFORM': 'ios',
-        'SHIP_MY_FLUTTER_VERSION': version,
-        'SHIP_MY_FLUTTER_BUILD_NUMBER': buildNumber,
-        'SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH': exportOptionsPath,
-        'SHIP_MY_FLUTTER_IPA_OUTPUT_PATH': resolvedArtifactPath,
-        'SHIP_MY_FLUTTER_FLAVOR': ?flavor,
+        'SMF_PLATFORM': 'ios',
+        'SMF_PLATFORM_VERSION': version,
+        'SMF_BUILD_NUMBER': buildNumber,
+        'SMF_EXPORT_OPTIONS_PATH': exportOptionsPath,
+        'SMF_IPA_OUTPUT_PATH': resolvedArtifactPath,
+        'SMF_FLAVOR': ?flavor,
       },
     ),
     processRunner: processRunner,

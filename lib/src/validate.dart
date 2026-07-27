@@ -22,22 +22,23 @@ Future<String?> _findWorkspaceLockfile(
   return null;
 }
 
-Future<void> validateRepository(String root) async {
-  final paths = resolveShipPaths(root);
+Future<void> validateRepository(String workingDirectory) async {
+  final paths = resolveSmfPaths(workingDirectory);
   final (config, manifest, changelog, _) = await (
-    loadConfig(root),
-    loadManifest(root),
-    loadChangelog(root),
-    loadStoreReleaseNotes(root),
+    loadConfig(paths.directory),
+    loadManifest(paths.directory),
+    loadChangelog(paths.directory),
+    loadStoreReleaseNotes(paths.directory),
   ).wait;
   invariant(
     await fileExists(paths.config),
-    '${p.relative(paths.config, from: root)} is missing.',
+    '${p.relative(paths.config, from: paths.repositoryRoot)} is missing.',
     'STATE_PATH_MISSING',
   );
   invariant(
     !(await Link(paths.config).exists()),
-    '${p.relative(paths.config, from: root)} must not be a symbolic link.',
+    '${p.relative(paths.config, from: paths.repositoryRoot)} must not be a '
+        'symbolic link.',
     'STATE_PATH_SYMLINK',
   );
   for (final statePath in <String>[
@@ -49,17 +50,18 @@ Future<void> validateRepository(String root) async {
     if (!(await fileExists(statePath))) continue;
     invariant(
       !(await Link(statePath).exists()),
-      '${p.relative(statePath, from: root)} must not be a symbolic link.',
+      '${p.relative(statePath, from: paths.repositoryRoot)} must not be a '
+          'symbolic link.',
       'STATE_PATH_SYMLINK',
     );
   }
 
   if (config.ios.enabled) {
-    final repositoryRoot = p.normalize(p.absolute(root));
-    final projectRoot = p.normalize(p.absolute(repositoryRoot, config.appPath));
+    final repositoryRoot = paths.repositoryRoot;
+    final projectRoot = paths.appRoot;
     invariant(
       await Directory(projectRoot).exists(),
-      'The Flutter app_path does not exist.',
+      'The Flutter app directory does not exist.',
       'APP_PATH_NOT_FOUND',
     );
     final (repositoryRealPath, projectRealPath) = await (
@@ -69,12 +71,12 @@ Future<void> validateRepository(String root) async {
     invariant(
       projectRealPath == repositoryRealPath ||
           p.isWithin(repositoryRealPath, projectRealPath),
-      'The Flutter app_path resolves outside the repository.',
+      'The Flutter app directory resolves outside the repository.',
       'APP_PATH_ESCAPE',
     );
     invariant(
       await fileExists(p.join(projectRoot, 'pubspec.yaml')),
-      'No pubspec.yaml exists under ${config.appPath}.',
+      'No pubspec.yaml exists in the Flutter app directory.',
       'PUBSPEC_NOT_FOUND',
     );
     final lockfile = await _findWorkspaceLockfile(repositoryRoot, projectRoot);
@@ -84,9 +86,9 @@ Future<void> validateRepository(String root) async {
           'root.',
       'LOCKFILE_NOT_FOUND',
     );
-    final relativeLockfile = p.relative(lockfile!, from: root);
+    final relativeLockfile = p.relative(lockfile!, from: repositoryRoot);
     invariant(
-      (await git(root, <String>[
+      (await git(repositoryRoot, <String>[
         'ls-files',
         '--error-unmatch',
         relativeLockfile,
@@ -97,7 +99,7 @@ Future<void> validateRepository(String root) async {
     final iosPath = p.join(projectRoot, 'ios');
     invariant(
       await Directory(iosPath).exists(),
-      'No ios directory exists under ${config.appPath}.',
+      'No ios directory exists in the Flutter app.',
       'IOS_PROJECT_NOT_FOUND',
     );
     final iosRealPath = await Directory(iosPath).resolveSymbolicLinks();

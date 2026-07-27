@@ -139,7 +139,7 @@ Future<void> _recordCandidateReceipt({
     final description = refreshed
         ? 'refreshed candidate receipt'
         : 'candidate receipt';
-    throw ShipError(
+    throw SmfError(
       'The TestFlight build is valid, but its $description could not be '
           'committed. Do not merge the release PR until this is repaired.',
       'CANDIDATE_RECEIPT_COMMIT',
@@ -149,15 +149,20 @@ Future<void> _recordCandidateReceipt({
 }
 
 Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
-  final root = p.normalize(p.absolute(options.root));
-  await validateRepository(root);
-  final (config, manifest) = await (loadConfig(root), loadManifest(root)).wait;
+  final workingDirectory = p.normalize(p.absolute(options.workingDirectory));
+  final paths = resolveSmfPaths(workingDirectory, smfPath: options.smfPath);
+  final repositoryRoot = paths.repositoryRoot;
+  await validateRepository(paths.directory);
+  final (config, manifest) = await (
+    loadConfig(paths.directory),
+    loadManifest(paths.directory),
+  ).wait;
   invariant(
     config.ios.enabled,
     'iOS delivery is disabled in configuration.',
     'IOS_DISABLED',
   );
-  final branch = await currentBranch(root);
+  final branch = await currentBranch(repositoryRoot);
   final releaseBranch = releaseBranchName(Platform.ios);
   invariant(
     branch == releaseBranch,
@@ -165,7 +170,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     'CANDIDATE_BRANCH',
   );
   invariant(
-    await isClean(root),
+    await isClean(repositoryRoot),
     'The candidate checkout must be clean before repository hooks run.',
     'DIRTY_WORKTREE',
   );
@@ -175,40 +180,46 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     'The iOS manifest does not contain a pending release.',
     'NO_PENDING_RELEASE',
   );
-  final beforeBuild = config.hooks.beforeBuild;
-  final hookStartingSha = beforeBuild == null ? null : await currentSha(root);
-  await options.dependencies.runBeforeBuild(root, config, state.version);
-  if (beforeBuild != null && beforeBuild.commit) {
+  final hookStartingSha = await currentSha(repositoryRoot);
+  final commitHookChanges = await options.dependencies.runBeforeBuild(
+    paths.directory,
+    config,
+    state.version,
+  );
+  if (commitHookChanges == true) {
     await _commitBeforeBuildChanges(
-      root,
+      repositoryRoot,
       state.version,
-      hookStartingSha!,
+      hookStartingSha,
       options.github,
     );
   } else {
     invariant(
-      await isClean(root),
+      await isClean(repositoryRoot),
       'The before_build hook changed tracked or unignored files while '
           'commit is false. Commit or ignore those files in the hook.',
       'BUILD_HOOK_DIRTY_WORKTREE',
     );
   }
-  final projectRoot = p.normalize(p.absolute(root, config.appPath));
+  final projectRoot = paths.appRoot;
   final bundleId = await options.dependencies.resolveBundleIdentifier(
-    root,
-    config.appPath,
+    projectRoot,
     config.ios,
     flavor: config.flavor,
   );
   final client =
       options.client ?? AppStoreConnectClient(options.appleCredentials);
   final app = await client.findApp(bundleId);
-  final fingerprint = await sourceFingerprint(root);
-  final receiptPath = candidatePath(root, Platform.ios, state.version);
+  final fingerprint = await sourceFingerprint(paths.directory);
+  final receiptPath = candidatePath(
+    paths.directory,
+    Platform.ios,
+    state.version,
+  );
   final reusable = await _reusableCandidate(receiptPath, fingerprint, client);
   if (reusable != null) {
     await _applyTestflightMetadata(
-      root: root,
+      root: paths.directory,
       version: state.version,
       appId: app.id,
       buildId: reusable.buildId,
@@ -219,7 +230,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
       testflightGroups: config.ios.testflight.groups,
     );
     await _recordCandidateReceipt(
-      root: root,
+      root: repositoryRoot,
       receiptPath: receiptPath,
       receipt: refreshed,
       commitReceipt: options.commitReceipt,
@@ -230,7 +241,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   }
 
   final buildNumber = await client.nextBuildNumber(app.id, state.version);
-  final sourceSha = await currentSha(root);
+  final sourceSha = await currentSha(repositoryRoot);
   final signing = await options.dependencies.installSigning(
     options.signingCredentials,
     bundleId,
@@ -250,13 +261,13 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
       flavor: config.flavor,
     );
     invariant(
-      await isClean(root),
+      await isClean(repositoryRoot),
       'The Flutter build changed tracked or unignored repository files. '
           'Commit deterministic generated inputs before producing a candidate.',
       'BUILD_DIRTY_WORKTREE',
     );
     invariant(
-      await sourceFingerprint(root) == fingerprint,
+      await sourceFingerprint(paths.directory) == fingerprint,
       'A tracked build input changed while producing the IPA.',
       'BUILD_INPUT_CHANGED',
     );
@@ -272,7 +283,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     config.ios.testflight.waitTimeoutMinutes,
   );
   await _applyTestflightMetadata(
-    root: root,
+    root: paths.directory,
     version: state.version,
     appId: app.id,
     buildId: build.id,
@@ -292,7 +303,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     testflightGroups: config.ios.testflight.groups,
   );
   await _recordCandidateReceipt(
-    root: root,
+    root: repositoryRoot,
     receiptPath: receiptPath,
     receipt: receipt,
     commitReceipt: options.commitReceipt,

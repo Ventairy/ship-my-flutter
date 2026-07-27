@@ -14,14 +14,13 @@ final class CredentialProvider {
 
   Future<AppleCredentials> appleCredentials() async {
     final privateKeyBase64 = _optional(const <String>[
-      'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
       'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
     ]);
     final privateKeyPath = _optional(const <String>[
-      'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
+      'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
     ]);
     if (privateKeyBase64 != null && privateKeyPath != null) {
-      throw const ShipError(
+      throw const SmfError(
         'Set only one App Store Connect private-key source.',
         'CONFLICTING_CREDENTIAL',
       );
@@ -30,7 +29,6 @@ final class CredentialProvider {
         ? _decodeBase64(
             privateKeyBase64 ??
                 _required(const <String>[
-                  'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
                   'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
                 ]),
             'App Store Connect private key',
@@ -42,41 +40,26 @@ final class CredentialProvider {
       'INVALID_CREDENTIAL',
     );
     return AppleCredentials(
-      keyId: _required(const <String>[
-        'SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID',
-        'SMF_APP_STORE_CONNECT_KEY_ID',
-      ]),
-      issuerId: _required(const <String>[
-        'SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID',
-        'SMF_APP_STORE_CONNECT_ISSUER_ID',
-      ]),
+      keyId: _required(const <String>['SMF_APP_STORE_CONNECT_KEY_ID']),
+      issuerId: _required(const <String>['SMF_APP_STORE_CONNECT_ISSUER_ID']),
       privateKey: privateKey,
     );
   }
 
   Future<SigningCredentials> signingCredentials() async {
     final certificateBase64 = await _base64Value(
-      base64Names: const <String>[
-        'SHIP_MY_FLUTTER_IOS_CERTIFICATE_BASE64',
-        'SMF_IOS_CERTIFICATE_BASE64',
-      ],
-      pathNames: const <String>['SHIP_MY_FLUTTER_IOS_CERTIFICATE_PATH'],
+      base64Names: const <String>['SMF_IOS_CERTIFICATE_BASE64'],
+      pathNames: const <String>['SMF_IOS_CERTIFICATE_PATH'],
       label: 'iOS distribution certificate',
     );
     final provisioningProfiles = await _base64Value(
-      base64Names: const <String>[
-        'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_BASE64',
-        'SMF_IOS_PROVISIONING_PROFILES_BASE64',
-      ],
-      pathNames: const <String>[
-        'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_PATH',
-      ],
+      base64Names: const <String>['SMF_IOS_PROVISIONING_PROFILES_BASE64'],
+      pathNames: const <String>['SMF_IOS_PROVISIONING_PROFILES_PATH'],
       label: 'iOS provisioning profiles',
     );
     return SigningCredentials(
       certificateBase64: certificateBase64,
       certificatePassword: _required(const <String>[
-        'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PASSWORD',
         'SMF_IOS_CERTIFICATE_PASSWORD',
       ]),
       provisioningProfiles: provisioningProfiles,
@@ -91,7 +74,7 @@ final class CredentialProvider {
     final encoded = _optional(base64Names);
     final path = _optional(pathNames);
     if (encoded != null && path != null) {
-      throw ShipError('Set only one $label source.', 'CONFLICTING_CREDENTIAL');
+      throw SmfError('Set only one $label source.', 'CONFLICTING_CREDENTIAL');
     }
     if (path != null) {
       return base64Encode(await File(path).readAsBytes());
@@ -102,7 +85,7 @@ final class CredentialProvider {
   String _required(List<String> names) {
     final value = _optional(names);
     if (value == null) {
-      throw ShipError(
+      throw SmfError(
         'Missing required secret ${names.first}.',
         'MISSING_CREDENTIAL',
       );
@@ -141,7 +124,7 @@ String _decodeBase64(String value, String name) {
     );
     return decoded;
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '$name is not valid Base64-encoded UTF-8.',
       'INVALID_CREDENTIAL',
       cause: error,

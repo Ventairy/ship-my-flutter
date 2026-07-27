@@ -1,4 +1,4 @@
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 
 final class FakeGitHubApi implements GitHubApi {
   GitHubRelease? existingRelease;

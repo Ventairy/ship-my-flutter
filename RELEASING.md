@@ -1,4 +1,4 @@
-# Releasing ship-my-flutter
+# Releasing smf
 
 Release Please owns the core package version, changelog, immutable `vX.Y.Z`
 tag, and GitHub Release. Publishing to pub.dev remains a separately authorized
@@ -48,11 +48,11 @@ must be published manually from the exact immutable Release Please tag:
 2. Repeat the complete gate and inspect the package archive.
 3. Run `dart pub publish` and complete pub.dev authentication.
 4. Verify the published version and archive on pub.dev.
-5. Verify both `dart pub add --dev ship_my_flutter` and
-   `dart pub global activate ship_my_flutter` in separate clean consumers.
+5. Verify both `dart pub add --dev smf` and
+   `dart pub global activate smf` in separate clean consumers.
 
 Only after the first version exists may maintainers configure pub.dev automated
-publishing for `Ventairy/ship-my-flutter`. Use the tag pattern
+publishing for `Ventairy/smf`. Use the tag pattern
 `v{{version}}`, require a protected GitHub environment named `pub.dev`, and add
 a tag-triggered OIDC publishing workflow. Keep publication separate from the
 Release Please job so a publication failure cannot rewrite release history.
@@ -60,9 +60,9 @@ Release Please job so a publication failure cannot rewrite release history.
 ## GitHub Action
 
 1. Run the core gate and `pnpm run vendor-core` in the adjacent Action checkout.
-2. In `ship-my-flutter-action`, run `pnpm install --frozen-lockfile`, resolve
+2. In `smf-action`, run `pnpm install --frozen-lockfile`, resolve
    the vendored Dart lockfile, and run `pnpm run check`.
-3. Confirm `vendor/ship-my-flutter/CORE_COMMIT` names the reviewed immutable
+3. Confirm `vendor/smf/CORE_COMMIT` names the reviewed immutable
    core commit. Regenerate `dist`, then verify a second build produces no diff
    in `dist` or `vendor`.
 4. Test `plan`, candidate dispatch, and merged-release dispatch against a
@@ -71,6 +71,6 @@ Release Please job so a publication failure cannot rewrite release history.
 6. Create an immutable release tag such as `v1.0.0`.
 7. Move the floating major tag `v1` only after the immutable release succeeds.
 8. Confirm a clean external repository can use
-   `Ventairy/ship-my-flutter-action@v1`.
+   `Ventairy/smf-action@v1`.
 
 Do not tag, publish, or move `v1` from an unvalidated working tree.

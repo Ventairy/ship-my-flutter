@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -20,13 +20,13 @@ void main() {
       await expectLater(
         api.listPullRequests(
           state: 'open',
-          head: 'o:ship-my-flutter/ios',
+          head: 'o:smf/ios',
           base: 'main',
           perPage: 1,
         ),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'GITHUB_API',
           ),
@@ -60,7 +60,7 @@ void main() {
       expect(
         (await api.listPullRequests(
           state: 'open',
-          head: 'o:ship-my-flutter/ios',
+          head: 'o:smf/ios',
           base: 'main',
           perPage: 1,
         )).single.number,
@@ -68,7 +68,7 @@ void main() {
       );
       expect(
         (await api.createPullRequest(
-          head: 'ship-my-flutter/ios',
+          head: 'smf/ios',
           base: 'main',
           title: 'release',
           body: 'body',
@@ -87,14 +87,8 @@ void main() {
 
       expect(requests.first.headers['authorization'], 'Bearer secret');
       expect(requests.first.url.path, '/repos/o/r/pulls');
-      expect(
-        requests.first.url.queryParameters['head'],
-        'o:ship-my-flutter/ios',
-      );
-      expect(
-        jsonDecode(requests[1].body),
-        containsPair('head', 'ship-my-flutter/ios'),
-      );
+      expect(requests.first.url.queryParameters['head'], 'o:smf/ios');
+      expect(jsonDecode(requests[1].body), containsPair('head', 'smf/ios'));
     },
   );
 
@@ -132,13 +126,13 @@ void main() {
     await expectLater(
       api.listPullRequests(
         state: 'open',
-        head: 'o:ship-my-flutter/ios',
+        head: 'o:smf/ios',
         base: 'main',
         perPage: 1,
       ),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
+        isA<SmfError>().having(
+          (SmfError error) => error.code,
           'code',
           'GITHUB_RESPONSE',
         ),

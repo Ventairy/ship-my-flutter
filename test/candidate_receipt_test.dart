@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 String repeated(String value, int count) =>
@@ -33,8 +33,8 @@ void main() {
     await expectLater(
       loadCandidateReceipt(path),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
+        isA<SmfError>().having(
+          (SmfError error) => error.code,
           'code',
           'INVALID_CANDIDATE_RECEIPT',
         ),
@@ -56,8 +56,8 @@ void main() {
       expect(
         () => validateCandidateReceipt(malformed),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('candidate receipt is invalid'),
           ),

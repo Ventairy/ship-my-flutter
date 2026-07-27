@@ -1,6 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
-/// A release platform supported by ship-my-flutter.
+/// A release platform supported by smf.
 enum Platform {
   /// Apple's iOS platform.
   @JsonValue('ios')

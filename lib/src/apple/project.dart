@@ -7,16 +7,10 @@ import '../model.dart' hide Platform;
 import '../process_runner.dart';
 
 typedef ResolveBundleId =
-    Future<String> Function(
-      String repositoryRoot,
-      String appPath,
-      IosConfig config, {
-      String? flavor,
-    });
+    Future<String> Function(String appRoot, IosConfig config, {String? flavor});
 
 Future<String> resolveBundleId(
-  String repositoryRoot,
-  String appPath,
+  String appRoot,
   IosConfig config, {
   String? flavor,
   ProcessRunner processRunner = const SystemProcessRunner(),
@@ -24,14 +18,14 @@ Future<String> resolveBundleId(
 }) async {
   if (config.bundleId != null) return config.bundleId!;
   if (!(isMacOS ?? Platform.isMacOS)) {
-    throw const ShipError(
+    throw const SmfError(
       'platforms.ios.bundle_id is required when configuration is validated '
           'outside macOS.',
       'BUNDLE_ID_REQUIRED',
     );
   }
 
-  final projectRoot = p.normalize(p.absolute(repositoryRoot, appPath));
+  final projectRoot = p.normalize(p.absolute(appRoot));
   final iosDirectory = p.join(projectRoot, 'ios');
   final entries = await Directory(iosDirectory).list().toList();
   final workspace = entries
@@ -65,7 +59,7 @@ Future<String> resolveBundleId(
         ]
       : const <String>[];
   if (arguments.isEmpty) {
-    throw ShipError(
+    throw SmfError(
       'No Xcode workspace or project found in $iosDirectory.',
       'XCODE_PROJECT_NOT_FOUND',
     );
@@ -81,9 +75,9 @@ Future<String> resolveBundleId(
   ).allMatches(result.stdout);
   final bundleId = matches.isEmpty ? null : matches.last.group(1)?.trim();
   if (bundleId == null || bundleId.isEmpty || bundleId.contains(r'$(')) {
-    throw const ShipError(
+    throw const SmfError(
       'Could not detect PRODUCT_BUNDLE_IDENTIFIER. Set '
-          'platforms.ios.bundle_id in .ship-my-flutter/config.yaml.',
+          'platforms.ios.bundle_id in smf/config.yaml.',
       'BUNDLE_ID_REQUIRED',
     );
   }

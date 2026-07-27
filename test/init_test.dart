@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -26,7 +26,7 @@ void main() {
       final baselineSha = await currentSha(root.path);
 
       await initialize(
-        InitOptions(root: root.path, bundleId: 'dev.example.app'),
+        InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
       );
 
       final manifest = await loadManifest(root.path);
@@ -35,25 +35,26 @@ void main() {
       expect(manifest.ios.pendingRelease, isFalse);
       final config = await loadConfig(root.path);
       expect(config.schemaVersion, 1);
-      expect(config.appPath, '.');
       expect(config.ios.initialVersion, '3.2.1');
       expect(config.ios.buildCommand, isNull);
       expect(config.ios.appStore.mode, ReleaseMode.upload);
       final configText = await File(
-        resolveShipPaths(root.path).config,
+        resolveSmfPaths(root.path).config,
       ).readAsString();
       expect(
         configText,
         contains(
           '# yaml-language-server: \$schema='
-          'https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/'
+          'https://raw.githubusercontent.com/Ventairy/smf/main/'
           'schemas/config.schema.json',
         ),
       );
       expect(configText, isNot(contains('build_command:')));
       expect(configText, isNot(contains('ipa_output_path:')));
+      expect(configText, isNot(contains('app_path:')));
+      expect(configText, isNot(contains('hooks:')));
       expect(config.ios.ipaOutputPath, 'build/ios/ipa');
-      final paths = resolveShipPaths(root.path);
+      final paths = resolveSmfPaths(root.path);
       expect(await File(paths.manifest).exists(), isFalse);
       expect(await File(paths.changelog).exists(), isFalse);
       expect(await File(paths.storeReleaseNotes).exists(), isFalse);
@@ -61,11 +62,15 @@ void main() {
       expect((await loadChangelog(root.path)).iosReleases, isEmpty);
       expect(await loadStoreReleaseNotes(root.path), isEmpty);
       final workflow = await File(
-        p.join(root.path, '.github', 'workflows', 'ship-my-flutter.yml'),
+        p.join(root.path, '.github', 'workflows', 'smf.yml'),
       ).readAsString();
-      expect(workflow, contains('Ventairy/ship-my-flutter-action@v1'));
+      expect(workflow, await File('templates/smf.yml').readAsString());
+      expect(workflow, contains('Ventairy/smf-action@v1'));
       expect(workflow, contains('subosito/flutter-action@'));
-      expect(workflow, contains("hashFiles('.fvmrc', '.fvm/fvm_config.json')"));
+      expect(
+        workflow,
+        contains("hashFiles('**/.fvmrc', '**/.fvm/fvm_config.json')"),
+      );
       expect(workflow, contains('dart pub global activate fvm 4.1.2'));
       expect(workflow, contains('runs-on: macos-26'));
       expect(workflow, contains('  pull_request:'));
@@ -83,4 +88,30 @@ void main() {
       );
     },
   );
+
+  test('initializes a nested Flutter app without an app_path field', () async {
+    final repository = await Directory.systemTemp.createTemp('smf-init-');
+    addTearDown(() => repository.delete(recursive: true));
+    final app = Directory(p.join(repository.path, 'apps', 'mobile'));
+    await Directory(p.join(app.path, 'ios')).create(recursive: true);
+    await File(
+      p.join(app.path, 'pubspec.yaml'),
+    ).writeAsString('name: mobile\nversion: 2.0.0+1\n');
+    await git(repository.path, const <String>['init', '-b', 'main']);
+
+    await initialize(InitOptions(appRoot: app.path));
+
+    final configPath = p.join(app.path, 'smf', 'config.yaml');
+    expect(await File(configPath).exists(), isTrue);
+    expect(await File(configPath).readAsString(), isNot(contains('app_path')));
+    expect(
+      await File(
+        p.join(repository.path, '.github', 'workflows', 'smf.yml'),
+      ).exists(),
+      isTrue,
+    );
+    final paths = resolveSmfPaths(repository.path);
+    expect(paths.appRoot, app.path);
+    expect(paths.repositoryRoot, repository.path);
+  });
 }

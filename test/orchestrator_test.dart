@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 String repeated(String value, int count) =>
@@ -27,7 +27,9 @@ Future<Directory> repository() async {
   ]);
   await git(root.path, const <String>['add', '.']);
   await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-  await initialize(InitOptions(root: root.path, bundleId: 'dev.example.app'));
+  await initialize(
+    InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
+  );
   await git(root.path, const <String>['add', '.']);
   await git(root.path, const <String>[
     'commit',
@@ -45,14 +47,10 @@ void main() {
       'routes only configured pending release branch to release-candidate',
       () async {
         final root = await repository();
-        await git(root.path, const <String>[
-          'checkout',
-          '-b',
-          'ship-my-flutter/ios',
-        ]);
-        final paths = resolveShipPaths(root.path);
+        await git(root.path, const <String>['checkout', '-b', 'smf/ios']);
+        final paths = resolveSmfPaths(root.path);
         final initial = await loadManifest(root.path);
-        final manifest = ShipManifest(
+        final manifest = SmfManifest(
           ios: PlatformManifest(
             version: '1.1.0',
             baselineSha: initial.ios.baselineSha,
@@ -96,19 +94,22 @@ void main() {
         ]);
 
         final result = await planGitHubRelease(
-          root: root.path,
+          workingDirectory: root.path,
           github: context,
         );
         expect(result.toJson(), <String, Object?>{
           'phase': 'release-candidate',
           'platform': 'ios',
           'version': '1.1.0',
-          'branch': 'ship-my-flutter/ios',
+          'branch': 'smf/ios',
         });
 
         await git(root.path, const <String>['tag', 'ios-v1.1.0']);
         expect(
-          (await planGitHubRelease(root: root.path, github: context)).toJson(),
+          (await planGitHubRelease(
+            workingDirectory: root.path,
+            github: context,
+          )).toJson(),
           <String, Object?>{'phase': 'noop'},
         );
       },
@@ -118,20 +119,26 @@ void main() {
       final root = await repository();
       await git(root.path, const <String>['checkout', '-b', 'docs']);
       expect(
-        (await planGitHubRelease(root: root.path, github: context)).toJson(),
+        (await planGitHubRelease(
+          workingDirectory: root.path,
+          github: context,
+        )).toJson(),
         <String, Object?>{'phase': 'noop'},
       );
     });
 
     test('does nothing when iOS delivery is disabled', () async {
       final root = await repository();
-      final configFile = File(resolveShipPaths(root.path).config);
+      final configFile = File(resolveSmfPaths(root.path).config);
       final config = await configFile.readAsString();
       await configFile.writeAsString(
         config.replaceFirst('enabled: true', 'enabled: false'),
       );
       expect(
-        (await planGitHubRelease(root: root.path, github: context)).toJson(),
+        (await planGitHubRelease(
+          workingDirectory: root.path,
+          github: context,
+        )).toJson(),
         <String, Object?>{'phase': 'noop'},
       );
     });

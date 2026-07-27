@@ -38,10 +38,10 @@ String releasePullRequestBody(Platform platform, ChangelogRelease release) {
   final notes = releaseNotesMarkdown(platform, release);
   const deliveryMessage =
       'Merging this PR promotes the exact committed TestFlight candidate. If '
-      'build inputs change after the candidate is uploaded, ship-my-flutter '
+      'build inputs change after the candidate is uploaded, smf '
       'refuses promotion until a new candidate is produced.';
   return <String>[
-    '<!-- ship-my-flutter:release-pr -->',
+    '<!-- smf:release-pr -->',
     notes.trim(),
     '',
     '## Delivery',

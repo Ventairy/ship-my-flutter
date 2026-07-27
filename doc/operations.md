@@ -1,6 +1,6 @@
 # Operating release PRs
 
-ship-my-flutter keeps release state in Git, but a release PR still needs a
+smf keeps release state in Git, but a release PR still needs a
 maintainer decision. Use this page for routine operation and recovery.
 
 ## Before merging
@@ -8,7 +8,7 @@ maintainer decision. Use this page for routine operation and recovery.
 Do not merge a release PR until:
 
 1. its release-candidate job has committed
-   `.ship-my-flutter/candidates/ios-<version>.json`;
+   `smf/candidates/ios-<version>.json`;
 2. the recorded build is visible and valid in TestFlight;
 3. the exact candidate has been tested;
 4. any localized store notes supplied in the PR are correct.

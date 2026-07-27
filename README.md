@@ -1,32 +1,33 @@
-# ship-my-flutter
+# smf
 
 Release PRs, TestFlight candidates, and App Store submission for Flutter apps.
 
 > [!WARNING]
-> This project is in pre-release validation. The `ship_my_flutter` Dart package
+> This project is in pre-release validation. The `smf` Dart package
 > is not published yet, and the companion action does not have a `v1` tag.
-> Follow [core issue #1](https://github.com/Ventairy/ship-my-flutter/issues/1)
-> and [action issue #1](https://github.com/Ventairy/ship-my-flutter-action/issues/1)
+> Follow [core issue #1](https://github.com/Ventairy/smf/issues/1)
+> and [action issue #1](https://github.com/Ventairy/smf-action/issues/1)
 > for the live Apple acceptance and first publication gates. The quick start
 > below describes the post-publication interface; do not assume pub.dev or `@v1`
 > is available before those issues are complete. Non-Apple release planning is
 > exercised publicly in
-> [`Ventairy/ship-my-flutter-dart-e2e`](https://github.com/Ventairy/ship-my-flutter-dart-e2e).
+> [`Ventairy/smf-e2e`](https://github.com/Ventairy/smf-e2e).
 
 For non-Apple evaluation before publication, copy the current immutable
 core/Action pair recorded in the
-[`ship-my-flutter-dart-e2e` README](https://github.com/Ventairy/ship-my-flutter-dart-e2e#readme).
+[`smf-e2e` README](https://github.com/Ventairy/smf-e2e#readme).
 That external fixture can name the core commit without creating a circular
 self-reference in this repository. Its commits cover only the documented
 non-Apple boundary; they are not a production release.
 
-`ship-my-flutter` turns the iOS release process into a code review:
+`smf` turns the iOS release process into a code review:
 
 1. Merge normal Conventional Commits into `main`.
 2. Review an automatically maintained iOS release PR and test its exact build in TestFlight.
 3. Merge the release PR to submit that same build to App Review—or leave it uploaded only.
 
-No Fastfile is required. Versions, changelog data, localized store notes, and the TestFlight candidate receipt all live in `.ship-my-flutter`.
+No Fastfile is required. Versions, changelog data, localized store notes, and
+the TestFlight candidate receipt all live beside the Flutter app in `smf/`.
 
 > [!IMPORTANT]
 > v1 supports iOS and App Store Connect. The configuration and release state are platform-scoped so Android can be added without introducing a shared app version.
@@ -49,12 +50,11 @@ Unknown scopes such as `auth` are feature scopes, not platform scopes, so they a
 
 ### 1. Initialize the Flutter repository
 
-For a single-app repository, run this from the Git repository root (which is
-also the Flutter project root):
+Run this from the Flutter app directory:
 
 ```bash
-dart pub add --dev ship_my_flutter
-dart run ship_my_flutter init \
+dart pub add --dev smf
+dart run smf init \
   --current-version <current-ios-version> \
   --bundle-id com.example.myapp
 ```
@@ -67,30 +67,25 @@ commit if the first release should be 1.0.0. If omitted, the initializer reads
 the stable version from `pubspec.yaml` and otherwise falls back to `0.0.0`;
 passing it explicitly is safer.
 
-In a monorepo, `.github` and `.ship-my-flutter` must live at the Git repository
-root. If `ship_my_flutter` is installed in a nested app package, run from that
-package but point initialization at the repository:
+In a monorepo, run the same command from the nested Flutter app. SMF places
+configuration beside that app and the workflow at the Git repository root:
 
 ```bash
-dart run ship_my_flutter init \
-  --root ../.. \
+cd apps/mobile
+dart run smf init \
   --current-version <current-ios-version> \
   --bundle-id com.example.myapp
 ```
 
-Then set the root `app_path` to the Flutter app path relative to the repository
-root. iOS and future Android delivery share this location. The exact `--root`
-value depends on the workspace layout.
-
 This creates:
 
 ```text
-.ship-my-flutter/config.yaml
-.github/workflows/ship-my-flutter.yml
+<flutter-app>/smf/config.yaml
+<repository>/.github/workflows/smf.yml
 ```
 
 Commit both files with a non-release message such as
-`chore: configure ship-my-flutter` before merging new release-worthy work. The
+`chore: configure smf` before merging new release-worthy work. The
 first plan derives the release baseline from the commit that introduced
 `config.yaml`, so existing repository history is not released accidentally.
 
@@ -104,12 +99,12 @@ absent unless a maintainer or hook supplies at least one localized note.
 The package offers one discoverable CLI with subcommands:
 
 ```bash
-dart run ship_my_flutter --help
-dart run ship_my_flutter validate
-dart run ship_my_flutter plan
-dart run ship_my_flutter open-pr
-dart run ship_my_flutter testflight
-dart run ship_my_flutter app-store
+dart run smf --help
+dart run smf validate
+dart run smf plan
+dart run smf open-pr
+dart run smf testflight
+dart run smf app-store
 ```
 
 Success writes one JSON value to stdout, so the same commands compose cleanly
@@ -120,31 +115,35 @@ Package-qualified executables are also available when a single-purpose command
 fits better:
 
 ```bash
-dart run ship_my_flutter:init
-dart run ship_my_flutter:open_pr
-dart run ship_my_flutter:release
-dart run ship_my_flutter:testflight
-dart run ship_my_flutter:promote
-dart run ship_my_flutter:app_store
+dart run smf:init
+dart run smf:open_pr
+dart run smf:release
+dart run smf:testflight
+dart run smf:promote
+dart run smf:app_store
 ```
 
 For use outside a project, activate the package globally:
 
 ```bash
-dart pub global activate ship_my_flutter
-ship-my-flutter validate
+dart pub global activate smf
+smf validate
 ```
 
 Custom Dart automation imports the same implementation used by the Action:
 
 ```dart
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 
 Future<void> main() async {
-  const root = '.';
-  await validateRepository(root);
-  final manifest = await loadManifest(root);
-  final plan = await createReleasePlan(root, manifest, Platform.ios);
+  final paths = resolveSmfPaths('.');
+  await validateRepository(paths.directory);
+  final manifest = await loadManifest(paths.directory);
+  final plan = await createReleasePlan(
+    paths.repositoryRoot,
+    manifest,
+    Platform.ios,
+  );
   print(plan?.toJson());
 }
 ```
@@ -162,10 +161,10 @@ organization owner to enable it or give the pull-request step a GitHub App insta
 token (preferred) or narrowly scoped personal access token:
 
 ```yaml
-- uses: Ventairy/ship-my-flutter-action@v1
+- uses: Ventairy/smf-action@v1
   with:
     phase: pull-request
-    github-token: ${{ secrets.SHIP_MY_FLUTTER_GITHUB_TOKEN }}
+    github-token: ${{ secrets.SMF_GITHUB_TOKEN }}
 ```
 
 For a fine-grained personal access token, grant access only to the Flutter
@@ -174,7 +173,7 @@ The same token performs the authenticated release-branch push. Treat the
 alternative token as a release secret.
 
 The default `GITHUB_TOKEN` does not trigger separate workflow runs for events
-it creates. That does not affect ship-my-flutter's release-candidate job—the generated
+it creates. That does not affect smf's release-candidate job—the generated
 workflow dispatches it from the pull-request job's outputs—but it can suppress your
 repository's normal `pull_request` checks on the generated release PR. Use the
 GitHub App or PAT path when those independent checks must run automatically.
@@ -218,22 +217,22 @@ in command history or process arguments:
 
 | Variable                                                         | Used by                  |
 | ---------------------------------------------------------------- | ------------------------ |
-| `SHIP_MY_FLUTTER_GITHUB_TOKEN` or `GITHUB_TOKEN`                  | `open-pr`, `release`, promotion |
+| `SMF_GITHUB_TOKEN` or `GITHUB_TOKEN`                  | `open-pr`, `release`, promotion |
 | `GITHUB_REPOSITORY`                                              | GitHub commands; `owner/name` |
-| `SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID`                       | TestFlight and App Store |
-| `SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID`                    | TestFlight and App Store |
-| `SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64`           | TestFlight and App Store |
-| `SHIP_MY_FLUTTER_IOS_CERTIFICATE_BASE64`                         | TestFlight candidate     |
-| `SHIP_MY_FLUTTER_IOS_CERTIFICATE_PASSWORD`                       | TestFlight candidate     |
-| `SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_BASE64`               | TestFlight candidate     |
+| `SMF_APP_STORE_CONNECT_KEY_ID`                       | TestFlight and App Store |
+| `SMF_APP_STORE_CONNECT_ISSUER_ID`                    | TestFlight and App Store |
+| `SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64`           | TestFlight and App Store |
+| `SMF_IOS_CERTIFICATE_BASE64`                         | TestFlight candidate     |
+| `SMF_IOS_CERTIFICATE_PASSWORD`                       | TestFlight candidate     |
+| `SMF_IOS_PROVISIONING_PROFILES_BASE64`               | TestFlight candidate     |
 
 For local files, replace the private key, certificate, or profile Base64
 variable with its `_PATH` form:
 
 ```text
-SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH
-SHIP_MY_FLUTTER_IOS_CERTIFICATE_PATH
-SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_PATH
+SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH
+SMF_IOS_CERTIFICATE_PATH
+SMF_IOS_PROVISIONING_PROFILES_PATH
 ```
 
 Set exactly one source for each credential. The certificate password remains
@@ -242,18 +241,16 @@ an environment secret. GitHub automation can alternatively use
 
 ### 4. Configure TestFlight and submission behavior
 
-The generated `.ship-my-flutter/config.yaml` includes a JSON Schema directive
+The generated `smf/config.yaml` includes a JSON Schema directive
 for editor validation and autocomplete. It is ready for a standard Flutter app;
 add TestFlight group names if builds should be assigned automatically:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/schemas/config.schema.json
 
 schema_version: 1
-app_path: .
 # flavor: production
 target_branch: main
-hooks: {}
 platforms:
   ios:
     enabled: true
@@ -279,7 +276,7 @@ metadata is complete.
 
 The complete contract is in [Configuration](doc/configuration.md).
 
-For a standard Flutter app, no build fields are needed. ship-my-flutter uses
+For a standard Flutter app, no build fields are needed. smf uses
 `fvm flutter build ipa --release` when the project or an ancestor declares FVM,
 and `flutter build ipa --release` otherwise. It reads the single IPA from
 `build/ios/ipa`, matching Flutter's standard iOS output. Add `build_command`
@@ -294,7 +291,7 @@ toolchain.
 ## Store release notes
 
 Notes are optional and user-owned. Create
-`.ship-my-flutter/store-release-notes.json` only when a release has localized
+`smf/store-release-notes.json` only when a release has localized
 notes, under the platform, version, and Apple locale:
 
 ```json
@@ -308,48 +305,56 @@ notes, under the platform, version, and Apple locale:
 }
 ```
 
-If the file or a version is absent, ship-my-flutter sends no notes and does not
+If the file or a version is absent, smf sends no notes and does not
 create an empty placeholder. Apple may still require “What’s New” for an App
 Store update and will return a precise submission error if the version metadata
 is incomplete.
 
 ### Generate notes before the PR opens
 
-Set any repository-owned shell command as `hooks.before_create_pr.run`:
+Create `smf/hooks/before_create_pr.dart` and implement the typed hook:
 
-```yaml
-hooks:
-  before_create_pr:
-    run: fvm dart run release:generate_store_release_notes
+```dart
+import 'package:smf/smf.dart';
+
+final class GenerateStoreReleaseNotes extends SmfHook {
+  @override
+  Future<void> run(SmfBeforeCreatePrContext context) async {
+    // Generate context.storeReleaseNotesFile from context.releasePlan.
+  }
+}
+
+Future<void> main() async {
+  await runSmfHook(GenerateStoreReleaseNotes());
+}
 ```
 
-The command receives:
+The typed context exposes the repository, Flutter app, SMF directory, config,
+changelog, optional notes file, flavor, platform, current platform version,
+next platform version, and full release plan. The process also receives:
 
 ```text
-SHIP_MY_FLUTTER_PLATFORM
-SHIP_MY_FLUTTER_CURRENT_VERSION
-SHIP_MY_FLUTTER_VERSION
-SHIP_MY_FLUTTER_CHANGELOG_PATH
-SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
+SMF_PLATFORM
+SMF_CURRENT_PLATFORM_VERSION
+SMF_PLATFORM_VERSION
+SMF_REPOSITORY_ROOT
+SMF_APP_ROOT
+SMF_PATH
+SMF_CONFIG_PATH
+SMF_CHANGELOG_PATH
+SMF_STORE_RELEASE_NOTES_PATH
 ```
 
 The changelog and next version already exist when the hook runs, so an AI or translation script can write deterministic drafts into the release PR for human review.
 
-Project preparation can use the matching build hook:
-
-```yaml
-hooks:
-  before_build:
-    run: fvm dart run melos run prepare:ios --no-select
-```
-
-Each hook defaults to `commit: true`, so every tracked or unignored file it
-leaves is committed to the release branch. Set `commit: false` only when the
-hook leaves the worktree clean, produces ignored/external output, or performs
-its own commit.
+Project preparation uses the matching `smf/hooks/before_build.dart` file and
+`SmfBeforeBuildContext`. Each `SmfHook` defaults `commitChanges` to `true`, so
+every tracked or unignored file it leaves is committed to the release branch.
+Override it to `false` only when the hook leaves the worktree clean, produces
+ignored/external output, or performs its own commit.
 
 The optional `build_command` overrides automatic Flutter/FVM selection.
-ship-my-flutter automatically appends the planned version, next App Store build
+smf automatically appends the planned version, next App Store build
 number, generated export-options plist, and configured flavor:
 
 ```yaml
@@ -361,7 +366,7 @@ platforms:
 
 Keep it to one command invocation, such as `flutter build` or a Dart wrapper
 that accepts those appended arguments. Put chaining, preparation, logging, and
-verification in `hooks.before_build.run`. Omit `ipa_output_path` unless the
+verification in `smf/hooks/before_build.dart`. Omit `ipa_output_path` unless the
 wrapper moves the IPA away from Flutter's standard `build/ios/ipa` directory.
 
 See [Configuration](doc/configuration.md) for hook context, managed arguments,
@@ -383,7 +388,7 @@ Every platform owns its version. `pubspec.yaml` is not treated as a global relea
 
 The generated workflow uses one repository-wide concurrency lane:
 
-- The Ubuntu `pull-request` job plans or updates `ship-my-flutter/ios`.
+- The Ubuntu `pull-request` job plans or updates `smf/ios`.
 - A macOS 26 job installs the project-selected Flutter toolchain, imports
   temporary signing material, runs the configured IPA build, uploads it, waits
   for `VALID`, writes TestFlight notes, assigns groups, and commits the
@@ -398,7 +403,7 @@ workflows, however, will not run for that generated PR.
 If independent PR checks must run, generate a GitHub App installation token
 (preferred) or use a narrowly scoped personal access token and pass it as the
 pull-request step's `github-token` input. This is optional; do not add a long-lived
-token merely for ship-my-flutter's own jobs.
+token merely for smf's own jobs.
 
 Secrets are passed only as action inputs, masked by GitHub, written with restrictive permissions, and removed during cleanup. See [Security model](doc/security.md).
 
@@ -417,7 +422,7 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
   and App Store provisioning profile.
 - Required App Store product metadata already configured for the app.
 
-Run `dart run ship_my_flutter validate` locally to catch repository
+Run `dart run smf validate` locally to catch repository
 configuration problems before CI.
 
 ## Contributing to the core
@@ -431,7 +436,7 @@ not run a generator. Contributors changing an annotated model should run
 ## Validation boundary
 
 The public
-[`ship-my-flutter-dart-e2e`](https://github.com/Ventairy/ship-my-flutter-dart-e2e)
+[`smf-e2e`](https://github.com/Ventairy/smf-e2e)
 fixture verifies the Dart 3.10 package install, initializer, validator, planner,
 public Dart API, thin Action adapter, Android/iOS commit isolation, release-PR
 creation and updates, merge routing, platform GitHub Release, and terminal
@@ -450,4 +455,4 @@ pre-publication acceptance gate in issues #1.
 - [Configuration reference](doc/configuration.md)
 - [Operating release PRs](doc/operations.md)
 - [Security model](doc/security.md)
-- [Releasing ship-my-flutter itself](RELEASING.md)
+- [Releasing smf itself](RELEASING.md)

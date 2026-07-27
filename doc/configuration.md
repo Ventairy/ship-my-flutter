@@ -1,242 +1,184 @@
 # Configuration
 
-`.ship-my-flutter/config.yaml` uses snake_case keys and schema version 1. The
-generated file starts with a `yaml-language-server` directive linked to
-[`schemas/config.schema.json`](../schemas/config.schema.json), which provides
-editor validation and autocomplete.
+Each Flutter app keeps its SMF configuration at `smf/config.yaml`. Keys use
+Flutter-friendly `snake_case`, and schema version 1 is the only supported
+contract.
 
-Configuration is strict. Unknown fields, unsafe relative paths, invalid
-combinations, and managed build arguments are rejected before release work
-begins. The schema provides structural validation, defaults, and conservative
-editor checks. `dart run ship_my_flutter validate` is authoritative for shell
-quoting, cross-field rules, and path safety on every supported host platform.
-
-## Typical configuration
+The generated schema directive enables validation and autocomplete in editors
+with YAML language-server support:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/schemas/config.schema.json
 
 schema_version: 1
-app_path: .
-# flavor: production
 target_branch: main
-hooks: {}
 platforms:
   ios:
     enabled: true
-    initial_version: 1.0.0
-    bundle_id: com.example.app
+    initial_version: 0.0.0
     testflight:
-      groups:
-        - Internal
+      groups: []
       wait_timeout_minutes: 45
     app_store:
       mode: upload
 ```
 
-## Repository fields
+SMF rejects unknown keys. The JSON Schema helps while editing, but the CLI is
+authoritative for cross-field, shell, and filesystem safety checks.
+
+## App and configuration discovery
+
+The `smf` directory must be a direct child of the Flutter app:
+
+```text
+repository/
+  .github/workflows/smf.yml
+  apps/mobile/
+    pubspec.yaml
+    ios/
+    smf/
+      config.yaml
+      hooks/
+```
+
+The CLI and Action search forward from their working directory for
+`smf/config.yaml`. One match is selected automatically. Zero matches fail with
+initialization guidance. Multiple matches fail and list every candidate; pass
+`--smf-path apps/mobile/smf` to the CLI or `smf-path: apps/mobile/smf` to the
+Action.
+
+The explicit path must point directly to a directory named `smf`, stay below
+the working directory, and contain `config.yaml`. Discovery does not follow
+symbolic links and prunes Git metadata, hidden directories, build output,
+dependency caches, FVM caches, and `node_modules`.
+
+`smf init` is run from the Flutter app directory. It writes
+`<app>/smf/config.yaml` and `<repository>/.github/workflows/smf.yml`; there is
+no configurable app-path field.
+
+## Global fields
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `schema_version` | `1` | Configuration contract version |
-| `app_path` | `.` | Flutter app root shared by every platform |
-| `flavor` | unset | One optional Flutter flavor shared by every platform build |
+| `schema_version` | required | Configuration contract; currently `1` |
+| `flavor` | none | Optional Flutter `--flavor` and matching Xcode scheme |
 | `target_branch` | `main` | Branch whose commits feed release PRs |
+| `platforms` | required | Platform-scoped release configuration |
 
-## Shell hooks
+A Flutter invocation accepts one flavor. SMF therefore exposes one optional
+global `flavor`, shared by current and future platform builds.
 
-Hooks are optional POSIX shell commands committed by the repository:
-
-| Field | When it runs |
-| --- | --- |
-| `hooks.before_create_pr` | After the next version and changelog are prepared, before the release PR is created or updated |
-| `hooks.before_build` | On the release branch, before source fingerprinting and candidate creation |
-
-Commands run from the Git repository root through Bash with `-euo pipefail`.
-They can invoke FVM, Dart executables, Melos, generators, or tracked project
-scripts:
-
-```yaml
-hooks:
-  before_create_pr:
-    run: fvm dart run release:generate_store_release_notes
-  before_build:
-    run: |
-      fvm dart run melos run prepare:ios --no-select
-      fvm dart run release:write_production_environment
-    commit: false
-```
-
-Install every hook dependency before the corresponding Action step. For
-example, a Flutter-dependent `before_create_pr` requires Flutter setup in the
-pull-request job as well as the release-candidate job.
-
-The release-PR hook receives:
-
-```text
-SHIP_MY_FLUTTER_PLATFORM
-SHIP_MY_FLUTTER_CURRENT_VERSION
-SHIP_MY_FLUTTER_VERSION
-SHIP_MY_FLUTTER_CHANGELOG_PATH
-SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
-```
-
-The build hook receives:
-
-```text
-SHIP_MY_FLUTTER_PLATFORM
-SHIP_MY_FLUTTER_VERSION
-SHIP_MY_FLUTTER_APP_PATH
-SHIP_MY_FLUTTER_CHANGELOG_PATH
-SHIP_MY_FLUTTER_STORE_RELEASE_NOTES_PATH
-```
-
-Each hook defaults to `commit: true`. ship-my-flutter commits every tracked or
-unignored file left by `before_create_pr` before pushing the release PR, and
-commits and pushes `before_build` output before fingerprinting or building the
-candidate. This makes generated notes, code, and environment inputs part of the
-reviewed and tested release branch.
-
-Set `commit: false` when a hook produces only ignored files or external side
-effects, or when the hook performs its own commit. In that mode the hook must
-leave a clean worktree; ship-my-flutter refuses to create the PR or build from
-uncommitted inputs. GitHub, Apple, signing, and certificate credentials are
-removed from both hook environments.
-
-## `app_path`
-
-`app_path` is global because iOS and future Android delivery operate on the
-same Flutter application. It is relative to the Git repository root and cannot
-escape it, including through a symlink.
-
-## `flavor`
-
-`flavor` selects one Flutter flavor for the build, such as `development`,
-`staging`, or `production`. It is global because the flavor represents the
-same application environment on iOS and future Android builds. Omit it for an
-unflavored Flutter app.
-
-For iOS, ship-my-flutter also uses the flavor name as the Xcode scheme when it
-detects the bundle identifier. This matches Flutter's standard flavor setup.
-Explicit `platforms.ios.bundle_id` configuration remains recommended.
-
-## `platforms.ios`
+## iOS fields
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `enabled` | `true` | Enables iOS planning and delivery |
-| `initial_version` | `0.0.0` | Current iOS marketing version used to bootstrap the first release |
-| `bundle_id` | detected on macOS | App Store bundle identifier; explicit configuration is recommended |
-| `build_command` | auto-detected | Optional project-owned command that builds one IPA |
-| `ipa_output_path` | `build/ios/ipa` | IPA file or directory relative to `app_path` |
+| `enabled` | `true` | Enable iOS release planning and delivery |
+| `initial_version` | `0.0.0` | Current iOS marketing version before the first generated manifest |
+| `bundle_id` | detected on macOS | Explicit App Store bundle identifier |
+| `build_command` | automatic | One trusted POSIX shell build invocation |
+| `ipa_output_path` | `build/ios/ipa` | IPA file or directory relative to the Flutter app |
+| `testflight.groups` | `[]` | Exact existing TestFlight group names |
+| `testflight.wait_timeout_minutes` | `45` | Apple processing wait, from 5 through 180 minutes |
+| `app_store.mode` | `upload` | Delivery behavior after the release PR merges |
 
-The consumer owns the build toolchain. `ship-my-flutter-action` does not install
-Flutter or FVM. Set them up in the workflow before the candidate Action step,
-using the exact version selected by the project.
+`initial_version` is a base, not a fixed next version. Conventional Commits
+bump it until generated `manifest.json` becomes authoritative.
 
-`initial_version` is read only while no generated `manifest.json` exists. The
-initializer detects it from `pubspec.yaml`, or uses the explicit
-`--current-version` value. After the first release PR creates the manifest,
-platform state—not this bootstrap field—owns subsequent versions.
+`bundle_id` can be omitted on macOS. SMF reads Xcode build settings for the
+configured flavor or the `Runner` scheme. Configure it explicitly when
+validation or promotion runs without Xcode.
 
-For a standard Flutter app, omit both build fields. If `.fvmrc` or legacy
-`.fvm/fvm_config.json` exists at the project or repository level, the default
-command is `fvm flutter build ipa --release`; otherwise it is
-`flutter build ipa --release`. Flutter's standard output is:
+The App Store modes are:
 
-```yaml
-ipa_output_path: build/ios/ipa
-```
+- `auto`: submit for review and release automatically after Apple approval;
+- `review`: submit for review but wait for manual release after approval;
+- `upload`: keep the exact tested build uploaded without submitting review.
 
-`build_command` is one shell command invocation, not a preparation hook.
-ship-my-flutter automatically appends these arguments:
+## Build command and IPA output
 
-```text
---build-name <planned version>
---build-number <next App Store Connect build number>
---export-options-plist <generated signing export options>
---flavor <flavor>  # only when flavor is configured
-```
+With no `build_command`, SMF selects:
 
-Do not repeat those flags in the command. They are rejected so release identity
-cannot be overridden. Shell chaining, pipelines, redirections, comments, and
-command substitution are also rejected: otherwise Bash could attach the
-managed arguments to a different command or ignore them. Put dependency
-resolution, code generation, environment preparation, logging, or verification
-in `before_build.run`.
+- `fvm flutter build ipa --release` when the app or an ancestor up to the Git
+  root contains `.fvmrc` or `.fvm/fvm_config.json`;
+- `flutter build ipa --release` otherwise.
 
-Examples:
-
-```yaml
-# Flutter already on PATH
-build_command: flutter build ipa --release
-
-# Project-owned FVM
-build_command: fvm flutter build ipa --release
-
-# A package executable that accepts the appended build arguments
-build_command: fvm dart run release:build_ios
-```
-
-For a custom Dart executable, read the appended options from `args` and forward
-them to the underlying Flutter build. The executable may also read the matching
-environment variables below.
-
-The command also receives the calculated values as environment variables for
-logging or wrapper logic:
+The project workflow owns Flutter/FVM installation. SMF appends these managed
+arguments:
 
 ```text
-SHIP_MY_FLUTTER_PLATFORM
-SHIP_MY_FLUTTER_VERSION
-SHIP_MY_FLUTTER_BUILD_NUMBER
-SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH
-SHIP_MY_FLUTTER_IPA_OUTPUT_PATH
-SHIP_MY_FLUTTER_FLAVOR
+--build-name "$SMF_PLATFORM_VERSION"
+--build-number "$SMF_BUILD_NUMBER"
+--export-options-plist "$SMF_EXPORT_OPTIONS_PATH"
+--flavor "$SMF_FLAVOR" # only when flavor is configured
 ```
 
-`ipa_output_path` may name one `.ipa` file or a directory containing exactly
-one IPA. It cannot escape `app_path`, including through a symlink. Keep it
-omitted for normal Flutter and FVM builds. Its concrete use case is a custom
-single-command wrapper that deliberately emits or moves the IPA to a different
-project-relative location; explicit configuration prevents stale or ambiguous
-IPA discovery.
+The same values are available in the environment, together with
+`SMF_PLATFORM=ios` and `SMF_IPA_OUTPUT_PATH`. A configured build command must
+not supply managed flags. It is one shell invocation; put preparation,
+pipelines, chaining, or redirection in a typed hook instead.
 
-Bundle-ID detection uses the Runner scheme when no flavor is configured.
+The default output matches Flutter's standard `build/ios/ipa` directory.
+Configure `ipa_output_path` only when a custom command writes elsewhere. It
+must remain inside the Flutter app after symbolic-link resolution and contain
+exactly one IPA, or point directly to one IPA.
 
-## TestFlight
+## Typed hooks
 
-`testflight.groups` contains exact existing App Store Connect beta-group names.
-An empty array leaves group access unchanged.
+Hooks are Dart files, not YAML commands:
 
-`testflight.wait_timeout_minutes` controls how long the candidate waits for
-Apple processing. The allowed range is 5–180 minutes.
+- `smf/hooks/before_create_pr.dart` runs after SMF prepares the version and
+  changelog, before the release PR is opened or updated;
+- `smf/hooks/before_build.dart` runs on the release branch before source
+  fingerprinting and candidate creation.
 
-External groups can require Beta App Review. ship-my-flutter surfaces Apple's
-response; it does not bypass external testing review.
+Each existing hook must be a tracked regular file. SMF runs it from the
+Flutter app with `fvm dart run` when the app uses FVM and `dart run` otherwise.
+The entrypoint must call `runSmfHook`:
 
-## App Store
+```dart
+import 'package:smf/smf.dart';
 
-`app_store.mode` supports:
+final class GenerateNotes extends SmfHook {
+  @override
+  Future<void> run(SmfBeforeCreatePrContext context) async {
+    // Use context.releasePlan and context.storeReleaseNotesFile.
+  }
 
-- `upload`: keep the tested build in TestFlight and finish the GitHub Release
-  after merge;
-- `review`: attach the tested build, apply supplied notes, and submit the
-  version for App Review, then wait for a manual release after approval;
-- `auto`: submit the same way and release automatically after Apple approval.
+  // Defaults to true.
+  @override
+  bool get commitChanges => true;
+}
 
-The initializer defaults to `upload`.
-
-## Signing profiles
-
-The common case uses one Base64 profile. Apps with extensions pass a JSON
-object through `IOS_PROVISIONING_PROFILES_BASE64`:
-
-```json
-{
-  "com.example.app": "BASE64",
-  "com.example.app.ShareExtension": "BASE64"
+Future<void> main() async {
+  await runSmfHook(GenerateNotes());
 }
 ```
 
-Every key must match the profile's embedded application identifier, and every
-profile must belong to the same team.
+`SmfHookContext` provides typed directories/files for the repository, app, SMF
+state, configuration, changelog, and store notes, plus platform, platform
+version, and flavor. `SmfBeforeCreatePrContext` adds the current platform
+version and `ReleasePlan`; `SmfBeforeBuildContext` adds the
+`ChangelogRelease`.
+
+When `commitChanges` is true, SMF commits every tracked or unignored change
+left by the hook. When false, the hook must commit its own changes or leave a
+clean worktree. Absent hook files are skipped.
+
+Hooks also receive non-secret `SMF_*` path and version variables for
+subprocess interoperability. Apple and GitHub credential variables are
+stripped before repository-owned code runs.
+
+## Persisted release state
+
+SMF creates these files only when needed:
+
+```text
+smf/manifest.json
+smf/changelog.json
+smf/store-release-notes.json
+smf/candidates/ios-<version>.json
+```
+
+The manifest, changelog, and candidate receipts are machine-owned JSON audit
+state. Store notes are user-owned and optional; SMF never creates an empty
+placeholder. Secrets never belong in any persisted file.

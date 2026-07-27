@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 const String configSchemaUrl =
-    'https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/'
+    'https://raw.githubusercontent.com/Ventairy/smf/main/'
     'schemas/config.schema.json';
 
 String generatedConfigYaml({required String initialVersion, String? bundleId}) {
@@ -12,9 +12,7 @@ String generatedConfigYaml({required String initialVersion, String? bundleId}) {
 # yaml-language-server: \$schema=$configSchemaUrl
 
 schema_version: 1
-app_path: .
 target_branch: main
-hooks: {}
 platforms:
   ios:
     enabled: true
@@ -27,7 +25,7 @@ $bundleLine    testflight:
 ''';
 }
 
-const String workflowTemplate = r'''name: Ship my Flutter
+const String workflowTemplate = r'''name: SMF
 
 on:
   push:
@@ -37,7 +35,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ship-my-flutter-${{ github.repository }}
+  group: smf-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -49,16 +47,16 @@ jobs:
       pull-requests: write
       issues: write
     outputs:
-      phase: ${{ steps.ship.outputs.phase }}
-      branch: ${{ steps.ship.outputs.branch }}
-      version: ${{ steps.ship.outputs.version }}
+      phase: ${{ steps.smf.outputs.phase }}
+      branch: ${{ steps.smf.outputs.branch }}
+      version: ${{ steps.smf.outputs.version }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
-      - id: ship
-        uses: Ventairy/ship-my-flutter-action@v1
+      - id: smf
+        uses: Ventairy/smf-action@v1
         with:
           phase: pull-request
 
@@ -75,26 +73,32 @@ jobs:
           ref: ${{ needs.pull_request.outputs.branch }}
           fetch-depth: 0
           persist-credentials: false
-      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') != '' }}
+      - if: ${{ hashFiles('**/.fvmrc', '**/.fvm/fvm_config.json') != '' }}
         uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
         with:
           sdk: 3.10.0
-      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') != '' }}
+      - if: ${{ hashFiles('**/.fvmrc', '**/.fvm/fvm_config.json') != '' }}
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/fvm/versions
-          key: fvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') }}
-      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') != '' }}
+          key: fvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/.fvmrc', '**/.fvm/fvm_config.json') }}
+      - if: ${{ hashFiles('**/.fvmrc', '**/.fvm/fvm_config.json') != '' }}
         run: |
           dart pub global activate fvm 4.1.2
-          fvm install
-      - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') == '' }}
+          fvm_config="$(find . -type f \( -name .fvmrc -o -path '*/.fvm/fvm_config.json' \) -not -path '*/build/*' -not -path '*/.dart_tool/*' -print -quit)"
+          if [[ "$fvm_config" == */.fvm/fvm_config.json ]]; then
+            app_dir="${fvm_config%/.fvm/fvm_config.json}"
+          else
+            app_dir="${fvm_config%/.fvmrc}"
+          fi
+          (cd "$app_dir" && fvm install)
+      - if: ${{ hashFiles('**/.fvmrc', '**/.fvm/fvm_config.json') == '' }}
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           cache: true
           pub-cache: true
-      - uses: Ventairy/ship-my-flutter-action@v1
+      - uses: Ventairy/smf-action@v1
         with:
           phase: release-candidate
           app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -115,7 +119,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: Ventairy/ship-my-flutter-action@v1
+      - uses: Ventairy/smf-action@v1
         with:
           phase: ship
           app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}

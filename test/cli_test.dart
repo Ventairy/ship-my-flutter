@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
@@ -10,7 +10,7 @@ void main() {
   test('CLI version matches the package version', () async {
     final pubspec = loadYaml(await File('pubspec.yaml').readAsString());
     expect(pubspec, isA<YamlMap>());
-    expect((pubspec as YamlMap)['version'], shipMyFlutterVersion);
+    expect((pubspec as YamlMap)['version'], smfVersion);
   });
 
   test(
@@ -42,7 +42,7 @@ void main() {
         writeError: errors.add,
       );
       expect(
-        await runShipMyFlutterCli(const <String>[
+        await runSmfCli(const <String>[
           'init',
           '--bundle-id',
           'dev.example.app',
@@ -60,7 +60,7 @@ void main() {
         'chore: configure releases',
       ]);
 
-      expect(await runShipMyFlutterCli(const <String>['validate'], io: io), 0);
+      expect(await runSmfCli(const <String>['validate'], io: io), 0);
       expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
         'valid': true,
       });
@@ -72,7 +72,7 @@ void main() {
         '-m',
         'feat(ios): public CLI',
       ]);
-      expect(await runShipMyFlutterCli(const <String>['plan'], io: io), 0);
+      expect(await runSmfCli(const <String>['plan'], io: io), 0);
       expect(
         jsonDecode(output.removeLast()! as String),
         containsPair('nextVersion', '1.1.0'),
@@ -83,7 +83,7 @@ void main() {
 
   test('does not accept raw secrets as command-line options', () async {
     final errors = <Object?>[];
-    final exitCode = await runShipMyFlutterCli(
+    final exitCode = await runSmfCli(
       const <String>['open-pr', '--github-token', 'visible-secret'],
       io: CliIo(
         environment: const <String, String>{},
@@ -94,5 +94,26 @@ void main() {
     );
     expect(exitCode, 64);
     expect(errors.join('\n'), isNot(contains('visible-secret')));
+  });
+
+  test('prints command-specific help without executing the command', () async {
+    final output = <Object?>[];
+    final errors = <Object?>[];
+
+    expect(
+      await runSmfCli(
+        const <String>['init', '--help'],
+        io: CliIo(
+          environment: const <String, String>{},
+          workingDirectory: Directory.current.path,
+          writeOutput: output.add,
+          writeError: errors.add,
+        ),
+      ),
+      0,
+    );
+    expect(output.single, contains('init options:'));
+    expect(output.single, contains('--smf-path'));
+    expect(errors, isEmpty);
   });
 }

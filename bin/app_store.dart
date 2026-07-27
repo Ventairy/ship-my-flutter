@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 
 Future<void> main(List<String> arguments) async {
-  exitCode = await runShipMyFlutterCli(<String>['app-store', ...arguments]);
+  exitCode = await runSmfCli(<String>['app-store', ...arguments]);
 }

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 String repeated(String value, int count) =>
@@ -29,9 +29,15 @@ Future<Directory> stateDirectory({
 }) async {
   final root = await Directory.systemTemp.createTemp('smf-manifest-');
   addTearDown(() => root.delete(recursive: true));
-  final paths = resolveShipPaths(root.path);
-  await Directory(paths.candidates).create(recursive: true);
-  final manifest = ShipManifest(
+  await git(root.path, const <String>['init', '-b', 'main']);
+  final state = Directory('${root.path}/smf');
+  await state.create();
+  await File(
+    '${state.path}/config.yaml',
+  ).writeAsString('schema_version: 1\nplatforms:\n  ios: {}\n');
+  final paths = resolveSmfPaths(root.path);
+  await Directory(paths.candidates).create();
+  final manifest = SmfManifest(
     ios: PlatformManifest(
       version: version,
       baselineSha: repeated('a', 40),
@@ -120,7 +126,6 @@ void main() {
         );
         final receipt = File(candidatePath(root.path, Platform.ios, '1.1.0'));
         await receipt.writeAsString('{}\n');
-        await git(root.path, const <String>['init', '-b', 'main']);
         await git(root.path, const <String>['config', 'user.name', 'Test']);
         await git(root.path, const <String>[
           'config',

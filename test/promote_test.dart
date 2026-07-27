@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 import 'support/fake_app_store.dart';
@@ -40,7 +40,7 @@ void main() {
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
       await initialize(
-        InitOptions(root: root.path, bundleId: 'dev.example.app'),
+        InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
       );
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>[
@@ -48,7 +48,7 @@ void main() {
         '-m',
         'chore: configure releases',
       ]);
-      final paths = resolveShipPaths(root.path);
+      final paths = resolveSmfPaths(root.path);
       final configFile = File(paths.config);
       await configFile.writeAsString(
         (await configFile.readAsString()).replaceFirst(
@@ -57,7 +57,7 @@ void main() {
         ),
       );
       final baselineSha = await currentSha(root.path);
-      final manifest = ShipManifest(
+      final manifest = SmfManifest(
         ios: PlatformManifest(
           version: '1.1.0',
           baselineSha: baselineSha,
@@ -146,7 +146,7 @@ void main() {
       final github = FakeGitHubApi();
       final result = await promoteIosRelease(
         PromotionOptions(
-          root: root.path,
+          workingDirectory: root.path,
           appleCredentials: const AppleCredentials(
             keyId: 'unused',
             issuerId: 'unused',
@@ -182,7 +182,7 @@ void main() {
       await expectLater(
         promoteIosRelease(
           PromotionOptions(
-            root: root.path,
+            workingDirectory: root.path,
             appleCredentials: const AppleCredentials(
               keyId: 'unused',
               issuerId: 'unused',
@@ -198,8 +198,8 @@ void main() {
           ),
         ),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'UNTESTED_SOURCE',
           ),

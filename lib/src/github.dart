@@ -7,6 +7,8 @@ import 'github_api.dart';
 import 'hooks.dart';
 import 'manifest_files.dart';
 import 'model.dart';
+import 'paths.dart';
+import 'process_runner.dart';
 import 'release_branch.dart';
 
 export 'github/dtos/release_pull_request_result.dart';
@@ -24,7 +26,7 @@ Future<void> _commitAllChanges(String root, String message) async {
 
 Future<String> _ensureReleaseBranch(
   String root,
-  ShipConfig config,
+  SmfConfig config,
   Platform platform,
   String token,
 ) async {
@@ -49,7 +51,7 @@ Future<String> _ensureReleaseBranch(
         '--no-edit',
         'origin/${config.targetBranch}',
       ]);
-    } on ShipError {
+    } on SmfError {
       await git(root, const <String>['merge', '--abort'], allowFailure: true);
       rethrow;
     }
@@ -65,61 +67,68 @@ Future<String> _ensureReleaseBranch(
 }
 
 Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
-  String root,
-  ShipConfig config,
+  String workingDirectory,
+  SmfConfig config,
   ReleasePlan plan,
   GitHubContext context, {
   GitHubApi? githubApi,
+  ProcessRunner hookProcessRunner = const SystemProcessRunner(),
 }) async {
-  if (!(await isClean(root))) {
-    throw const ShipError(
+  final paths = resolveSmfPaths(workingDirectory);
+  final repositoryRoot = paths.repositoryRoot;
+  if (!(await isClean(repositoryRoot))) {
+    throw const SmfError(
       'The worktree must be clean before updating a release PR.',
       'DIRTY_WORKTREE',
     );
   }
   final api = githubApi ?? GitHubRestApi(context: context);
-  final startingBranch = await currentBranch(root);
-  await configureBotIdentity(root);
+  final startingBranch = await currentBranch(repositoryRoot);
+  await configureBotIdentity(repositoryRoot);
   late final String branch;
   try {
     branch = await _ensureReleaseBranch(
-      root,
+      repositoryRoot,
       config,
       plan.platform,
       context.token,
     );
-    await applyReleasePlan(root, plan);
+    await applyReleasePlan(paths.directory, plan);
     await _commitAllChanges(
-      root,
+      repositoryRoot,
       'chore(${plan.platform.value}): release ${plan.nextVersion}',
     );
-    await runBeforeCreatePrHook(root, config, plan);
-    final beforeCreatePr = config.hooks.beforeCreatePr;
-    if (beforeCreatePr != null && beforeCreatePr.commit) {
+    final commitHookChanges = await runBeforeCreatePrHook(
+      paths.directory,
+      config,
+      plan,
+      processRunner: hookProcessRunner,
+    );
+    if (commitHookChanges == true) {
       await _commitAllChanges(
-        root,
+        repositoryRoot,
         'chore(${plan.platform.value}): apply before_create_pr hook for '
         '${plan.nextVersion}',
       );
     } else {
       invariant(
-        await isClean(root),
+        await isClean(repositoryRoot),
         'The before_create_pr hook changed tracked or unignored files while '
             'commit is false. Commit or ignore those files in the hook.',
         'CREATE_PR_HOOK_DIRTY_WORKTREE',
       );
     }
-    await authenticatedGit(root, <String>[
+    await authenticatedGit(repositoryRoot, <String>[
       'push',
       '--set-upstream',
       'origin',
       branch,
     ], context.token);
 
-    final changelog = await loadChangelog(root);
+    final changelog = await loadChangelog(paths.directory);
     final release = changelog.releasesFor(plan.platform)[plan.nextVersion];
     if (release == null) {
-      throw ShipError(
+      throw SmfError(
         'Missing changelog entry for ${plan.platform.value} '
             '${plan.nextVersion}',
         'MISSING_CHANGELOG',
@@ -161,17 +170,17 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
       pullRequestNumber: pull.number,
     );
   } finally {
-    if (await isClean(root) &&
+    if (await isClean(repositoryRoot) &&
         startingBranch.isNotEmpty &&
-        await currentBranch(root) != startingBranch) {
-      await git(root, <String>['checkout', startingBranch]);
+        await currentBranch(repositoryRoot) != startingBranch) {
+      await git(repositoryRoot, <String>['checkout', startingBranch]);
     }
   }
 }
 
 Future<int?> findReleasePullRequest(
   GitHubContext context,
-  ShipConfig config,
+  SmfConfig config,
   Platform platform, {
   GitHubApi? githubApi,
 }) async {

@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
+
+import 'support/recording_process.dart';
 
 final class FakeGitHubApi implements GitHubApi {
   final List<GitHubPullRequest> pulls = <GitHubPullRequest>[];
@@ -98,7 +100,14 @@ void main() {
     ]);
     await git(root.path, const <String>['add', '.']);
     await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-    await initialize(InitOptions(root: root.path, bundleId: 'dev.example.app'));
+    await initialize(
+      InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
+    );
+    final paths = resolveSmfPaths(root.path);
+    await File(paths.beforeCreatePrHook).parent.create(recursive: true);
+    await File(
+      paths.beforeCreatePrHook,
+    ).writeAsString('Future<void> main() async {}\n');
     await git(root.path, const <String>['add', '.']);
     await git(root.path, const <String>[
       'commit',
@@ -127,12 +136,17 @@ void main() {
       repo: 'app',
       token: 'unused',
     );
-    final config = (await loadConfig(root.path)).copyWith(
-      hooks: const HooksConfig(
-        beforeCreatePr: HookConfig(
-          run: 'printf generated > generated-release-notes.txt',
-        ),
-      ),
+    final config = await loadConfig(root.path);
+    final hookRunner = RecordingProcessRunner(
+      handler: (invocation) async {
+        await File(
+          p.join(root.path, 'generated-release-notes.txt'),
+        ).writeAsString('generated');
+        await File(
+          invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
+        ).writeAsString('{"schemaVersion":1,"commitChanges":true}');
+        return const RunResult(stdout: '', stderr: '', exitCode: 0);
+      },
     );
 
     final result = await createOrUpdateReleasePullRequest(
@@ -141,38 +155,39 @@ void main() {
       plan!,
       context,
       githubApi: api,
+      hookProcessRunner: hookRunner,
     );
 
-    expect(result.branch, 'ship-my-flutter/ios');
+    expect(result.branch, 'smf/ios');
     expect(result.pullRequestNumber, 42);
-    expect(api.creates.single.head, 'ship-my-flutter/ios');
+    expect(api.creates.single.head, 'smf/ios');
     expect(api.creates.single.base, 'main');
     expect(api.creates.single.title, 'chore(ios): release 1.1.0');
     expect(
       await git(origin.path, const <String>[
         'show',
-        'ship-my-flutter/ios:.ship-my-flutter/manifest.json',
+        'smf/ios:smf/manifest.json',
       ]),
       contains('"pendingRelease": true'),
     );
     expect(
       await git(origin.path, const <String>[
         'show',
-        'ship-my-flutter/ios:.ship-my-flutter/changelog.json',
+        'smf/ios:smf/changelog.json',
       ]),
       contains('"1.1.0"'),
     );
     expect(
       await git(origin.path, const <String>[
         'show',
-        'ship-my-flutter/ios:.ship-my-flutter/store-release-notes.json',
+        'smf/ios:smf/store-release-notes.json',
       ], allowFailure: true),
       isEmpty,
     );
     expect(
       await git(origin.path, const <String>[
         'show',
-        'ship-my-flutter/ios:generated-release-notes.txt',
+        'smf/ios:generated-release-notes.txt',
       ]),
       'generated',
     );
@@ -199,33 +214,38 @@ void main() {
       refreshedPlan!,
       context,
       githubApi: api,
+      hookProcessRunner: hookRunner,
     );
     expect(api.updates.single.number, 42);
     expect(api.updates.single.title, 'chore(ios): release 1.1.0');
     expect(
       await git(root.path, const <String>['config', 'user.name']),
-      'ship-my-flutter[bot]',
+      'smf[bot]',
     );
 
-    final noCommitConfig = config.copyWith(
-      hooks: const HooksConfig(
-        beforeCreatePr: HookConfig(
-          run: 'printf uncommitted > uncommitted-hook-output.txt',
-          commit: false,
-        ),
-      ),
+    final noCommitRunner = RecordingProcessRunner(
+      handler: (invocation) async {
+        await File(
+          p.join(root.path, 'uncommitted-hook-output.txt'),
+        ).writeAsString('uncommitted');
+        await File(
+          invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
+        ).writeAsString('{"schemaVersion":1,"commitChanges":false}');
+        return const RunResult(stdout: '', stderr: '', exitCode: 0);
+      },
     );
     await expectLater(
       createOrUpdateReleasePullRequest(
         root.path,
-        noCommitConfig,
+        config,
         refreshedPlan,
         context,
         githubApi: api,
+        hookProcessRunner: noCommitRunner,
       ),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
+        isA<SmfError>().having(
+          (SmfError error) => error.code,
           'code',
           'CREATE_PR_HOOK_DIRTY_WORKTREE',
         ),
@@ -254,25 +274,20 @@ void main() {
       ]);
       final sourcePath = p.join(root.path, 'app.txt');
       await File(sourcePath).writeAsString('baseline\n');
+      await Directory(p.join(root.path, 'smf')).create();
+      await File(
+        p.join(root.path, 'smf', 'config.yaml'),
+      ).writeAsString('schema_version: 1\nplatforms:\n  ios: {}\n');
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
       await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
       await git(root.path, const <String>['push', '-u', 'origin', 'main']);
 
-      await git(root.path, const <String>[
-        'checkout',
-        '-b',
-        'ship-my-flutter/ios',
-      ]);
+      await git(root.path, const <String>['checkout', '-b', 'smf/ios']);
       await File(sourcePath).writeAsString('release branch\n');
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>['commit', '-m', 'chore: release']);
-      await git(root.path, const <String>[
-        'push',
-        '-u',
-        'origin',
-        'ship-my-flutter/ios',
-      ]);
+      await git(root.path, const <String>['push', '-u', 'origin', 'smf/ios']);
 
       await git(root.path, const <String>['checkout', 'main']);
       await File(sourcePath).writeAsString('target branch\n');
@@ -280,7 +295,7 @@ void main() {
       await git(root.path, const <String>['commit', '-m', 'fix: conflict']);
       await git(root.path, const <String>['push', 'origin', 'main']);
 
-      const config = ShipConfig(ios: IosConfig());
+      const config = SmfConfig(ios: IosConfig());
       const plan = ReleasePlan(
         platform: Platform.ios,
         currentVersion: '1.0.0',
@@ -305,8 +320,8 @@ void main() {
           githubApi: FakeGitHubApi(),
         ),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'COMMAND_FAILED',
           ),

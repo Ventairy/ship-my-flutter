@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 Future<(Directory, String)> repository() async {
@@ -29,11 +29,11 @@ Future<void> commit(String root, String message, String content) async {
   await git(root, <String>['commit', '-m', message]);
 }
 
-ShipManifest manifest(
+SmfManifest manifest(
   String version,
   String baselineSha, {
   bool pendingRelease = false,
-}) => ShipManifest(
+}) => SmfManifest(
   ios: PlatformManifest(
     version: version,
     baselineSha: baselineSha,

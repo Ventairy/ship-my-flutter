@@ -110,11 +110,11 @@ final class GitClient {
   }
 
   Future<void> configureBotIdentity() async {
-    await run(const <String>['config', 'user.name', 'ship-my-flutter[bot]']);
+    await run(const <String>['config', 'user.name', 'smf[bot]']);
     await run(const <String>[
       'config',
       'user.email',
-      'ship-my-flutter[bot]@users.noreply.github.com',
+      'smf[bot]@users.noreply.github.com',
     ]);
   }
 }

@@ -12,14 +12,10 @@ import 'serialization.dart';
 
 const Set<String> _rootConfigFields = <String>{
   'schema_version',
-  'app_path',
   'flavor',
   'target_branch',
-  'hooks',
   'platforms',
 };
-const Set<String> _hookFields = <String>{'before_create_pr', 'before_build'};
-const Set<String> _hookConfigFields = <String>{'run', 'commit'};
 const Set<String> _platformFields = <String>{'ios'};
 const Set<String> _iosFields = <String>{
   'enabled',
@@ -36,18 +32,18 @@ const Set<String> _testflightFields = <String>{
 };
 const Set<String> _appStoreFields = <String>{'mode'};
 
-Future<ShipConfig> loadConfig([String? root]) async {
-  final paths = resolveShipPaths(root);
+Future<SmfConfig> loadConfig([String? root]) async {
+  final paths = resolveSmfPaths(root);
   try {
     return validateConfig(await readYaml(paths.config), source: paths.config);
   } on FileSystemException catch (error) {
-    throw ShipError(
+    throw SmfError(
       'Could not read ${paths.config}: ${error.message}',
       'CONFIG_NOT_FOUND',
       cause: error,
     );
   } on YamlException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '${paths.config} is invalid:\n$error',
       'INVALID_CONFIG',
       cause: error,
@@ -59,11 +55,11 @@ Future<ShipConfig> loadConfig([String? root]) async {
 ///
 /// Before the first release PR, the version comes from `initial_version` and
 /// the baseline comes from the commit that introduced `config.yaml`.
-Future<ShipManifest> loadManifest([String? root]) async {
-  final paths = resolveShipPaths(root);
+Future<SmfManifest> loadManifest([String? root]) async {
+  final paths = resolveSmfPaths(root);
   if (!(await fileExists(paths.manifest))) {
-    final config = await loadConfig(paths.root);
-    return ShipManifest(
+    final config = await loadConfig(paths.directory);
+    return SmfManifest(
       ios: PlatformManifest(
         version: config.ios.initialVersion,
         baselineSha: await _initialBaselineSha(paths),
@@ -81,7 +77,7 @@ Future<ShipManifest> loadManifest([String? root]) async {
 ///
 /// Returns an empty history before the generated file exists.
 Future<ChangelogManifest> loadChangelog([String? root]) async {
-  final paths = resolveShipPaths(root);
+  final paths = resolveSmfPaths(root);
   if (!(await fileExists(paths.changelog))) {
     return const ChangelogManifest(iosReleases: <String, ChangelogRelease>{});
   }
@@ -93,7 +89,7 @@ Future<ChangelogManifest> loadChangelog([String? root]) async {
 
 /// Loads optional localized notes, returning an empty map when no file exists.
 Future<StoreReleaseNotes> loadStoreReleaseNotes([String? root]) async {
-  final paths = resolveShipPaths(root);
+  final paths = resolveSmfPaths(root);
   if (!(await fileExists(paths.storeReleaseNotes))) {
     return const <Platform, Map<String, Map<String, String>>>{};
   }
@@ -103,11 +99,11 @@ Future<StoreReleaseNotes> loadStoreReleaseNotes([String? root]) async {
   );
 }
 
-Future<String> _initialBaselineSha(ShipPaths paths) async {
+Future<String> _initialBaselineSha(SmfPaths paths) async {
   final relativeConfig = p
-      .relative(paths.config, from: paths.root)
+      .relative(paths.config, from: paths.repositoryRoot)
       .replaceAll(r'\', '/');
-  final additions = await git(paths.root, <String>[
+  final additions = await git(paths.repositoryRoot, <String>[
     'log',
     '--diff-filter=A',
     '--format=%H',
@@ -115,10 +111,10 @@ Future<String> _initialBaselineSha(ShipPaths paths) async {
     '--',
     relativeConfig,
   ]);
-  if (additions.isEmpty) return currentSha(paths.root);
+  if (additions.isEmpty) return currentSha(paths.repositoryRoot);
 
   final introductionSha = additions.split('\n').first;
-  final ancestry = await git(paths.root, <String>[
+  final ancestry = await git(paths.repositoryRoot, <String>[
     'rev-list',
     '--parents',
     '-n',
@@ -133,13 +129,13 @@ Future<Object?> _loadJson(String filePath) async {
   try {
     return await readJson(filePath);
   } on FileSystemException catch (error) {
-    throw ShipError(
+    throw SmfError(
       'Could not read $filePath: ${error.message}',
       'CONFIG_NOT_FOUND',
       cause: error,
     );
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '$filePath is invalid:\n${error.message}',
       'INVALID_CONFIG',
       cause: error,
@@ -147,62 +143,32 @@ Future<Object?> _loadJson(String filePath) async {
   }
 }
 
-ShipConfig validateConfig(Object? value, {String source = 'configuration'}) {
+SmfConfig validateConfig(Object? value, {String source = 'configuration'}) {
   try {
     final root = _objectMap(value, source);
     _configSchemaVersion(root, source);
     _rejectUnknownFields(root, _rootConfigFields, source);
-    final hooks = _objectMap(
-      root['hooks'] ?? const <String, Object?>{},
-      'hooks',
-    );
-    _rejectUnknownFields(hooks, _hookFields, 'hooks');
     final platforms = _objectMap(root['platforms'], 'platforms');
     _rejectUnknownFields(platforms, _platformFields, 'platforms');
     final ios = _objectMap(platforms['ios'], 'platforms.ios');
     _rejectUnknownFields(ios, _iosFields, 'platforms.ios');
-    final appPath = _nonEmptyString(root['app_path'] ?? '.', 'app_path');
-    _relativePath(appPath, 'app_path');
-
-    return ShipConfig(
-      appPath: appPath,
+    return SmfConfig(
       flavor: _optionalNonEmptyString(root['flavor'], 'flavor'),
       targetBranch: _nonEmptyString(
         root['target_branch'] ?? 'main',
         'target_branch',
       ),
-      hooks: _parseHooks(hooks),
       ios: _parseIosConfig(ios),
     );
-  } on ShipError {
+  } on SmfError {
     rethrow;
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '$source is invalid:\n${error.message}',
       'INVALID_CONFIG',
       cause: error,
     );
   }
-}
-
-HooksConfig _parseHooks(Map<String, Object?> hooks) {
-  return HooksConfig(
-    beforeCreatePr: _parseHookConfig(
-      hooks['before_create_pr'],
-      'hooks.before_create_pr',
-    ),
-    beforeBuild: _parseHookConfig(hooks['before_build'], 'hooks.before_build'),
-  );
-}
-
-HookConfig? _parseHookConfig(Object? value, String path) {
-  if (value == null) return null;
-  final hook = _objectMap(value, path);
-  _rejectUnknownFields(hook, _hookConfigFields, path);
-  return HookConfig(
-    run: _nonEmptyString(hook['run'], '$path.run'),
-    commit: _boolean(hook['commit'] ?? true, '$path.commit'),
-  );
 }
 
 IosConfig _parseIosConfig(Map<String, Object?> ios) {
@@ -259,7 +225,7 @@ void _validateBuildCommand(String command) {
     if (command.contains(flag)) {
       _fail(
         'platforms.ios.build_command must not set $flag because '
-        'ship-my-flutter appends it automatically',
+        'smf appends it automatically',
       );
     }
   }
@@ -321,7 +287,7 @@ bool _isShellWhitespace(int codeUnit) =>
 Never _invalidBuildCommandShape() => _fail(
   'platforms.ios.build_command must be one shell command invocation; '
   'put pipelines, chained commands, redirections, comments, and preparation '
-  'steps in hooks.before_build.run',
+  'steps in smf/hooks/before_build.dart',
 );
 
 TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
@@ -361,13 +327,13 @@ AppStoreConfig _parseAppStoreConfig(Map<String, Object?> appStore) {
   return AppStoreConfig(mode: mode);
 }
 
-ShipManifest validateManifest(Object? value, {String source = 'manifest'}) {
+SmfManifest validateManifest(Object? value, {String source = 'manifest'}) {
   try {
     final root = _objectMap(value, source);
     _schemaVersion(root, source);
     final platforms = _objectMap(root['platforms'], 'platforms');
     final ios = _objectMap(platforms['ios'], 'platforms.ios');
-    return ShipManifest(
+    return SmfManifest(
       ios: PlatformManifest(
         version: _stableVersion(ios['version'], 'platforms.ios.version'),
         baselineSha: _gitSha(ios['baselineSha'], 'platforms.ios.baselineSha'),
@@ -377,10 +343,10 @@ ShipManifest validateManifest(Object? value, {String source = 'manifest'}) {
         ),
       ),
     );
-  } on ShipError {
+  } on SmfError {
     rethrow;
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '$source is invalid:\n${error.message}',
       'INVALID_CONFIG',
       cause: error,
@@ -446,10 +412,10 @@ ChangelogManifest validateChangelog(
       );
     }
     return ChangelogManifest(iosReleases: parsed);
-  } on ShipError {
+  } on SmfError {
     rethrow;
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '$source is invalid:\n${error.message}',
       'INVALID_CONFIG',
       cause: error,
@@ -482,10 +448,10 @@ StoreReleaseNotes validateStoreReleaseNotes(
       };
     }
     return result;
-  } on ShipError {
+  } on SmfError {
     rethrow;
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       '$source is invalid:\n${error.message}',
       'INVALID_CONFIG',
       cause: error,
@@ -647,5 +613,5 @@ String _boundedNote(Object? value, String path) {
 }
 
 Never _fail(String message) {
-  throw ShipError(message, 'INVALID_CONFIG');
+  throw SmfError(message, 'INVALID_CONFIG');
 }

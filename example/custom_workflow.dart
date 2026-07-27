@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 
 Future<void> main() async {
-  final root = Directory.current.path;
-  await validateRepository(root);
-  final manifest = await loadManifest(root);
-  final plan = await createReleasePlan(root, manifest, Platform.ios);
+  final paths = resolveSmfPaths(Directory.current.path);
+  await validateRepository(paths.directory);
+  final manifest = await loadManifest(paths.directory);
+  final plan = await createReleasePlan(
+    paths.repositoryRoot,
+    manifest,
+    Platform.ios,
+  );
   stdout.writeln(const JsonEncoder.withIndent('  ').convert(plan?.toJson()));
 }

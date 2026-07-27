@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -21,7 +21,9 @@ void main() {
     ]);
     await git(root.path, const <String>['add', '.']);
     await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-    await initialize(InitOptions(root: root.path, bundleId: 'dev.example.app'));
+    await initialize(
+      InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
+    );
     await git(root.path, const <String>['add', '.']);
     await git(root.path, const <String>[
       'commit',
@@ -32,8 +34,8 @@ void main() {
     await expectLater(
       validateRepository(root.path),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.message,
+        isA<SmfError>().having(
+          (SmfError error) => error.message,
           'message',
           contains('No committed pubspec.lock'),
         ),
@@ -43,8 +45,8 @@ void main() {
     await expectLater(
       validateRepository(root.path),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.message,
+        isA<SmfError>().having(
+          (SmfError error) => error.message,
           'message',
           contains('pubspec.lock must be committed'),
         ),

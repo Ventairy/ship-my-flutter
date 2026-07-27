@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'github_release.freezed.dart';
 part 'github_release.g.dart';
 
-/// GitHub Release fields used by ship-my-flutter.
+/// GitHub Release fields used by smf.
 @freezed
 abstract class GitHubRelease with _$GitHubRelease {
   /// Creates a GitHub Release response.

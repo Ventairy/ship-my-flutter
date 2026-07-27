@@ -1,4 +1,4 @@
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -9,8 +9,8 @@ void main() {
         const <String>[],
       ),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
+        isA<SmfError>().having(
+          (SmfError error) => error.code,
           'code',
           'COMMAND_FAILED',
         ),
@@ -27,14 +27,13 @@ void main() {
             'PATH': '/usr/bin:/bin',
             'GITHUB_TOKEN': 'github-secret',
             'SMF_IOS_CERTIFICATE_PASSWORD': 'certificate-secret',
-            'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH':
-                '/private/key.p8',
+            'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH': '/private/key.p8',
           },
         );
         const command =
             'printf "%s|%s|%s" "\$GITHUB_TOKEN" '
             '"\$SMF_IOS_CERTIFICATE_PASSWORD" '
-            '"\$SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH"';
+            '"\$SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH"';
         final result = await runner.run('/bin/sh', const <String>[
           '-c',
           command,
@@ -51,8 +50,8 @@ void main() {
           'certificate-password',
         ]),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             isNot(contains('certificate-password')),
           ),
@@ -67,8 +66,8 @@ void main() {
           'printf "build failed safely" >&2; exit 1',
         ]),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('build failed safely'),
           ),

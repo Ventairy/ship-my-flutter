@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 import 'support/fake_app_store.dart';
@@ -45,18 +45,9 @@ void main() {
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
       await initialize(
-        InitOptions(root: root.path, bundleId: 'dev.example.app'),
+        InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
       );
-      final paths = resolveShipPaths(root.path);
-      final configFile = File(paths.config);
-      await configFile.writeAsString(
-        (await configFile.readAsString()).replaceFirst(
-          'hooks: {}',
-          'hooks:\n'
-              '  before_build:\n'
-              '    run: ignored-by-injected-test-hook',
-        ),
-      );
+      final paths = resolveSmfPaths(root.path);
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>[
         'commit',
@@ -65,13 +56,9 @@ void main() {
       ]);
       await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
       await git(root.path, const <String>['push', '-u', 'origin', 'main']);
-      await git(root.path, const <String>[
-        'checkout',
-        '-b',
-        'ship-my-flutter/ios',
-      ]);
+      await git(root.path, const <String>['checkout', '-b', 'smf/ios']);
       final baselineSha = await currentSha(root.path);
-      final manifest = ShipManifest(
+      final manifest = SmfManifest(
         ios: PlatformManifest(
           version: '1.1.0',
           baselineSha: baselineSha,
@@ -137,12 +124,7 @@ void main() {
         '-m',
         'chore(ios): record fixture candidate',
       ]);
-      await git(root.path, const <String>[
-        'push',
-        '-u',
-        'origin',
-        'ship-my-flutter/ios',
-      ]);
+      await git(root.path, const <String>['push', '-u', 'origin', 'smf/ios']);
       final client = FakeAppStoreConnectApi(
         directBuild: const ApiResource<BuildAttributes>(
           type: 'builds',
@@ -154,7 +136,7 @@ void main() {
 
       final reused = await createIosCandidate(
         CandidateOptions(
-          root: root.path,
+          workingDirectory: root.path,
           appleCredentials: const AppleCredentials(
             keyId: 'unused',
             issuerId: 'unused',
@@ -176,6 +158,7 @@ void main() {
                   },
                 },
               });
+              return true;
             },
           ),
         ),
@@ -191,7 +174,7 @@ void main() {
       expect(
         await git(origin.path, const <String>[
           'show',
-          'ship-my-flutter/ios:.ship-my-flutter/store-release-notes.json',
+          'smf/ios:smf/store-release-notes.json',
         ]),
         contains('Generated immediately before the build.'),
       );
@@ -200,23 +183,10 @@ void main() {
         'chore(ios): apply before_build hook for 1.1.0',
       );
 
-      await configFile.writeAsString(
-        (await configFile.readAsString()).replaceFirst(
-          '    run: ignored-by-injected-test-hook',
-          '    run: ignored-by-injected-test-hook\n'
-              '    commit: false',
-        ),
-      );
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>[
-        'commit',
-        '-m',
-        'chore: disable hook commits',
-      ]);
       await expectLater(
         createIosCandidate(
           CandidateOptions(
-            root: root.path,
+            workingDirectory: root.path,
             appleCredentials: const AppleCredentials(
               keyId: 'unused',
               issuerId: 'unused',
@@ -233,13 +203,14 @@ void main() {
                 await writeObject(paths.storeReleaseNotes, <String, Object?>{
                   'ios': <String, Object?>{},
                 });
+                return false;
               },
             ),
           ),
         ),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'BUILD_HOOK_DIRTY_WORKTREE',
           ),
@@ -247,14 +218,14 @@ void main() {
       );
       await git(root.path, const <String>[
         'restore',
-        '.ship-my-flutter/store-release-notes.json',
+        'smf/store-release-notes.json',
       ]);
 
       await git(root.path, const <String>['checkout', 'main']);
       await expectLater(
         createIosCandidate(
           CandidateOptions(
-            root: root.path,
+            workingDirectory: root.path,
             appleCredentials: const AppleCredentials(
               keyId: 'unused',
               issuerId: 'unused',
@@ -269,10 +240,10 @@ void main() {
           ),
         ),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
-            contains('only runs on ship-my-flutter/ios'),
+            contains('only runs on smf/ios'),
           ),
         ),
       );

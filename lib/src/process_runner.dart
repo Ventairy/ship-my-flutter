@@ -27,7 +27,7 @@ Future<RunResult> runShellCommand(
   ProcessRunner processRunner = const SystemProcessRunner(),
 }) {
   if (Platform.isWindows) {
-    throw const ShipError(
+    throw const SmfError(
       'Repository commands require a POSIX shell.',
       'SHELL_UNSUPPORTED',
     );
@@ -51,19 +51,13 @@ final class SystemProcessRunner implements ProcessRunner {
     'SMF_APP_STORE_CONNECT_KEY_ID',
     'SMF_APP_STORE_CONNECT_ISSUER_ID',
     'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
+    'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
     'SMF_IOS_CERTIFICATE_BASE64',
+    'SMF_IOS_CERTIFICATE_PATH',
     'SMF_IOS_CERTIFICATE_PASSWORD',
     'SMF_IOS_PROVISIONING_PROFILES_BASE64',
-    'SHIP_MY_FLUTTER_GITHUB_TOKEN',
-    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID',
-    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID',
-    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
-    'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
-    'SHIP_MY_FLUTTER_IOS_CERTIFICATE_BASE64',
-    'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PATH',
-    'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PASSWORD',
-    'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_BASE64',
-    'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_PATH',
+    'SMF_IOS_PROVISIONING_PROFILES_PATH',
+    'SMF_GITHUB_TOKEN',
   };
 
   /// Primarily useful for deterministic embedding and tests.
@@ -95,7 +89,7 @@ final class SystemProcessRunner implements ProcessRunner {
         includeParentEnvironment: false,
       );
     } on ProcessException catch (error) {
-      throw ShipError(
+      throw SmfError(
         'Could not start $executable: ${error.message}',
         'COMMAND_FAILED',
         cause: error,
@@ -127,7 +121,7 @@ final class SystemProcessRunner implements ProcessRunner {
       final detail = diagnostics.isEmpty
           ? ''
           : '\n${_truncateDiagnostics(diagnostics)}';
-      throw ShipError(
+      throw SmfError(
         '$executable failed with exit code $exitCode$detail',
         'COMMAND_FAILED',
         cause: result,

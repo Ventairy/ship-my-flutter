@@ -8,17 +8,21 @@ import 'client.dart';
 final class CandidateOptions {
   /// Creates candidate options.
   const CandidateOptions({
-    required this.root,
+    required this.workingDirectory,
     required this.appleCredentials,
     required this.signingCredentials,
+    this.smfPath,
     this.github,
     this.commitReceipt = true,
     this.client,
     this.dependencies = const CandidateDependencies(),
   });
 
-  /// Flutter repository root.
-  final String root;
+  /// Directory from which SMF discovers the target app.
+  final String workingDirectory;
+
+  /// Optional explicit `smf` directory, relative to [workingDirectory].
+  final String? smfPath;
 
   /// App Store Connect credentials.
   final AppleCredentials appleCredentials;

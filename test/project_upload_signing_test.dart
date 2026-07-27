@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 import 'support/recording_process.dart';
@@ -40,7 +40,6 @@ void main() {
     expect(
       await resolveBundleId(
         root.path,
-        '.',
         const IosConfig(),
         processRunner: runner,
         isMacOS: true,
@@ -66,7 +65,6 @@ void main() {
 
     await resolveBundleId(
       root.path,
-      '.',
       const IosConfig(),
       flavor: 'production',
       processRunner: runner,
@@ -110,41 +108,35 @@ void main() {
       );
       expect(
         invocation.arguments.last,
-        contains('--build-name "\$SHIP_MY_FLUTTER_VERSION"'),
+        contains('--build-name "\$SMF_PLATFORM_VERSION"'),
       );
       expect(
         invocation.arguments.last,
-        contains('--build-number "\$SHIP_MY_FLUTTER_BUILD_NUMBER"'),
+        contains('--build-number "\$SMF_BUILD_NUMBER"'),
       );
       expect(
         invocation.arguments.last,
         contains(
           '--export-options-plist '
-          '"\$SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH"',
+          '"\$SMF_EXPORT_OPTIONS_PATH"',
         ),
       );
+      expect(invocation.arguments.last, contains('--flavor "\$SMF_FLAVOR"'));
       expect(
-        invocation.arguments.last,
-        contains('--flavor "\$SHIP_MY_FLUTTER_FLAVOR"'),
+        invocation.options.environment,
+        containsPair('SMF_PLATFORM_VERSION', '1.2.0'),
       );
       expect(
         invocation.options.environment,
-        containsPair('SHIP_MY_FLUTTER_VERSION', '1.2.0'),
+        containsPair('SMF_BUILD_NUMBER', '17'),
       );
       expect(
         invocation.options.environment,
-        containsPair('SHIP_MY_FLUTTER_BUILD_NUMBER', '17'),
+        containsPair('SMF_EXPORT_OPTIONS_PATH', '/tmp/ExportOptions.plist'),
       );
       expect(
         invocation.options.environment,
-        containsPair(
-          'SHIP_MY_FLUTTER_EXPORT_OPTIONS_PATH',
-          '/tmp/ExportOptions.plist',
-        ),
-      );
-      expect(
-        invocation.options.environment,
-        containsPair('SHIP_MY_FLUTTER_FLAVOR', 'production'),
+        containsPair('SMF_FLAVOR', 'production'),
       );
     },
   );
@@ -197,9 +189,9 @@ void main() {
     addTearDown(() => root.delete(recursive: true));
     await File(p.join(root.path, 'build.sh')).writeAsString(r'''
 set -eu
-mkdir -p "$(dirname "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH")"
-printf '%s\n' "$@" > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH.args"
-printf 'ipa' > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH"
+mkdir -p "$(dirname "$SMF_IPA_OUTPUT_PATH")"
+printf '%s\n' "$@" > "$SMF_IPA_OUTPUT_PATH.args"
+printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
 ''');
 
     final ipa = await runIosBuildCommand(
@@ -251,8 +243,8 @@ printf 'ipa' > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH"
     await expectLater(
       findIpa(root.path, ipaOutputPath: 'example.ipa'),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
+        isA<SmfError>().having(
+          (SmfError error) => error.code,
           'code',
           'IPA_PATH_ESCAPE',
         ),
@@ -362,8 +354,8 @@ printf 'ipa' > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH"
         temporaryRoot: temporaryRoot,
       ),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
+        isA<SmfError>().having(
+          (SmfError error) => error.code,
           'code',
           'INVALID_CERTIFICATE',
         ),
@@ -383,8 +375,8 @@ printf 'ipa' > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH"
         temporaryRoot: temporaryRoot,
       ),
       throwsA(
-        isA<ShipError>().having(
-          (ShipError error) => error.code,
+        isA<SmfError>().having(
+          (SmfError error) => error.code,
           'code',
           'INVALID_PROFILE',
         ),
@@ -453,8 +445,8 @@ printf 'ipa' > "$SHIP_MY_FLUTTER_IPA_OUTPUT_PATH"
           homeDirectory: root.path,
         ),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'INVALID_CREDENTIAL',
           ),

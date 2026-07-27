@@ -1,6 +1,6 @@
 # Security model
 
-ship-my-flutter handles high-value signing material. Its defaults are intentionally narrow.
+smf handles high-value signing material. Its defaults are intentionally narrow.
 
 ## Secret lifecycle
 
@@ -22,7 +22,7 @@ ship-my-flutter handles high-value signing material. Its defaults are intentiona
   Both are trusted at the same boundary as the workflow and application source.
   Credential variables are removed before they run, but maintainers must still
   review command changes before exposing release secrets.
-- `ipa_output_path` must stay under `app_path`; resolved symlinks are
+- `ipa_output_path` must stay under the Flutter app; resolved symlinks are
   checked again after the build.
 
 GitHub should restrict release environments, secret access, and workflow modification to trusted maintainers. Do not run the release-candidate phase for untrusted fork code with secrets.
@@ -40,7 +40,7 @@ Prefer a dedicated ephemeral macOS runner when using self-hosted infrastructure.
   install and full format/lint/typecheck/test/build gate are expected before
   release.
 
-The consumer references `Ventairy/ship-my-flutter-action@v1` for stable updates. High-assurance repositories can pin the action to a reviewed full release commit.
+The consumer references `Ventairy/smf-action@v1` for stable updates. High-assurance repositories can pin the action to a reviewed full release commit.
 
 ## GitHub permissions
 
@@ -63,7 +63,7 @@ Issues read/write access; the alternative token performs both the API
 operations and release-branch push.
 
 GitHub does not create new workflow runs for events produced by the default
-`GITHUB_TOKEN`. ship-my-flutter's candidate still runs because the generated
+`GITHUB_TOKEN`. smf's candidate still runs because the generated
 workflow dispatches it from the pull-request job's outputs, but unrelated
 `pull_request` workflows will not run for the generated release PR.
 Repositories that require those independent checks must use a GitHub App

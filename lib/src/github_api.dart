@@ -74,7 +74,7 @@ final class GitHubRestApi implements GitHubApi {
     'Authorization': 'Bearer ${context.token}',
     'X-GitHub-Api-Version': '2022-11-28',
     'Content-Type': 'application/json',
-    'User-Agent': 'ship-my-flutter',
+    'User-Agent': 'smf',
   };
 
   String get _repositoryPath =>
@@ -95,7 +95,7 @@ final class GitHubRestApi implements GitHubApi {
       final streamed = await _client.send(request);
       response = await http.Response.fromStream(streamed);
     } on http.ClientException catch (error) {
-      throw ShipError('Could not reach GitHub.', 'GITHUB_API', cause: error);
+      throw SmfError('Could not reach GitHub.', 'GITHUB_API', cause: error);
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw GitHubApiException(
@@ -127,7 +127,7 @@ final class GitHubRestApi implements GitHubApi {
     );
     final data = _decodeResponse(response);
     if (data is! List<Object?>) {
-      throw const ShipError(
+      throw const SmfError(
         'GitHub returned an invalid pull request list.',
         'GITHUB_RESPONSE',
       );
@@ -253,7 +253,7 @@ final class GitHubRestApi implements GitHubApi {
 
   T _decodeDto<T>(Object? value, T Function(Map<String, Object?>) fromJson) {
     if (value is! Map<String, Object?>) {
-      throw const ShipError(
+      throw const SmfError(
         'GitHub returned an invalid response object.',
         'GITHUB_RESPONSE',
       );
@@ -261,7 +261,7 @@ final class GitHubRestApi implements GitHubApi {
     try {
       return fromJson(value);
     } on CheckedFromJsonException catch (error) {
-      throw ShipError(
+      throw SmfError(
         'GitHub returned invalid response data.',
         'GITHUB_RESPONSE',
         cause: error,
@@ -274,7 +274,7 @@ Object? _decodeResponse(http.Response response) {
   try {
     return jsonDecode(response.body);
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       'GitHub returned malformed JSON.',
       'GITHUB_RESPONSE',
       cause: error,

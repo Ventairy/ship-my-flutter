@@ -1,8 +1,8 @@
-# AGENTS.md — ship-my-flutter Core
+# AGENTS.md — smf Core
 
 ## 0. Mission and core philosophy
 
-You are working in the Dart core of **ship-my-flutter**, a release automation
+You are working in the Dart core of **smf**, a release automation
 tool whose goal is to make shipping a Flutter app feel like reviewing ordinary
 code.
 
@@ -42,7 +42,7 @@ This is a single Dart package, not a monorepo.
 
 ```text
 bin/                         Executable entrypoints and command aliases
-lib/ship_my_flutter.dart     Deliberate public library surface
+lib/smf.dart     Deliberate public library surface
 lib/src/                     Release engine and infrastructure
 lib/src/apple/               Signing, build, upload, and Apple API behavior
 schemas/                     JSON Schema for YAML configuration
@@ -52,7 +52,7 @@ test/                        Unit and integration-style tests
 doc/                         Consumer-facing guides
 ```
 
-The adjacent `Ventairy/ship-my-flutter-action` repository is a separate
+The adjacent `Ventairy/smf-action` repository is a separate
 product. It vendors this package and provides only GitHub-native adaptation:
 Action inputs, secret masking, repository context, process execution, failures,
 and outputs.
@@ -90,7 +90,7 @@ redesign.
   the iOS changelog or determine its bump.
 - Unscoped commits and non-platform feature scopes apply to every enabled
   platform.
-- Platform branches use the internal `ship-my-flutter/<platform>` convention.
+- Platform branches use the internal `smf/<platform>` convention.
 - Platform tags use `<platform>-v<version>`.
 - `pubspec.yaml` is the package/application manifest, not a shared platform
   release manifest.
@@ -110,7 +110,8 @@ redesign.
 
 ### Git as the audit trail
 
-- Configuration and release state live under `.ship-my-flutter`.
+- Configuration and release state live under the Flutter app's `smf/`
+  directory.
 - Secrets never belong in configuration, manifests, changelogs, notes, or
   candidate receipts.
 - Release branches are updated from the latest target branch rather than
@@ -127,7 +128,7 @@ redesign.
 - Do not accept raw secrets in command-line flags.
 - The Action machine protocol and public output fields are compatibility
   boundaries.
-- `shipMyFlutterVersion` and `pubspec.yaml` must remain synchronized.
+- `smfVersion` and `pubspec.yaml` must remain synchronized.
 
 ---
 
@@ -263,7 +264,7 @@ cleanly, and explain the exception immediately beside it.
 - Use Freezed for immutable, non-secret value models that need deep equality,
   collection immutability, or `copyWith` state transitions.
 - Use json_serializable for persisted JSON and external API response DTOs.
-  Keep domain-specific validation and stable `ShipError` translation at the
+  Keep domain-specific validation and stable `SmfError` translation at the
   untrusted boundary.
 - Keep one DTO or independently meaningful generated model per authored file.
   Shared enums may live together in one dedicated enum file.
@@ -299,7 +300,7 @@ cleanly, and explain the exception immediately beside it.
 
 ### Public API
 
-- `lib/ship_my_flutter.dart` is the authoritative export boundary.
+- `lib/smf.dart` is the authoritative export boundary.
 - Every newly exported declaration needs consumer-first `///` documentation:
   what it does, when to use it, side effects, prerequisites, and important
   guarantees.
@@ -313,7 +314,7 @@ cleanly, and explain the exception immediately beside it.
 
 ### Errors
 
-- Use `ShipError` for actionable domain and validation failures.
+- Use `SmfError` for actionable domain and validation failures.
 - Error codes are stable machine-readable contracts. Keep them concise and
   uppercase with underscores.
 - Preserve useful external status/context without leaking credentials,
@@ -326,7 +327,7 @@ cleanly, and explain the exception immediately beside it.
 ## 6. Configuration and persisted state
 
 The user-facing configuration is
-`.ship-my-flutter/config.yaml`. Its contract is mirrored by:
+`smf/config.yaml`. Its contract is mirrored by:
 
 - typed parsing and validation in `lib/src/config.dart`;
 - `schemas/config.schema.json`;
@@ -399,11 +400,11 @@ Xcode, or other subprocesses.
 - Preserve the caller's starting branch after temporary release-branch work.
 - Keep internal subprocess invocation argument-based; do not construct shell
   commands from API responses, credentials, or machine-generated input.
-- `hooks.before_create_pr.run`, `hooks.before_build.run`, and
-  `platforms.ios.build_command` are explicit trusted exceptions. Run these
-  repository-owned POSIX shell commands with fail-fast settings, pass
-  calculated values through environment variables, and never interpolate
-  secret or remote values into their source.
+- `smf/hooks/before_create_pr.dart`, `smf/hooks/before_build.dart`, and
+  `platforms.ios.build_command` are explicit trusted repository code.
+  Hooks use the typed `SmfHook` API; the build command uses a fail-fast POSIX
+  shell. Pass calculated values through typed contexts or environment
+  variables and never interpolate secret or remote values into command source.
 - Fail with the command's relevant stderr while excluding secret-bearing
   arguments.
 - Do not introduce shell scripts for release-domain behavior. Implement
@@ -428,7 +429,7 @@ Release credentials are high-value secrets.
 - Installed profiles, generated export options, API keys, temporary keychains,
   and temporary directories are cleaned in `finally` paths.
 - Preserve assets that existed before the process; delete only assets created
-  by ship-my-flutter.
+  by smf.
 - Do not pass secrets to repository hooks, Flutter builds, or unrelated child
   processes.
 - Prefer ephemeral macOS runners. Treat cleanup on a persistent self-hosted

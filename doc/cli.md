@@ -4,13 +4,15 @@ The CLI and GitHub Action call the same Dart implementation. Use the Action for
 the turnkey lifecycle; use these commands when operating locally or composing a
 custom workflow.
 
-Every command accepts `--root` (`-r`) to identify the Git repository root.
-Commands that inspect history need a full checkout with tags. Successful
-commands write one JSON value to stdout and diagnostics to stderr.
+Run from the Flutter app or any ancestor that contains exactly one SMF app.
+Every command accepts `--smf-path` to select a specific `app/smf` directory
+when the working tree contains multiple apps. Commands that inspect history
+need a full checkout with tags. Successful commands write one JSON value to
+stdout and diagnostics to stderr.
 
 | Command | Runner and branch | Credentials | Side effects |
 | --- | --- | --- | --- |
-| `init` | Any OS; run against the Git root | None | Creates `config.yaml` and the starter workflow |
+| `init` | Any OS; run from the Flutter app | None | Creates `smf/config.yaml` and the repository workflow |
 | `validate` | Any OS; any branch | None | Read-only repository/configuration checks |
 | `plan` | Any OS; any branch | None | Read-only next-version calculation; it does not choose the Action's workflow phase |
 | `open-pr` / `release` | Any OS; target branch, clean tree | GitHub token and `owner/repo` | Creates/updates the release branch, commits state, pushes, and opens/updates the PR |
@@ -18,7 +20,7 @@ commands write one JSON value to stdout and diagnostics to stderr.
 | `promote` / `app-store` | Any OS; target branch, clean tree | Apple API key and GitHub token | Verifies the exact receipt/build, optionally submits it, then creates the platform GitHub Release |
 
 GitHub commands read `GITHUB_REPOSITORY=owner/name` and
-`SHIP_MY_FLUTTER_GITHUB_TOKEN` (or `GITHUB_TOKEN`). `--repository` and
+`SMF_GITHUB_TOKEN` (or `GITHUB_TOKEN`). `--repository` and
 `--github-token-file` are the non-environment alternatives. Apple and signing
 variables are listed in the main README.
 
@@ -30,11 +32,11 @@ Before `candidate`, install the project toolchain. When `build_command` is
 omitted, the CLI selects `fvm flutter build ipa --release` for repositories
 with FVM configuration and `flutter build ipa --release` otherwise. The CLI
 does not install Flutter, FVM, Melos, or project dependencies. Optional
-preparation belongs in `hooks.before_build.run`.
+preparation belongs in `smf/hooks/before_build.dart`.
 
 `init --force` replaces the generated config and workflow. It preserves
 manifest, changelog, store notes, and candidate receipts. Commit or back up
 configuration changes first; do not use it as a routine update command.
 
-Run `dart run ship_my_flutter <command> --help` for parser options. Raw secret
+Run `dart run smf <command> --help` for parser options. Raw secret
 arguments are intentionally unsupported.

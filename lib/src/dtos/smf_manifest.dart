@@ -3,18 +3,18 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../models/release_enums.dart';
 import 'platform_manifest.dart';
 
-part 'ship_manifest.freezed.dart';
+part 'smf_manifest.freezed.dart';
 
 /// Version state persisted for every enabled release platform.
 @freezed
-abstract class ShipManifest with _$ShipManifest {
+abstract class SmfManifest with _$SmfManifest {
   /// Creates the repository release manifest.
-  const factory ShipManifest({
+  const factory SmfManifest({
     @Default(1) int schemaVersion,
     required PlatformManifest ios,
-  }) = _ShipManifest;
+  }) = _SmfManifest;
 
-  const ShipManifest._();
+  const SmfManifest._();
 
   /// Returns release state for [platform].
   PlatformManifest forPlatform(Platform platform) => switch (platform) {

@@ -1,16 +1,16 @@
-final class ShipError implements Exception {
-  const ShipError(this.message, this.code, {this.cause});
+final class SmfError implements Exception {
+  const SmfError(this.message, this.code, {this.cause});
 
   final String message;
   final String code;
   final Object? cause;
 
   @override
-  String toString() => 'ShipError($code): $message';
+  String toString() => 'SmfError($code): $message';
 }
 
 Never _invalid(String message, [String code = 'INVALID_STATE']) {
-  throw ShipError(message, code);
+  throw SmfError(message, code);
 }
 
 void invariant(

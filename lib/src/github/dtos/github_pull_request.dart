@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'github_pull_request.freezed.dart';
 part 'github_pull_request.g.dart';
 
-/// Pull-request fields used by ship-my-flutter.
+/// Pull-request fields used by smf.
 @freezed
 abstract class GitHubPullRequest with _$GitHubPullRequest {
   /// Creates a GitHub pull-request response.

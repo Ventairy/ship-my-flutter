@@ -12,7 +12,7 @@ bundle ID and enable the capabilities used by that target.
 Create the app in App Store Connect with the main app's bundle ID. Apple’s API
 can manage an existing app but cannot create the app record.
 
-Complete the stable product metadata required for submission: app name, categories, privacy, age rating, pricing/availability, screenshots, review contact information, and any account-specific agreements. ship-my-flutter owns version-specific “What’s New” text; it does not guess product or compliance metadata.
+Complete the stable product metadata required for submission: app name, categories, privacy, age rating, pricing/availability, screenshots, review contact information, and any account-specific agreements. smf owns version-specific “What’s New” text; it does not guess product or compliance metadata.
 
 Declare the app’s export-compliance status as well. For apps that qualify, set `ITSAppUsesNonExemptEncryption` accurately in `Info.plist`; otherwise complete the applicable encryption declaration in App Store Connect. This is a legal/product fact that the tool cannot infer.
 
@@ -77,7 +77,7 @@ Encode the `.p8`, `.p12`, and profiles as Base64 without adding them to the repo
 The local test suite validates request contracts with mock Apple responses. A real organization must still exercise certificate import, its entitlements/profiles, build processing, metadata completeness, and API-key permissions before treating production delivery as proven.
 
 Use a disposable test app/repository—not a production app—for the first live
-acceptance run. Let ship-my-flutter create its normal configured release branch
+acceptance run. Let smf create its normal configured release branch
 in that repository. Verify all of the following before publishing the core
 package or the `v1` Action tag:
 

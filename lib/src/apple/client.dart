@@ -140,7 +140,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
       final streamed = await _httpClient.send(request);
       response = await http.Response.fromStream(streamed);
     } on http.ClientException catch (error) {
-      throw ShipError(
+      throw SmfError(
         'Could not reach App Store Connect.',
         'APP_STORE_CONNECT_API',
         cause: error,
@@ -166,11 +166,11 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
         }
       } on FormatException {
         details = null;
-      } on ShipError {
+      } on SmfError {
         details = null;
       }
       final requestTarget = '${url.path}${url.hasQuery ? '?${url.query}' : ''}';
-      throw ShipError(
+      throw SmfError(
         'App Store Connect $method $requestTarget '
             'failed (${response.statusCode})'
             '${details == null || details.isEmpty ? '' : ': $details'}',
@@ -307,7 +307,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
         'FAILED',
         'INVALID',
       }.contains(build?.attributes.processingState)) {
-        throw ShipError(
+        throw SmfError(
           'Apple marked $version ($buildNumber) as '
               '${build?.attributes.processingState}.',
           'BUILD_INVALID',
@@ -315,7 +315,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
       }
       if (interval > Duration.zero) await _delay(interval);
     }
-    throw ShipError(
+    throw SmfError(
       'Timed out waiting for $version ($buildNumber) to finish processing.',
       'BUILD_TIMEOUT',
     );
@@ -729,7 +729,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
             attributesFromJson(_map(attributes, '$path.attributes')),
       );
     } on CheckedFromJsonException catch (error) {
-      throw ShipError(
+      throw SmfError(
         '$path contains invalid response data.',
         'APP_STORE_CONNECT_RESPONSE',
         cause: error,
@@ -747,13 +747,13 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
 
   Map<String, Object?> _map(Object? value, String path) {
     if (value is! Map<Object?, Object?>) {
-      throw ShipError('$path must be an object.', 'APP_STORE_CONNECT_RESPONSE');
+      throw SmfError('$path must be an object.', 'APP_STORE_CONNECT_RESPONSE');
     }
     final result = <String, Object?>{};
     for (final entry in value.entries) {
       final key = entry.key;
       if (key is! String) {
-        throw ShipError(
+        throw SmfError(
           '$path contains a non-string key.',
           'APP_STORE_CONNECT_RESPONSE',
         );
@@ -765,14 +765,14 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
 
   List<Object?> _list(Object? value, String path) {
     if (value is! List<Object?>) {
-      throw ShipError('$path must be a list.', 'APP_STORE_CONNECT_RESPONSE');
+      throw SmfError('$path must be a list.', 'APP_STORE_CONNECT_RESPONSE');
     }
     return value;
   }
 
   String _string(Object? value, String path) {
     if (value is! String) {
-      throw ShipError('$path must be a string.', 'APP_STORE_CONNECT_RESPONSE');
+      throw SmfError('$path must be a string.', 'APP_STORE_CONNECT_RESPONSE');
     }
     return value;
   }
@@ -786,7 +786,7 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     try {
       return jsonDecode(body);
     } on FormatException catch (error) {
-      throw ShipError(
+      throw SmfError(
         'App Store Connect returned malformed JSON.',
         'APP_STORE_CONNECT_RESPONSE',
         cause: error,

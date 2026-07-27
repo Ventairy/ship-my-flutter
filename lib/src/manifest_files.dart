@@ -12,7 +12,7 @@ Future<void> applyReleasePlan(
   ReleasePlan plan, [
   DateTime? preparedAt,
 ]) async {
-  final paths = resolveShipPaths(root);
+  final paths = resolveSmfPaths(root);
   final manifest = await loadManifest(root);
   final changelog = await loadChangelog(root);
   final releases = Map<String, ChangelogRelease>.of(

@@ -13,10 +13,11 @@ import 'github_api.dart';
 import 'init.dart';
 import 'model.dart';
 import 'orchestrator.dart';
+import 'paths.dart';
 import 'release_plan.dart';
 import 'validate.dart';
 
-const String shipMyFlutterVersion = '0.1.0'; // x-release-please-version
+const String smfVersion = '0.1.0'; // x-release-please-version
 
 final class CliIo {
   const CliIo({
@@ -39,25 +40,28 @@ final class CliIo {
   final void Function(Object? value) writeError;
 }
 
+ArgParser _commandParser() =>
+    ArgParser()..addFlag('help', abbr: 'h', negatable: false);
+
 ArgParser _parser() {
   final parser = ArgParser()
     ..addFlag('help', abbr: 'h', negatable: false)
     ..addFlag('version', negatable: false);
   parser.addCommand(
     'init',
-    ArgParser()
-      ..addOption('root', abbr: 'r')
+    _commandParser()
+      ..addOption('smf-path')
       ..addOption('current-version')
       ..addOption('bundle-id')
       ..addFlag('force', negatable: false),
   );
-  parser.addCommand('validate', ArgParser()..addOption('root', abbr: 'r'));
-  parser.addCommand('plan', ArgParser()..addOption('root', abbr: 'r'));
+  parser.addCommand('validate', _commandParser()..addOption('smf-path'));
+  parser.addCommand('plan', _commandParser()..addOption('smf-path'));
   for (final name in const <String>['open-pr', 'release']) {
     parser.addCommand(
       name,
-      ArgParser()
-        ..addOption('root', abbr: 'r')
+      _commandParser()
+        ..addOption('smf-path')
         ..addOption('repository')
         ..addOption('github-token-file'),
     );
@@ -65,8 +69,8 @@ ArgParser _parser() {
   for (final name in const <String>['candidate', 'testflight']) {
     parser.addCommand(
       name,
-      ArgParser()
-        ..addOption('root', abbr: 'r')
+      _commandParser()
+        ..addOption('smf-path')
         ..addOption('repository')
         ..addOption('github-token-file')
         ..addFlag('commit-receipt', defaultsTo: true),
@@ -75,21 +79,22 @@ ArgParser _parser() {
   for (final name in const <String>['promote', 'app-store']) {
     parser.addCommand(
       name,
-      ArgParser()
-        ..addOption('root', abbr: 'r')
+      _commandParser()
+        ..addOption('smf-path')
         ..addOption('repository')
         ..addOption('github-token-file'),
     );
   }
   parser.addCommand(
     'action',
-    ArgParser()
+    _commandParser()
       ..addOption(
         'phase',
         allowed: const <String>['pull-request', 'release-candidate', 'ship'],
         mandatory: true,
       )
-      ..addOption('root', abbr: 'r')
+      ..addOption('working-directory', hide: true)
+      ..addOption('smf-path')
       ..addOption('repository')
       ..addOption('github-token-file'),
   );
@@ -98,15 +103,15 @@ ArgParser _parser() {
 
 String _usage(ArgParser parser) =>
     '''
-ship-my-flutter $shipMyFlutterVersion
+smf $smfVersion
 
 Platform-scoped Flutter release PRs, TestFlight candidates, and App Store
 delivery.
 
-Usage: ship-my-flutter <command> [options]
+Usage: smf <command> [options]
 
 Commands:
-  init         Create .ship-my-flutter and the starter GitHub workflow.
+  init         Create smf/config.yaml and the starter GitHub workflow.
   validate     Validate configuration and repository safety invariants.
   plan         Print the next iOS release plan without changing files.
   open-pr      Open or update the iOS release PR.
@@ -115,17 +120,42 @@ Commands:
   testflight   Alias for candidate.
   promote      Promote the exact tested candidate after the release PR merges.
   app-store    Alias for promote.
-  action       Machine protocol used by ship-my-flutter-action.
+  action       Machine protocol used by smf-action.
 
 Global options:
 ${parser.usage}
 
-Secrets are accepted through SHIP_MY_FLUTTER_* environment variables or the
+Secrets are accepted through SMF_* environment variables or the
 documented *_PATH variables, never as command-line values.
 ''';
 
-String _root(ArgResults command, CliIo io) =>
-    p.normalize(p.absolute(command.option('root') ?? io.workingDirectory));
+String _workingDirectory(ArgResults command, CliIo io) => p.normalize(
+  p.absolute(
+    command.name == 'action'
+        ? command.option('working-directory') ?? io.workingDirectory
+        : io.workingDirectory,
+  ),
+);
+
+String? _smfPath(ArgResults command) {
+  final value = command.option('smf-path')?.trim();
+  return value == null || value.isEmpty ? null : value;
+}
+
+String _initAppRoot(ArgResults command, CliIo io) {
+  final workingDirectory = _workingDirectory(command, io);
+  final smfPath = _smfPath(command);
+  if (smfPath == null) return workingDirectory;
+  final directory = p.normalize(p.absolute(workingDirectory, smfPath));
+  invariant(
+    p.basename(directory) == smfDirectoryName &&
+        (p.equals(directory, workingDirectory) ||
+            p.isWithin(workingDirectory, directory)),
+    '--smf-path must point to a forward directory named "smf".',
+    'INVALID_SMF_PATH',
+  );
+  return p.dirname(directory);
+}
 
 String? _environmentValue(Map<String, String> environment, List<String> names) {
   for (final name in names) {
@@ -138,12 +168,12 @@ String? _environmentValue(Map<String, String> environment, List<String> names) {
 Future<String?> _token(ArgResults command, CliIo io) async {
   final path = command.option('github-token-file')?.trim();
   final environmentToken = _environmentValue(io.environment, const <String>[
-    'SHIP_MY_FLUTTER_GITHUB_TOKEN',
+    'SMF_GITHUB_TOKEN',
     'GITHUB_TOKEN',
     'INPUT_GITHUB_TOKEN',
   ]);
   if (path != null && path.isNotEmpty && environmentToken != null) {
-    throw const ShipError(
+    throw const SmfError(
       'Set only one GitHub token source: --github-token-file or an environment '
           'variable.',
       'CONFLICTING_CREDENTIAL',
@@ -168,15 +198,15 @@ Future<GitHubContext?> _optionalGitHub(ArgResults command, CliIo io) async {
   final repository = _repository(command, io);
   if (token == null && repository == null) return null;
   if (token == null) {
-    throw const ShipError(
-      'A GitHub token is required. Set SHIP_MY_FLUTTER_GITHUB_TOKEN or '
+    throw const SmfError(
+      'A GitHub token is required. Set SMF_GITHUB_TOKEN or '
           'GITHUB_TOKEN.',
       'GITHUB_TOKEN_REQUIRED',
     );
   }
   if (repository == null ||
       !RegExp(r'^[^/\s]+/[^/\s]+$').hasMatch(repository)) {
-    throw const ShipError(
+    throw const SmfError(
       'A GitHub repository in owner/name form is required.',
       'GITHUB_REPOSITORY_REQUIRED',
     );
@@ -188,7 +218,7 @@ Future<GitHubContext?> _optionalGitHub(ArgResults command, CliIo io) async {
 Future<GitHubContext> _requiredGitHub(ArgResults command, CliIo io) async {
   final context = await _optionalGitHub(command, io);
   if (context == null) {
-    throw const ShipError(
+    throw const SmfError(
       'GitHub credentials are required for this command.',
       'GITHUB_CREDENTIALS_REQUIRED',
     );
@@ -201,31 +231,39 @@ void _printJson(CliIo io, Object? value) {
 }
 
 Future<Object?> _execute(ArgResults command, CliIo io) async {
-  final root = _root(command, io);
+  final workingDirectory = _workingDirectory(command, io);
+  final smfPath = _smfPath(command);
   switch (command.name) {
     case 'init':
+      final appRoot = _initAppRoot(command, io);
       await initialize(
         InitOptions(
-          root: root,
+          appRoot: appRoot,
           currentVersion: command.option('current-version'),
           bundleId: command.option('bundle-id'),
           force: command.flag('force'),
         ),
       );
-      return <String, Object?>{'initialized': true, 'root': root};
+      return <String, Object?>{
+        'initialized': true,
+        'smfPath': smfPathsForApp(appRoot).directory,
+      };
     case 'validate':
-      await validateRepository(root);
+      final paths = resolveSmfPaths(workingDirectory, smfPath: smfPath);
+      await validateRepository(paths.directory);
       return const <String, Object?>{'valid': true};
     case 'plan':
+      final paths = resolveSmfPaths(workingDirectory, smfPath: smfPath);
       return (await createReleasePlan(
-        root,
-        await loadManifest(root),
+        paths.repositoryRoot,
+        await loadManifest(paths.directory),
         Platform.ios,
       ))?.toJson();
     case 'open-pr':
     case 'release':
       return (await planGitHubRelease(
-        root: root,
+        workingDirectory: workingDirectory,
+        smfPath: smfPath,
         github: await _requiredGitHub(command, io),
       )).toJson();
     case 'candidate':
@@ -233,7 +271,8 @@ Future<Object?> _execute(ArgResults command, CliIo io) async {
       final github = await _optionalGitHub(command, io);
       return (await createIosCandidate(
         CandidateOptions(
-          root: root,
+          workingDirectory: workingDirectory,
+          smfPath: smfPath,
           appleCredentials: await appleCredentialsFromEnvironment(
             io.environment,
           ),
@@ -248,7 +287,8 @@ Future<Object?> _execute(ArgResults command, CliIo io) async {
     case 'app-store':
       return (await promoteIosRelease(
         PromotionOptions(
-          root: root,
+          workingDirectory: workingDirectory,
+          smfPath: smfPath,
           appleCredentials: await appleCredentialsFromEnvironment(
             io.environment,
           ),
@@ -256,10 +296,10 @@ Future<Object?> _execute(ArgResults command, CliIo io) async {
         ),
       )).toJson();
     case 'action':
-      return _executeAction(command, io, root);
+      return _executeAction(command, io, workingDirectory, smfPath);
     default:
-      throw const ShipError(
-        'A command is required. Run ship-my-flutter --help.',
+      throw const SmfError(
+        'A command is required. Run smf --help.',
         'COMMAND_REQUIRED',
       );
   }
@@ -268,19 +308,22 @@ Future<Object?> _execute(ArgResults command, CliIo io) async {
 Future<Object?> _executeAction(
   ArgResults command,
   CliIo io,
-  String root,
+  String workingDirectory,
+  String? smfPath,
 ) async {
   switch (command.option('phase')) {
     case 'pull-request':
       return (await planGitHubRelease(
-        root: root,
+        workingDirectory: workingDirectory,
+        smfPath: smfPath,
         github: await _requiredGitHub(command, io),
       )).toJson();
     case 'release-candidate':
       final github = await _requiredGitHub(command, io);
       return (await createIosCandidate(
         CandidateOptions(
-          root: root,
+          workingDirectory: workingDirectory,
+          smfPath: smfPath,
           appleCredentials: await appleCredentialsFromEnvironment(
             io.environment,
           ),
@@ -293,7 +336,8 @@ Future<Object?> _executeAction(
     case 'ship':
       return (await promoteIosRelease(
         PromotionOptions(
-          root: root,
+          workingDirectory: workingDirectory,
+          smfPath: smfPath,
           appleCredentials: await appleCredentialsFromEnvironment(
             io.environment,
           ),
@@ -301,16 +345,23 @@ Future<Object?> _executeAction(
         ),
       )).toJson();
   }
-  throw const ShipError('Unsupported action phase.', 'INVALID_PHASE');
+  throw const SmfError('Unsupported action phase.', 'INVALID_PHASE');
 }
 
-Future<int> runShipMyFlutterCli(List<String> arguments, {CliIo? io}) async {
+Future<int> runSmfCli(List<String> arguments, {CliIo? io}) async {
   final resolvedIo = io ?? CliIo.system();
   final parser = _parser();
   try {
     final results = parser.parse(arguments);
     if (results.flag('version')) {
-      resolvedIo.writeOutput(shipMyFlutterVersion);
+      resolvedIo.writeOutput(smfVersion);
+      return 0;
+    }
+    if (results.command?.flag('help') ?? false) {
+      resolvedIo.writeOutput(
+        '${_usage(parser)}\n${results.command!.name} options:\n'
+        '${parser.commands[results.command!.name]!.usage}',
+      );
       return 0;
     }
     if (results.flag('help') || results.command == null) {
@@ -320,20 +371,20 @@ Future<int> runShipMyFlutterCli(List<String> arguments, {CliIo? io}) async {
     _printJson(resolvedIo, await _execute(results.command!, resolvedIo));
     return 0;
   } on FormatException catch (error) {
-    resolvedIo.writeError('ship-my-flutter: ${error.message}');
+    resolvedIo.writeError('smf: ${error.message}');
     resolvedIo.writeError(_usage(parser));
     return 64;
-  } on ShipError catch (error) {
-    resolvedIo.writeError('ship-my-flutter [${error.code}]: ${error.message}');
+  } on SmfError catch (error) {
+    resolvedIo.writeError('smf [${error.code}]: ${error.message}');
     return 1;
   } on GitHubApiException catch (error) {
     resolvedIo.writeError(
-      'ship-my-flutter [GITHUB_API]: GitHub ${error.method} ${error.path} '
+      'smf [GITHUB_API]: GitHub ${error.method} ${error.path} '
       'failed (${error.statusCode}).',
     );
     return 1;
   } on dart_io.FileSystemException catch (error) {
-    resolvedIo.writeError('ship-my-flutter [FILESYSTEM]: ${error.message}');
+    resolvedIo.writeError('smf [FILESYSTEM]: ${error.message}');
     return 1;
   }
 }

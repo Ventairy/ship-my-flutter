@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Ventairy/ship-my-flutter/main/schemas/config.schema.json",
-  "title": "ship-my-flutter configuration",
+  "$id": "https://raw.githubusercontent.com/Ventairy/smf/main/schemas/config.schema.json",
+  "title": "smf configuration",
   "$comment": "This schema provides structure, defaults, and conservative editor checks. The CLI validator is authoritative for shell syntax, cross-field rules, and platform-independent path safety.",
   "type": "object",
   "additionalProperties": false,
@@ -10,13 +10,6 @@
     "schema_version": {
       "const": 1,
       "description": "Configuration contract version."
-    },
-    "app_path": {
-      "type": "string",
-      "minLength": 1,
-      "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
-      "default": ".",
-      "description": "Flutter application root relative to the repository. Shared by every platform."
     },
     "flavor": {
       "type": "string",
@@ -28,21 +21,6 @@
       "minLength": 1,
       "default": "main",
       "description": "Branch whose commits feed release pull requests."
-    },
-    "hooks": {
-      "type": "object",
-      "default": {},
-      "additionalProperties": false,
-      "properties": {
-        "before_create_pr": {
-          "$ref": "#/$defs/hook",
-          "description": "Hook run after the next version and changelog are prepared, before creating or updating the release PR."
-        },
-        "before_build": {
-          "$ref": "#/$defs/hook",
-          "description": "Hook run before candidate source is fingerprinted and built."
-        }
-      }
     },
     "platforms": {
       "type": "object",
@@ -72,7 +50,7 @@
             "build_command": {
               "type": "string",
               "minLength": 1,
-              "description": "Optional POSIX shell build command. When omitted, ship-my-flutter uses fvm flutter build ipa --release if the project or repository has FVM configuration, and flutter build ipa --release otherwise. Chaining, pipelines, redirections, comments, and command substitution are rejected because ship-my-flutter appends version, build number, export-options, and configured flavor arguments to this invocation.",
+              "description": "Optional POSIX shell build command. When omitted, smf uses fvm flutter build ipa --release if the project or repository has FVM configuration, and flutter build ipa --release otherwise. Chaining, pipelines, redirections, comments, and command substitution are rejected because smf appends version, build number, export-options, and configured flavor arguments to this invocation.",
               "not": {
                 "pattern": "--(build-name|build-number|export-options-plist|flavor)"
               }
@@ -82,7 +60,7 @@
               "minLength": 1,
               "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$",
               "default": "build/ios/ipa",
-              "description": "IPA file or directory relative to app_path. Override only when a custom build command writes outside Flutter's standard build/ios/ipa directory."
+              "description": "IPA file or directory relative to the Flutter app. Override only when a custom build command writes outside Flutter's standard build/ios/ipa directory."
             },
             "testflight": {
               "type": "object",
@@ -120,25 +98,6 @@
               }
             }
           }
-        }
-      }
-    }
-  },
-  "$defs": {
-    "hook": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["run"],
-      "properties": {
-        "run": {
-          "type": "string",
-          "minLength": 1,
-          "description": "POSIX shell command executed from the repository root."
-        },
-        "commit": {
-          "type": "boolean",
-          "default": true,
-          "description": "Commit every tracked or unignored file left by the hook. When false, the hook must leave a clean worktree or commit changes itself."
         }
       }
     }

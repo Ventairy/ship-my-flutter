@@ -22,14 +22,14 @@ Map<String, String> _parseProfileInput(String value, String bundleId) {
   try {
     decoded = jsonDecode(trimmed);
   } on FormatException catch (error) {
-    throw ShipError(
+    throw SmfError(
       'Provisioning profiles JSON is malformed.',
       'INVALID_PROFILE',
       cause: error,
     );
   }
   if (decoded is! Map<Object?, Object?>) {
-    throw const ShipError(
+    throw const SmfError(
       'Provisioning profiles JSON must be an object.',
       'INVALID_PROFILE',
     );
@@ -39,7 +39,7 @@ Map<String, String> _parseProfileInput(String value, String bundleId) {
     final key = entry.key;
     final encodedProfile = entry.value;
     if (key is! String || encodedProfile is! String || encodedProfile.isEmpty) {
-      throw const ShipError(
+      throw const SmfError(
         'Every provisioning profile must be a Base64 string.',
         'INVALID_PROFILE',
       );
@@ -63,7 +63,7 @@ Future<Map<String, Object?>> _decodeProfile(
   try {
     document = XmlDocument.parse(decoded.stdout);
   } on XmlException catch (error) {
-    throw ShipError(
+    throw SmfError(
       'The provisioning profile did not decode to valid XML.',
       'INVALID_PROFILE',
       cause: error,
@@ -75,7 +75,7 @@ Future<Map<String, Object?>> _decodeProfile(
       : root;
   final value = valueElement == null ? null : _parsePlist(valueElement);
   if (value is! Map<String, Object?>) {
-    throw const ShipError(
+    throw const SmfError(
       'The provisioning profile did not decode to a plist dictionary.',
       'INVALID_PROFILE',
     );
@@ -87,7 +87,7 @@ List<int> _decodeBase64(String value, String label, String code) {
   try {
     return base64Decode(value);
   } on FormatException catch (error) {
-    throw ShipError('$label is not valid Base64.', code, cause: error);
+    throw SmfError('$label is not valid Base64.', code, cause: error);
   }
 }
 
@@ -138,15 +138,13 @@ Future<SigningSession> installSigningAssets(
   Directory? temporaryRoot,
 }) async {
   if (!(isMacOS ?? Platform.isMacOS)) {
-    throw const ShipError(
+    throw const SmfError(
       'iOS signing requires a macOS runner.',
       'MACOS_REQUIRED',
     );
   }
   final parent = temporaryRoot ?? Directory.systemTemp;
-  final temporaryDirectory = await parent.createTemp(
-    'ship-my-flutter-signing-',
-  );
+  final temporaryDirectory = await parent.createTemp('smf-signing-');
   final keychainPath = p.join(temporaryDirectory.path, 'signing.keychain-db');
   final keychainPassword = _randomToken(32);
   final certificatePath = p.join(temporaryDirectory.path, 'distribution.p12');
@@ -281,7 +279,7 @@ Future<SigningSession> installSigningAssets(
       if (entitlements is! Map<String, Object?> ||
           teamIdentifiers is! List<Object?> ||
           teamIdentifiers.isEmpty) {
-        throw const ShipError(
+        throw const SmfError(
           'Provisioning profile signing identity is incomplete.',
           'INVALID_PROFILE',
         );
@@ -289,7 +287,7 @@ Future<SigningSession> installSigningAssets(
       final applicationIdentifier = entitlements['application-identifier'];
       final teamId = teamIdentifiers.first;
       if (applicationIdentifier is! String || teamId is! String) {
-        throw const ShipError(
+        throw const SmfError(
           'Provisioning profile signing identity is invalid.',
           'INVALID_PROFILE',
         );
@@ -298,7 +296,7 @@ Future<SigningSession> installSigningAssets(
       final profileName = profile['Name'];
       final uuid = profile['UUID'];
       if (profileName is! String || uuid is! String) {
-        throw const ShipError(
+        throw const SmfError(
           'Provisioning profile name or UUID is missing.',
           'INVALID_PROFILE',
         );

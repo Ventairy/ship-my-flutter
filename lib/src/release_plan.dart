@@ -13,13 +13,13 @@ final class ReleasePlanner {
 
   final GitClient gitClient;
 
-  Future<bool> needsPromotion(ShipManifest manifest, Platform platform) async {
+  Future<bool> needsPromotion(SmfManifest manifest, Platform platform) async {
     final state = manifest.forPlatform(platform);
     if (!state.pendingRelease) return false;
     return !(await gitClient.tagExists(releaseTag(platform, state.version)));
   }
 
-  Future<ReleasePlan?> create(ShipManifest manifest, Platform platform) async {
+  Future<ReleasePlan?> create(SmfManifest manifest, Platform platform) async {
     final state = manifest.forPlatform(platform);
     final currentTag = releaseTag(platform, state.version);
     final baseSha = await gitClient.tagExists(currentTag)
@@ -72,7 +72,7 @@ final class ReleasePlanner {
 
 Future<bool> releaseNeedsPromotion(
   String root,
-  ShipManifest manifest,
+  SmfManifest manifest,
   Platform platform,
 ) => ReleasePlanner(
   gitClient: GitClient(root: root),
@@ -80,7 +80,7 @@ Future<bool> releaseNeedsPromotion(
 
 Future<ReleasePlan?> createReleasePlan(
   String root,
-  ShipManifest manifest,
+  SmfManifest manifest,
   Platform platform,
 ) =>
     ReleasePlanner(gitClient: GitClient(root: root)).create(manifest, platform);

@@ -28,7 +28,7 @@ export 'src/candidate_receipt.dart'
     show loadCandidateReceipt, validateCandidateReceipt;
 export 'src/changelog.dart'
     show formatChange, releaseNotesMarkdown, releasePullRequestBody;
-export 'src/cli.dart' show CliIo, runShipMyFlutterCli, shipMyFlutterVersion;
+export 'src/cli.dart' show CliIo, runSmfCli, smfVersion;
 export 'src/config.dart'
     show
         loadChangelog,
@@ -40,7 +40,7 @@ export 'src/config.dart'
         validateManifest,
         validateStoreReleaseNotes;
 export 'src/conventional_commit.dart' show highestBump, parseConventionalCommit;
-export 'src/error.dart' show ShipError;
+export 'src/error.dart' show SmfError;
 export 'src/fingerprint.dart' show fileSha256, sourceFingerprint;
 export 'src/git.dart'
     show
@@ -66,13 +66,22 @@ export 'src/github_api.dart'
         GitHubPullRequest,
         GitHubRelease,
         GitHubRestApi;
-export 'src/hooks.dart' show runBeforeBuildHook, runBeforeCreatePrHook;
+export 'src/hooks.dart'
+    show
+        SmfBeforeBuildContext,
+        SmfBeforeCreatePrContext,
+        SmfHook,
+        SmfHookContext,
+        SmfHookPhase,
+        runBeforeBuildHook,
+        runBeforeCreatePrHook,
+        runSmfHook;
 export 'src/init.dart' show InitOptions, initialize;
 export 'src/manifest_files.dart' show applyReleasePlan, emptyChangelog;
 export 'src/model.dart';
 export 'src/orchestrator.dart' show ReleaseOrchestrator, planGitHubRelease;
 export 'src/paths.dart'
-    show ShipPaths, candidatePath, resolveShipPaths, shipDirectoryName;
+    show SmfPaths, candidatePath, resolveSmfPaths, smfDirectoryName;
 export 'src/process_runner.dart'
     show
         ProcessRunner,

@@ -1,7 +1,7 @@
 import '../hooks.dart';
 import '../models/apple_credentials.dart';
-import '../models/ship_config.dart';
 import '../models/signing_credentials.dart';
+import '../models/smf_config.dart';
 import 'project.dart';
 import 'signing.dart';
 import 'upload.dart';
@@ -31,7 +31,11 @@ typedef UploadIpa =
 
 /// Runs project preparation before candidate fingerprinting.
 typedef RunBuildHook =
-    Future<void> Function(String root, ShipConfig config, String version);
+    Future<bool?> Function(
+      String workingDirectory,
+      SmfConfig config,
+      String version,
+    );
 
 /// Injectable candidate-build operations.
 final class CandidateDependencies {

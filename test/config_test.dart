@@ -1,11 +1,9 @@
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> validConfig() => <String, Object?>{
   'schema_version': 1,
-  'app_path': '.',
   'target_branch': 'main',
-  'hooks': <String, Object?>{},
   'platforms': <String, Object?>{
     'ios': <String, Object?>{
       'enabled': true,
@@ -47,8 +45,8 @@ void main() {
       expect(
         () => validateConfig(config),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             allOf(contains('unknown field'), contains('release_branch_prefix')),
           ),
@@ -60,7 +58,7 @@ void main() {
       final config = validConfig();
       iosConfig(config)['initial_version'] = '1.0.0-beta.1';
 
-      expect(() => validateConfig(config), throwsA(isA<ShipError>()));
+      expect(() => validateConfig(config), throwsA(isA<SmfError>()));
     });
 
     test('rejects the removed iOS scheme field', () {
@@ -70,8 +68,8 @@ void main() {
       expect(
         () => validateConfig(config),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             allOf(contains('unknown field'), contains('scheme')),
           ),
@@ -97,21 +95,6 @@ void main() {
     test('rejects unknown fields at every configuration level', () {
       final cases = <Map<String, Object?> Function()>[
         () => validConfig()..['unexpected'] = true,
-        () {
-          final config = validConfig();
-          final hooks = config['hooks']! as Map<String, Object?>;
-          hooks['unexpected'] = true;
-          return config;
-        },
-        () {
-          final config = validConfig();
-          final hooks = config['hooks']! as Map<String, Object?>;
-          hooks['before_build'] = <String, Object?>{
-            'run': 'dart run prepare',
-            'unexpected': true,
-          };
-          return config;
-        },
         () {
           final config = validConfig();
           final platforms = config['platforms']! as Map<String, Object?>;
@@ -143,8 +126,8 @@ void main() {
         expect(
           () => validateConfig(createConfig()),
           throwsA(
-            isA<ShipError>().having(
-              (ShipError error) => error.message,
+            isA<SmfError>().having(
+              (SmfError error) => error.message,
               'message',
               contains('unknown field'),
             ),
@@ -160,14 +143,10 @@ void main() {
       expect(appStore.mode, ReleaseMode.upload);
     });
 
-    test('rejects paths that escape the repository', () {
+    test('rejects IPA paths that escape the Flutter app', () {
       final config = validConfig();
-      config['app_path'] = '../another-app';
-      expect(() => validateConfig(config), throwsA(isA<ShipError>()));
-
-      final outputConfig = validConfig();
-      iosConfig(outputConfig)['ipa_output_path'] = '../outside/app.ipa';
-      expect(() => validateConfig(outputConfig), throwsA(isA<ShipError>()));
+      iosConfig(config)['ipa_output_path'] = '../outside/app.ipa';
+      expect(() => validateConfig(config), throwsA(isA<SmfError>()));
     });
 
     test('rejects unsupported App Store modes', () {
@@ -177,8 +156,8 @@ void main() {
       expect(
         () => validateConfig(config),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('auto, review, or upload'),
           ),
@@ -210,8 +189,8 @@ void main() {
         expect(
           () => validateConfig(config),
           throwsA(
-            isA<ShipError>().having(
-              (ShipError error) => error.message,
+            isA<SmfError>().having(
+              (SmfError error) => error.message,
               'message',
               allOf(contains('unknown field'), contains(field)),
             ),
@@ -220,25 +199,29 @@ void main() {
       }
     });
 
-    test('accepts project-owned shell commands and hooks', () {
+    test('accepts one project-owned build command', () {
       final config = validConfig();
       iosConfig(config)['build_command'] = 'fvm dart run release:build_ios';
-      final hooks = config['hooks']! as Map<String, Object?>;
-      hooks['before_create_pr'] = <String, Object?>{
-        'run': 'fvm dart run release:notes && test -f "\$OUTPUT"',
-      };
-      hooks['before_build'] = <String, Object?>{
-        'run': 'fvm dart run release:prepare | tee prepare.log',
-        'commit': false,
-      };
 
       final parsed = validateConfig(config);
 
       expect(parsed.ios.buildCommand, contains('release:build_ios'));
-      expect(parsed.hooks.beforeCreatePr?.run, contains('release:notes'));
-      expect(parsed.hooks.beforeCreatePr?.commit, isTrue);
-      expect(parsed.hooks.beforeBuild?.run, contains('release:prepare'));
-      expect(parsed.hooks.beforeBuild?.commit, isFalse);
+    });
+
+    test('rejects removed app path and YAML hook configuration', () {
+      for (final field in <String>['app_path', 'hooks']) {
+        final config = validConfig()..[field] = <String, Object?>{};
+        expect(
+          () => validateConfig(config),
+          throwsA(
+            isA<SmfError>().having(
+              (SmfError error) => error.message,
+              'message',
+              allOf(contains('unknown field'), contains(field)),
+            ),
+          ),
+        );
+      }
     });
 
     test(
@@ -261,8 +244,8 @@ void main() {
           expect(
             () => validateConfig(config),
             throwsA(
-              isA<ShipError>().having(
-                (ShipError error) => error.message,
+              isA<SmfError>().having(
+                (SmfError error) => error.message,
                 'message',
                 contains('must be one shell command invocation'),
               ),
@@ -289,7 +272,7 @@ void main() {
       },
     );
 
-    test('rejects release arguments managed by ship-my-flutter', () {
+    test('rejects release arguments managed by smf', () {
       for (final flag in <String>[
         '--build-name 9.9.9',
         "'--build-name=9.9.9'",
@@ -304,8 +287,8 @@ void main() {
         expect(
           () => validateConfig(config),
           throwsA(
-            isA<ShipError>().having(
-              (ShipError error) => error.message,
+            isA<SmfError>().having(
+              (SmfError error) => error.message,
               'message',
               contains('appends it automatically'),
             ),
@@ -322,8 +305,8 @@ void main() {
       expect(
         () => validateConfig(config),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('schema_version must be 1'),
           ),
@@ -344,8 +327,8 @@ void main() {
           },
         }),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('stable major.minor.patch'),
           ),
@@ -383,8 +366,8 @@ void main() {
           },
         }),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('must match its release key'),
           ),
@@ -396,7 +379,7 @@ void main() {
             '1.2.3': <String, Object?>{'en-US': ''},
           },
         }),
-        throwsA(isA<ShipError>()),
+        throwsA(isA<SmfError>()),
       );
     });
   });

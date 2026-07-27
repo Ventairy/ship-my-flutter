@@ -6,19 +6,22 @@ import 'package:path/path.dart' as p;
 
 import 'error.dart';
 import 'git.dart';
+import 'paths.dart';
 import 'serialization.dart';
 
-const Set<String> _excluded = <String>{
-  '.ship-my-flutter/changelog.json',
-  '.ship-my-flutter/config.yaml',
-  '.ship-my-flutter/store-release-notes.json',
-};
-
-bool _shouldInclude(String file) =>
-    !_excluded.contains(file) &&
-    !file.startsWith('.ship-my-flutter/candidates/');
-
-Future<String> sourceFingerprint(String root) async {
+Future<String> sourceFingerprint(String workingDirectory) async {
+  final paths = resolveSmfPaths(workingDirectory);
+  final root = paths.repositoryRoot;
+  final smfRelative = p
+      .relative(paths.directory, from: root)
+      .replaceAll(r'\', '/');
+  final excluded = <String>{
+    '$smfRelative/changelog.json',
+    '$smfRelative/config.yaml',
+    '$smfRelative/store-release-notes.json',
+  };
+  bool shouldInclude(String file) =>
+      !excluded.contains(file) && !file.startsWith('$smfRelative/candidates/');
   final output = await GitClient(
     root: root,
   ).runRaw(const <String>['ls-files', '-z']);
@@ -26,17 +29,21 @@ Future<String> sourceFingerprint(String root) async {
       output
           .split('\u0000')
           .where((String value) => value.isNotEmpty)
-          .where(_shouldInclude)
+          .where(shouldInclude)
           .toList()
         ..sort();
   final repositoryRoot = await Directory(root).resolveSymbolicLinks();
   final digest = await sha256
-      .bind(_fingerprintBytes(repositoryRoot, files))
+      .bind(_fingerprintBytes(repositoryRoot, files, paths))
       .first;
   return digest.toString();
 }
 
-Stream<List<int>> _fingerprintBytes(String root, List<String> files) async* {
+Stream<List<int>> _fingerprintBytes(
+  String root,
+  List<String> files,
+  SmfPaths paths,
+) async* {
   for (final file in files) {
     final filePath = p.join(root, file);
     final type = await FileSystemEntity.type(filePath, followLinks: false);
@@ -54,28 +61,23 @@ Stream<List<int>> _fingerprintBytes(String root, List<String> files) async* {
     yield const <int>[0];
   }
 
-  final configPath = p.join(root, '.ship-my-flutter', 'config.yaml');
+  final configPath = paths.config;
   try {
     final raw = await readYaml(configPath);
     if (raw is Map<Object?, Object?>) {
       final platforms = raw['platforms'];
       final ios = platforms is Map<Object?, Object?> ? platforms['ios'] : null;
       if (ios is Map<Object?, Object?>) {
-        final hooks = raw['hooks'];
-        final beforeBuild = hooks is Map<Object?, Object?>
-            ? hooks['before_build']
-            : null;
         final buildInputs = <String, Object?>{
-          'app_path': raw['app_path'] ?? '.',
           if (raw.containsKey('flavor')) 'flavor': raw['flavor'],
           if (ios.containsKey('bundle_id')) 'bundle_id': ios['bundle_id'],
           'build_command': ios['build_command'] ?? 'auto',
           'ipa_output_path': ios['ipa_output_path'] ?? 'build/ios/ipa',
-          if (beforeBuild is Map<Object?, Object?> &&
-              beforeBuild.containsKey('run'))
-            'before_build': beforeBuild['run'],
         };
-        yield utf8.encode('.ship-my-flutter/config.build-inputs');
+        final configMarker = p
+            .relative(paths.config, from: root)
+            .replaceAll(r'\', '/');
+        yield utf8.encode('$configMarker.build-inputs');
         yield const <int>[0];
         yield utf8.encode(jsonEncode(buildInputs));
         yield const <int>[0];

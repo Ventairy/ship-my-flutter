@@ -10,13 +10,13 @@ import 'templates.dart';
 
 final class InitOptions {
   const InitOptions({
-    required this.root,
+    required this.appRoot,
     this.currentVersion,
     this.bundleId,
     this.force = false,
   });
 
-  final String root;
+  final String appRoot;
   final String? currentVersion;
   final String? bundleId;
   final bool force;
@@ -39,10 +39,16 @@ Future<String?> _detectFlutterVersion(String root) async {
 }
 
 Future<void> initialize(InitOptions options) async {
-  final root = p.normalize(p.absolute(options.root));
-  final paths = resolveShipPaths(root);
+  final appRoot = p.normalize(p.absolute(options.appRoot));
+  final paths = smfPathsForApp(appRoot);
+  if (!(await fileExists(p.join(appRoot, 'pubspec.yaml')))) {
+    throw SmfError(
+      'No pubspec.yaml exists in the Flutter app directory: $appRoot.',
+      'FLUTTER_APP_NOT_FOUND',
+    );
+  }
   if (await fileExists(paths.config) && !options.force) {
-    throw ShipError(
+    throw SmfError(
       '${paths.config} already exists. Pass --force to replace the generated '
           'configuration and workflow.',
       'ALREADY_INITIALIZED',
@@ -50,12 +56,12 @@ Future<void> initialize(InitOptions options) async {
   }
 
   final version =
-      options.currentVersion ?? await _detectFlutterVersion(root) ?? '0.0.0';
+      options.currentVersion ?? await _detectFlutterVersion(appRoot) ?? '0.0.0';
   Version parsedVersion;
   try {
     parsedVersion = Version.parse(version);
   } on FormatException {
-    throw ShipError(
+    throw SmfError(
       '$version must be a stable major.minor.patch version',
       'SEMVER',
     );
@@ -66,10 +72,10 @@ Future<void> initialize(InitOptions options) async {
     'SEMVER',
   );
   final workflowPath = p.join(
-    root,
+    paths.repositoryRoot,
     '.github',
     'workflows',
-    'ship-my-flutter.yml',
+    'smf.yml',
   );
 
   await File(paths.config).parent.create(recursive: true);

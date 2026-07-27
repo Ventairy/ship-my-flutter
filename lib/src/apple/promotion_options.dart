@@ -8,16 +8,20 @@ import 'project.dart';
 final class PromotionOptions {
   /// Creates promotion options.
   const PromotionOptions({
-    required this.root,
+    required this.workingDirectory,
     required this.appleCredentials,
     required this.github,
+    this.smfPath,
     this.client,
     this.githubApi,
     this.resolveBundleIdentifier = resolveBundleId,
   });
 
-  /// Flutter repository root.
-  final String root;
+  /// Directory from which SMF discovers the target app.
+  final String workingDirectory;
+
+  /// Optional explicit `smf` directory, relative to [workingDirectory].
+  final String? smfPath;
 
   /// App Store Connect credentials.
   final AppleCredentials appleCredentials;

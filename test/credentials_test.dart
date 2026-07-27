@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -16,9 +16,9 @@ void main() {
         await File(keyPath).writeAsString('  private-key  \n');
         final credentials =
             await appleCredentialsFromEnvironment(<String, String>{
-              'SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID': 'KEY123',
-              'SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID': 'issuer',
-              'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH': keyPath,
+              'SMF_APP_STORE_CONNECT_KEY_ID': 'KEY123',
+              'SMF_APP_STORE_CONNECT_ISSUER_ID': 'issuer',
+              'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH': keyPath,
             });
         expect(credentials.keyId, 'KEY123');
         expect(credentials.issuerId, 'issuer');
@@ -49,9 +49,9 @@ void main() {
         await File(profile).writeAsBytes(const <int>[3, 4, 5, 254]);
         final credentials =
             await signingCredentialsFromEnvironment(<String, String>{
-              'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PATH': certificate,
-              'SHIP_MY_FLUTTER_IOS_CERTIFICATE_PASSWORD': 'password',
-              'SHIP_MY_FLUTTER_IOS_PROVISIONING_PROFILES_PATH': profile,
+              'SMF_IOS_CERTIFICATE_PATH': certificate,
+              'SMF_IOS_CERTIFICATE_PASSWORD': 'password',
+              'SMF_IOS_PROVISIONING_PROFILES_PATH': profile,
             });
         expect(base64Decode(credentials.certificateBase64), <int>[
           0,
@@ -71,16 +71,16 @@ void main() {
     test('rejects ambiguous credential sources', () async {
       await expectLater(
         appleCredentialsFromEnvironment(<String, String>{
-          'SHIP_MY_FLUTTER_APP_STORE_CONNECT_KEY_ID': 'KEY123',
-          'SHIP_MY_FLUTTER_APP_STORE_CONNECT_ISSUER_ID': 'issuer',
-          'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_BASE64': base64Encode(
+          'SMF_APP_STORE_CONNECT_KEY_ID': 'KEY123',
+          'SMF_APP_STORE_CONNECT_ISSUER_ID': 'issuer',
+          'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64': base64Encode(
             utf8.encode('private-key'),
           ),
-          'SHIP_MY_FLUTTER_APP_STORE_CONNECT_PRIVATE_KEY_PATH': '/tmp/key.p8',
+          'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH': '/tmp/key.p8',
         }),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'CONFLICTING_CREDENTIAL',
           ),

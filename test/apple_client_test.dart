@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:ship_my_flutter/ship_my_flutter.dart';
+import 'package:smf/smf.dart';
 import 'package:test/test.dart';
 
 final class ClientFixture {
@@ -60,8 +60,8 @@ void main() {
       await expectLater(
         client.findApp('dev.example.app'),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'APP_STORE_CONNECT_API',
           ),
@@ -77,8 +77,8 @@ void main() {
       await expectLater(
         fixture.client.findApp('dev.example.app'),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'APP_STORE_CONNECT_RESPONSE',
           ),
@@ -106,8 +106,8 @@ void main() {
         await expectLater(
           fixture.client.getBuild('build-1'),
           throwsA(
-            isA<ShipError>().having(
-              (ShipError error) => error.code,
+            isA<SmfError>().having(
+              (SmfError error) => error.code,
               'code',
               'APP_STORE_CONNECT_RESPONSE',
             ),
@@ -148,8 +148,8 @@ void main() {
       await expectLater(
         fixture.client.findApp('dev.example.missing'),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('No App Store Connect app found'),
           ),
@@ -242,8 +242,8 @@ void main() {
       await expectLater(
         malicious.client.listPrereleaseVersions('app-1'),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.code,
+          isA<SmfError>().having(
+            (SmfError error) => error.code,
             'code',
             'APP_STORE_CONNECT_ORIGIN',
           ),
@@ -322,8 +322,8 @@ void main() {
           interval: Duration.zero,
         ),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             contains('marked 1.2.0 (13) as INVALID'),
           ),
@@ -578,8 +578,8 @@ void main() {
       await expectLater(
         fixture.client.findApp('dev.example.app'),
         throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
+          isA<SmfError>().having(
+            (SmfError error) => error.message,
             'message',
             allOf(contains('ENTITY_ERROR'), contains('Missing metadata')),
           ),
