@@ -2,15 +2,23 @@
 
 smf separates release planning from irreversible delivery.
 
-## Repositories
+## Packages and repositories
 
-- `Ventairy/smf` is the Dart package. It contains the public library
-  API, project-local executables, schemas, release planner, GitHub orchestration, signing
-  implementation, and App Store Connect client.
-- `Ventairy/smf-action` vendors the exact Dart package source,
+- `smf_hooks` is the lightweight typed SDK used by repository-owned hooks.
+- `smf_engine` owns platform-neutral planning, state, GitHub orchestration, and
+  the adapter contract.
+- `smf_apple` owns signing, upload, TestFlight, and App Store Connect behavior.
+- `smf_cli` is the globally installed command router. It composes core and the
+  platform adapters without putting terminal behavior in core.
+- `Ventairy/smf-action` vendors the exact Dart workspace source,
   generates and commits a deployment lockfile, records the source commit in
   `vendor/smf/CORE_COMMIT`, and exposes the three workflow phases
   as one GitHub Action.
+
+The dependency direction is `smf_cli -> smf_engine -> smf_hooks` and
+`smf_cli -> smf_apple -> smf_engine`. Core never imports an adapter. A future
+`smf_android` package can therefore implement Android delivery without making
+Apple a transitive dependency of core.
 
 TypeScript in the Action is intentionally limited to GitHub-native concerns:
 inputs, secret masking, repository context, process execution, failures, and

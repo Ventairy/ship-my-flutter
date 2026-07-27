@@ -3,8 +3,9 @@
 Release PRs, TestFlight candidates, and App Store submission for Flutter apps.
 
 > [!WARNING]
-> This project is in pre-release validation. The `smf` Dart package
-> is not published yet, and the companion action does not have a `v1` tag.
+> This project is in pre-release validation. The `smf_cli`, `smf_engine`,
+> `smf_hooks`, and `smf_apple` Dart packages are not published yet, and the
+> companion action does not have a `v1` tag.
 > Follow [core issue #1](https://github.com/Ventairy/smf/issues/1)
 > and [action issue #1](https://github.com/Ventairy/smf-action/issues/1)
 > for the live Apple acceptance and first publication gates. The quick start
@@ -50,12 +51,11 @@ Unknown scopes such as `auth` are feature scopes, not platform scopes, so they a
 
 ### 1. Install and initialize SMF
 
-SMF is a project-local development dependency. Add it and run its executables
-from the Flutter app directory:
+Install the CLI globally, then initialize SMF from the Flutter app directory:
 
 ```bash
-dart pub add --dev smf
-dart run smf:init \
+dart install smf_cli
+smf init \
   --current-version <current-ios-version> \
   --bundle-id com.example.myapp
 ```
@@ -68,13 +68,12 @@ commit if the first release should be 1.0.0. If omitted, the initializer reads
 the stable version from `pubspec.yaml` and otherwise falls back to `0.0.0`;
 passing it explicitly is safer.
 
-In a monorepo, add SMF to the nested Flutter app and run it there. SMF places
-configuration beside that app and the workflow at the Git repository root:
+In a monorepo, run SMF from the nested Flutter app. SMF places configuration
+beside that app and the workflow at the Git repository root:
 
 ```bash
 cd apps/mobile
-dart pub add --dev smf
-dart run smf:init \
+smf init \
   --current-version <current-ios-version> \
   --bundle-id com.example.myapp
 ```
@@ -100,7 +99,7 @@ After upgrading SMF, refresh only the generated workflow without touching
 configuration or release state:
 
 ```bash
-dart run smf:init --workflow-only
+smf init --workflow-only
 ```
 
 Review and commit the resulting workflow diff before the next release.
@@ -115,18 +114,17 @@ receipts only when they first carry release state. Users do not create or edit
 those machine-owned files. `store-release-notes.json` is different: it remains
 absent unless a maintainer or hook supplies at least one localized note.
 
-### Package executables and Dart API
+### CLI and Dart APIs
 
-After adding `smf` to `dev_dependencies`, run the operation-specific
-executable you need:
+The globally installed `smf_cli` package exposes one `smf` executable:
 
 ```bash
-dart run smf:init
-dart run smf:validate
-dart run smf:plan
-dart run smf:open_pr
-dart run smf:testflight
-dart run smf:app_store
+smf init
+smf validate
+smf plan
+smf open-pr
+smf testflight
+smf app-store
 ```
 
 Each executable supports `--help`. Success writes one JSON value to stdout, so
@@ -136,15 +134,21 @@ Diagnostics go to stderr.
 Equivalent lifecycle names are available for custom automation:
 
 ```bash
-dart run smf:release
-dart run smf:candidate
-dart run smf:promote
+smf release
+smf candidate
+smf promote
 ```
 
-Custom Dart automation imports the same implementation used by the Action:
+Applications using the standard workflow do not add an SMF package. Add
+`smf_engine` as a development dependency only for custom, platform-neutral Dart
+automation:
+
+```bash
+dart pub add --dev smf_engine
+```
 
 ```dart
-import 'package:smf/smf.dart';
+import 'package:smf_engine/smf_engine.dart';
 
 Future<void> main() async {
   final paths = resolveSmfPaths('.');
@@ -159,9 +163,11 @@ Future<void> main() async {
 }
 ```
 
-See [`example/custom_workflow.dart`](example/custom_workflow.dart) for a
+See
+[`example/custom_workflow.dart`](packages/smf_engine/example/custom_workflow.dart)
+for a
 complete JSON-emitting example and
-[executable reference](doc/executables.md) for each operation's branch,
+[CLI reference](doc/cli.md) for each operation's branch,
 credentials, runner, and side effects.
 
 ### 2. Allow the workflow to open release PRs
@@ -222,9 +228,9 @@ For an app with extensions, set `IOS_PROVISIONING_PROFILES_BASE64` to a JSON obj
 
 See [Apple bootstrap](doc/apple-bootstrap.md) for the one-time App Store Connect setup and required roles.
 
-### Executable credential environment
+### CLI credential environment
 
-The package executables read secrets from environment variables so they never
+The CLI reads secrets from environment variables so they never
 need to appear in command history or process arguments:
 
 | Variable                                                         | Used by                  |
@@ -258,7 +264,7 @@ for editor validation and autocomplete. It is ready for a standard Flutter app;
 add TestFlight group names if builds should be assigned automatically:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/schemas/config.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/packages/smf_engine/schemas/config.schema.json
 
 schema_version: 1
 # flavor: production
@@ -328,8 +334,12 @@ is incomplete.
 
 Create `smf/hooks/before_create_pr.dart` and implement the typed hook:
 
+```bash
+dart pub add --dev smf_hooks
+```
+
 ```dart
-import 'package:smf/smf.dart';
+import 'package:smf_hooks/smf_hooks.dart';
 
 final class GenerateStoreReleaseNotes extends SmfHook {
   @override
@@ -423,7 +433,7 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 
 ## Requirements
 
-- Dart 3.10 or newer for the package executables and custom automation. The GitHub
+- Dart 3.10 or newer for the CLI and custom automation. The GitHub
   Action installs its own pinned Dart SDK.
 - A modern Flutter app with an `ios` project.
 - A committed, current `pubspec.lock`; the project-owned build command must not
@@ -436,15 +446,16 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
   and App Store provisioning profile.
 - Required App Store product metadata already configured for the app.
 
-Run `dart run smf:validate` locally to catch repository
+Run `smf validate` locally to catch repository
 configuration problems before CI.
 
 ## Contributing to the core
 
-The package uses Freezed and json_serializable for immutable release state and
-typed JSON boundaries. Generated Dart files are committed, so package users do
-not run a generator. Contributors changing an annotated model should run
-`dart run build_runner build` and review the generated diff. See
+The workspace uses Melos. Core and Apple use Freezed and json_serializable for
+immutable release state and typed JSON boundaries. Generated Dart files are
+committed, so package users do not run a generator. Contributors changing an
+annotated model should run `dart run melos run generate --no-select` and review
+the generated diff. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the complete development gate.
 
 ## Validation boundary
@@ -465,7 +476,7 @@ pre-publication acceptance gate in issues #1.
 
 - [Architecture and state machine](doc/architecture.md)
 - [Apple bootstrap](doc/apple-bootstrap.md)
-- [Package executable reference](doc/executables.md)
+- [CLI reference](doc/cli.md)
 - [Configuration reference](doc/configuration.md)
 - [Operating release PRs](doc/operations.md)
 - [Security model](doc/security.md)

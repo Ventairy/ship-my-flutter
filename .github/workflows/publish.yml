@@ -3,7 +3,10 @@ name: Publish to pub.dev
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "smf_hooks-v[0-9]+.[0-9]+.[0-9]+"
+      - "smf_engine-v[0-9]+.[0-9]+.[0-9]+"
+      - "smf_apple-v[0-9]+.[0-9]+.[0-9]+"
+      - "smf_cli-v[0-9]+.[0-9]+.[0-9]+"
 
 permissions: {}
 
@@ -12,10 +15,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish the immutable tag
+  publish-hooks:
+    name: Publish smf_hooks
+    if: startsWith(github.ref_name, 'smf_hooks-v')
     permissions:
       id-token: write
     uses: dart-lang/setup-dart/.github/workflows/publish.yml@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
     with:
       environment: pub.dev
+      working-directory: packages/smf_hooks
+
+  publish-engine:
+    name: Publish smf_engine
+    if: startsWith(github.ref_name, 'smf_engine-v')
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
+    with:
+      environment: pub.dev
+      working-directory: packages/smf_engine
+
+  publish-apple:
+    name: Publish smf_apple
+    if: startsWith(github.ref_name, 'smf_apple-v')
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
+    with:
+      environment: pub.dev
+      working-directory: packages/smf_apple
+
+  publish-cli:
+    name: Publish smf_cli
+    if: startsWith(github.ref_name, 'smf_cli-v')
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
+    with:
+      environment: pub.dev
+      working-directory: packages/smf_cli

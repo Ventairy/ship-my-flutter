@@ -1,88 +1,89 @@
-# Releasing smf
+# Releasing SMF packages
 
-Release Please owns the core package version, changelog, immutable `vX.Y.Z`
-tag, and GitHub Release. The first pub.dev publication remains a separately
-authorized manual step. Later immutable tags use trusted publishing after the
-maintainer explicitly enables it.
+The Dart workspace contains four independently versioned pub.dev packages:
+`smf_hooks`, `smf_engine`, `smf_apple`, and `smf_cli`.
+
+Release Please owns their package versions, package changelogs, immutable
+component tags, and GitHub Releases. It opens one combined manifest release PR
+but releases only the packages with relevant Conventional Commits.
+
+| Package | Immutable tag |
+| --- | --- |
+| `smf_hooks` | `smf_hooks-vX.Y.Z` |
+| `smf_engine` | `smf_engine-vX.Y.Z` |
+| `smf_apple` | `smf_apple-vX.Y.Z` |
+| `smf_cli` | `smf_cli-vX.Y.Z` |
 
 ## Release PR
 
 After CI passes for a push to `main`, `.github/workflows/release-please.yml`
-runs. Release Please reads Conventional Commits after the current release
-baseline and opens or updates one release PR.
+runs. Add a repository secret named `RELEASE_PLEASE_TOKEN` before enabling
+releases. Use a GitHub App installation token or a narrowly scoped fine-grained
+personal access token that can read metadata and write contents, issues, and
+pull requests.
 
-Add a repository secret named `RELEASE_PLEASE_TOKEN` before enabling releases.
-Use a GitHub App installation token or a narrowly scoped fine-grained personal
-access token that can read repository metadata and write contents, issues,
-and pull requests. The default `GITHUB_TOKEN` is deliberately not used: GitHub
-otherwise requires approval before CI runs on an automation-created release
-pull request. A missing or invalid secret fails the workflow so broken release
-automation cannot appear healthy.
+The release PR updates the affected package `pubspec.yaml`, its
+`CHANGELOG.md`, and `.release-please-manifest.json`. Release Please has no Dart
+workspace dependency-cascade plugin, so review internal constraints explicitly:
 
-The release PR updates these synchronized version surfaces:
-
-- `pubspec.yaml`;
-- `CHANGELOG.md`;
-- `.release-please-manifest.json`.
-
-The external release credential lets the generated pull request trigger the
-normal `pull_request` CI workflow without manual approval. Do not merge the
-release PR until that exact branch passes the complete hosted gate.
+- a new `smf_hooks` API may require compatible `smf_engine`, `smf_apple`, and
+  `smf_cli` releases;
+- a new `smf_engine` API may require compatible adapter and CLI releases;
+- a new adapter API may require a compatible CLI release.
 
 Before merging:
 
-1. Review the proposed semantic version and changelog.
-2. Run the complete development gate from `CONTRIBUTING.md`.
-3. Test the package through a path dependency in a clean Flutter fixture.
-4. Confirm the release branch CI passed on Dart 3.10, stable Dart, minimum
-   dependencies, and the publication dry run.
+1. Review every proposed version and package changelog.
+2. Confirm internal dependency constraints admit the proposed versions.
+3. Run the complete gate from `CONTRIBUTING.md`.
+4. Test `smf_cli` from a clean Flutter fixture and test affected libraries
+   through hosted or path dependencies.
+5. Confirm the exact release branch passed all hosted gates.
 
-Merging the release PR makes Release Please create the immutable `vX.Y.Z` tag
-and matching GitHub Release. Do not create, reuse, or move these tags manually.
+Merging creates one immutable component tag and GitHub Release per affected
+package. Never create, reuse, or move those tags manually.
 
-## pub.dev
+## pub.dev bootstrap and trusted publishing
 
-Automated publishing cannot create a new pub.dev package. The first release
-must be published manually from the exact immutable Release Please tag. Leave
-the `PUB_DEV_AUTOMATION_ENABLED` repository variable unset during this
-bootstrap release so `.github/workflows/publish.yml` safely skips publication:
+Automated publishing cannot create a new pub.dev package. Bootstrap each
+package manually from its exact immutable component tag:
 
-1. Check out the immutable tag in a clean worktree.
-2. Repeat the complete gate and inspect the package archive.
-3. Run `dart pub publish` and complete pub.dev authentication.
+1. Check out the tag in a clean worktree.
+2. Repeat the complete gate and inspect that package's archive.
+3. Run `dart pub publish` from `packages/<package>`.
 4. Verify the published version and archive on pub.dev.
-5. In a clean Flutter consumer, verify `dart pub add --dev smf` and invoke the
-   installed package with `dart run smf:init --help`.
+5. Verify a clean consumer can install the intended surface:
+   `dart install smf_cli`, `dart pub add --dev smf_hooks`, or the relevant
+   custom-automation library.
 
-Only after the first version exists, configure trusted publishing:
+After the first version exists, configure trusted publishing for that pub.dev
+package:
 
-1. In the package's pub.dev **Admin** tab, enable publishing from GitHub
-   Actions for repository `Ventairy/smf` with tag pattern `v{{version}}`.
-2. Create a protected GitHub environment named `pub.dev`. Restrict deployment
-   branches and tags to the release policy and add required reviewers.
-3. Add the repository variable `PUB_DEV_AUTOMATION_ENABLED` with value `true`.
+1. In its pub.dev **Admin** tab, allow GitHub Actions from `Ventairy/smf` with
+   the package's component tag pattern.
+2. Use the protected GitHub environment `pub.dev`, with the desired tag
+   restrictions and reviewers.
 
-Future Release Please tags then invoke the Dart-maintained reusable publishing
-workflow with a short-lived GitHub OIDC identity. The workflow requires the
-protected `pub.dev` environment, validates the package archive again, and
-publishes the exact immutable tag without a long-lived pub.dev credential.
-Keep publication separate from Release Please so a publication failure cannot
-rewrite release history.
+Future component tags call Dart's reusable OIDC publisher with the matching
+package working directory. Publication stays separate from Release Please so a
+pub.dev failure cannot rewrite release history.
 
-## GitHub Action
+When a release raises an internal package's minimum version, publish in
+dependency order: `smf_hooks`, `smf_engine`, `smf_apple`, then `smf_cli`.
+Component-tag workflows are independently retryable, so retry a dependent
+package only after its new dependency is visible on pub.dev.
 
-1. Run the core gate and `pnpm run vendor-core` in the adjacent Action checkout.
-2. In `smf-action`, run `pnpm install --frozen-lockfile`, resolve
-   the vendored Dart lockfile, and run `pnpm run check`.
-3. Confirm `vendor/smf/CORE_COMMIT` names the reviewed immutable
-   core commit. Regenerate `dist`, then verify a second build produces no diff
-   in `dist` or `vendor`.
-4. Test `plan`, candidate dispatch, and merged-release dispatch against a
-   disposable Flutter repository. Do not use production Apple credentials.
-5. Complete the separately tracked live Apple acceptance gate.
-6. Follow the Action repository's Release Please procedure; do not create or
-   move its release tags manually.
-7. Confirm a clean external repository can use
-   `Ventairy/smf-action@v1`.
+## Companion GitHub Action
 
-Do not tag, publish, or move `v1` from an unvalidated working tree.
+1. Run the workspace gate and `pnpm run vendor-core` in the adjacent Action
+   checkout.
+2. Run `pnpm install --frozen-lockfile` and `pnpm run check` in `smf-action`.
+3. Confirm `vendor/smf/CORE_COMMIT` names the reviewed workspace commit.
+4. Regenerate `dist`, then verify a second build leaves no diff.
+5. Test plan, candidate dispatch, and merged-release dispatch against a
+   disposable Flutter repository.
+6. Complete the separately tracked live Apple acceptance gate.
+7. Follow the Action repository's Release Please procedure; never create or
+   move its tags manually.
+
+Do not tag, publish, upload, or move `v1` from an unvalidated working tree.

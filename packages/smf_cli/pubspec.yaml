@@ -1,0 +1,28 @@
+name: smf_cli
+description: Command-line interface for SMF release automation.
+version: 0.1.0
+repository: https://github.com/Ventairy/smf
+issue_tracker: https://github.com/Ventairy/smf/issues
+topics:
+  - cli
+  - flutter
+  - release
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+resolution: workspace
+
+executables:
+  smf: smf
+
+dependencies:
+  args: ^2.7.0
+  path: ^1.9.1
+  smf_apple: ^0.1.0
+  smf_engine: ^0.1.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: 1.30.0
+  yaml: ^3.1.3

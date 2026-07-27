@@ -8,7 +8,7 @@ The generated schema directive enables validation and autocomplete in editors
 with YAML language-server support:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/schemas/config.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/packages/smf_engine/schemas/config.schema.json
 
 schema_version: 1
 target_branch: main
@@ -24,7 +24,7 @@ platforms:
 ```
 
 SMF rejects unknown keys. The JSON Schema helps while editing, but
-`smf:validate` is authoritative for cross-field, shell, and filesystem safety
+`smf validate` is authoritative for cross-field, shell, and filesystem safety
 checks.
 
 ## App and configuration discovery
@@ -42,7 +42,7 @@ repository/
       hooks/
 ```
 
-The package executables and Action search forward from their working directory for
+The CLI and Action search forward from their working directory for
 `smf/config.yaml`. One match is selected automatically. Zero matches fail with
 initialization guidance. Multiple matches fail and list every candidate; pass
 `--smf-path apps/mobile/smf` to the executable or
@@ -53,7 +53,7 @@ the working directory, and contain `config.yaml`. Discovery does not follow
 symbolic links and prunes Git metadata, hidden directories, build output,
 dependency caches, FVM caches, and `node_modules`.
 
-`dart run smf:init` is run from the Flutter app directory. It writes
+`smf init` is run from the Flutter app directory. It writes
 `<app>/smf/config.yaml` and `<repository>/.github/workflows/smf.yml`; there is
 no configurable app-path field. The generated workflow pins that exact
 repository-relative `smf/` path and supplies it to every Action phase.
@@ -144,7 +144,7 @@ Flutter app with `fvm dart run` when the app uses FVM and `dart run` otherwise.
 The entrypoint must call `runSmfHook`:
 
 ```dart
-import 'package:smf/smf.dart';
+import 'package:smf_hooks/smf_hooks.dart';
 
 final class GenerateNotes extends SmfHook {
   @override

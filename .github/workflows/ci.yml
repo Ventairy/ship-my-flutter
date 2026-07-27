@@ -36,10 +36,10 @@ jobs:
         run: dart pub get
 
       - name: Regenerate committed sources
-        run: dart run build_runner build
+        run: dart run melos run generate --no-select
 
       - name: Verify generated sources
-        run: git diff --exit-code -- lib
+        run: git diff --exit-code -- packages
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
@@ -48,7 +48,7 @@ jobs:
         run: dart analyze --fatal-infos
 
       - name: Test
-        run: dart test
+        run: dart run melos run test --no-select
 
       - name: Check patch whitespace
         run: git diff --check
@@ -73,7 +73,7 @@ jobs:
         run: dart analyze --fatal-infos
 
       - name: Test
-        run: dart test
+        run: dart run melos run test --no-select
 
   package:
     name: Package archive
@@ -92,4 +92,4 @@ jobs:
         run: dart pub get
 
       - name: Validate the pub.dev archive
-        run: dart pub publish --dry-run
+        run: dart run melos run publish:dry-run --no-select
