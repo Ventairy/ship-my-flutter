@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/Ventairy/smf/main/schemas/config.schema.json",
   "title": "smf configuration",
-  "$comment": "This schema provides structure, defaults, and conservative editor checks. The CLI validator is authoritative for shell syntax, cross-field rules, and platform-independent path safety.",
+  "$comment": "This schema provides structure, defaults, and conservative editor checks. The smf:validate executable is authoritative for shell syntax, cross-field rules, and platform-independent path safety.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "platforms"],

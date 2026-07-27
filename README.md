@@ -50,12 +50,12 @@ Unknown scopes such as `auth` are feature scopes, not platform scopes, so they a
 
 ### 1. Install and initialize SMF
 
-SMF is a project-local development dependency. Add it and run its CLI from the
-Flutter app directory:
+SMF is a project-local development dependency. Add it and run its executables
+from the Flutter app directory:
 
 ```bash
 dart pub add --dev smf
-dart run smf init \
+dart run smf:init \
   --current-version <current-ios-version> \
   --bundle-id com.example.myapp
 ```
@@ -74,7 +74,7 @@ configuration beside that app and the workflow at the Git repository root:
 ```bash
 cd apps/mobile
 dart pub add --dev smf
-dart run smf init \
+dart run smf:init \
   --current-version <current-ios-version> \
   --bundle-id com.example.myapp
 ```
@@ -100,7 +100,7 @@ After upgrading SMF, refresh only the generated workflow without touching
 configuration or release state:
 
 ```bash
-dart run smf init --workflow-only
+dart run smf:init --workflow-only
 ```
 
 Review and commit the resulting workflow diff before the next release.
@@ -115,34 +115,30 @@ receipts only when they first carry release state. Users do not create or edit
 those machine-owned files. `store-release-notes.json` is different: it remains
 absent unless a maintainer or hook supplies at least one localized note.
 
-### CLI and Dart API
+### Package executables and Dart API
 
-After adding `smf` to `dev_dependencies`, invoke its project-local CLI through
-`dart run`. The package offers one discoverable command with subcommands:
-
-```bash
-dart run smf --help
-dart run smf validate
-dart run smf plan
-dart run smf open-pr
-dart run smf testflight
-dart run smf app-store
-```
-
-Success writes one JSON value to stdout, so the same commands compose cleanly
-inside custom GitHub workflows. Diagnostics go to stderr. `release` aliases
-`open-pr`, `candidate` aliases `testflight`, and `promote` aliases `app-store`.
-
-Package-qualified executables are also available when a single-purpose command
-fits better:
+After adding `smf` to `dev_dependencies`, run the operation-specific
+executable you need:
 
 ```bash
 dart run smf:init
+dart run smf:validate
+dart run smf:plan
 dart run smf:open_pr
-dart run smf:release
 dart run smf:testflight
-dart run smf:promote
 dart run smf:app_store
+```
+
+Each executable supports `--help`. Success writes one JSON value to stdout, so
+the same operations compose cleanly inside custom GitHub workflows.
+Diagnostics go to stderr.
+
+Equivalent lifecycle names are available for custom automation:
+
+```bash
+dart run smf:release
+dart run smf:candidate
+dart run smf:promote
 ```
 
 Custom Dart automation imports the same implementation used by the Action:
@@ -164,8 +160,9 @@ Future<void> main() async {
 ```
 
 See [`example/custom_workflow.dart`](example/custom_workflow.dart) for a
-complete JSON-emitting example and [CLI reference](doc/cli.md) for each
-command's branch, credentials, runner, and side effects.
+complete JSON-emitting example and
+[executable reference](doc/executables.md) for each operation's branch,
+credentials, runner, and side effects.
 
 ### 2. Allow the workflow to open release PRs
 
@@ -225,10 +222,10 @@ For an app with extensions, set `IOS_PROVISIONING_PROFILES_BASE64` to a JSON obj
 
 See [Apple bootstrap](doc/apple-bootstrap.md) for the one-time App Store Connect setup and required roles.
 
-### CLI credential environment
+### Executable credential environment
 
-The CLI reads secrets from environment variables so they never need to appear
-in command history or process arguments:
+The package executables read secrets from environment variables so they never
+need to appear in command history or process arguments:
 
 | Variable                                                         | Used by                  |
 | ---------------------------------------------------------------- | ------------------------ |
@@ -426,7 +423,7 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
 
 ## Requirements
 
-- Dart 3.10 or newer for the package CLI and custom automation. The GitHub
+- Dart 3.10 or newer for the package executables and custom automation. The GitHub
   Action installs its own pinned Dart SDK.
 - A modern Flutter app with an `ios` project.
 - A committed, current `pubspec.lock`; the project-owned build command must not
@@ -439,7 +436,7 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
   and App Store provisioning profile.
 - Required App Store product metadata already configured for the app.
 
-Run `dart run smf validate` locally to catch repository
+Run `dart run smf:validate` locally to catch repository
 configuration problems before CI.
 
 ## Contributing to the core
@@ -468,7 +465,7 @@ pre-publication acceptance gate in issues #1.
 
 - [Architecture and state machine](doc/architecture.md)
 - [Apple bootstrap](doc/apple-bootstrap.md)
-- [CLI reference](doc/cli.md)
+- [Package executable reference](doc/executables.md)
 - [Configuration reference](doc/configuration.md)
 - [Operating release PRs](doc/operations.md)
 - [Security model](doc/security.md)

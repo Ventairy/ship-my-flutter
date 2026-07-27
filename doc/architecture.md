@@ -5,7 +5,7 @@ smf separates release planning from irreversible delivery.
 ## Repositories
 
 - `Ventairy/smf` is the Dart package. It contains the public library
-  API, CLI, schemas, release planner, GitHub orchestration, signing
+  API, project-local executables, schemas, release planner, GitHub orchestration, signing
   implementation, and App Store Connect client.
 - `Ventairy/smf-action` vendors the exact Dart package source,
   generates and commits a deployment lockfile, records the source commit in
@@ -14,8 +14,9 @@ smf separates release planning from irreversible delivery.
 
 TypeScript in the Action is intentionally limited to GitHub-native concerns:
 inputs, secret masking, repository context, process execution, failures, and
-outputs. Every release decision and side effect lives in Dart, so local CLI,
-custom workflows, and the turnkey Action cannot drift into separate products.
+outputs. Every release decision and side effect lives in Dart, so package
+executables, custom workflows, and the turnkey Action cannot drift into
+separate products.
 The Action installs a pinned Dart SDK and resolves the vendored package with
 its enforced lockfile. The consumer owns the Flutter/FVM toolchain used for
 project hooks and IPA creation. A consumer does not install Fastlane or a Node

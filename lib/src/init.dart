@@ -76,7 +76,7 @@ Future<void> initialize(InitOptions options) async {
     );
     invariant(
       await fileExists(paths.config),
-      '${paths.config} does not exist. Run smf init first.',
+      '${paths.config} does not exist. Run `dart run smf:init` first.',
       'NOT_INITIALIZED',
     );
     await File(workflowPath).parent.create(recursive: true);

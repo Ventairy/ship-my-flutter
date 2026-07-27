@@ -9,7 +9,7 @@
       "extra-files": [
         {
           "type": "generic",
-          "path": "lib/src/cli.dart"
+          "path": "lib/src/version.dart"
         }
       ]
     }

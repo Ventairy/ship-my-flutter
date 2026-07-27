@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:smf/smf.dart';
+import 'package:smf/src/executables.dart';
 
 Future<void> main(List<String> arguments) async {
-  exitCode = await runSmfCli(<String>['release', ...arguments]);
+  exitCode = await runOpenPrExecutable(arguments, name: 'release');
 }

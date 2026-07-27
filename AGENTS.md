@@ -15,8 +15,9 @@ Optimize every change for these qualities:
 
 - **Easy for a newcomer:** the standard GitHub Action path should require
   little release-tooling knowledge.
-- **Powerful for an expert:** the Dart CLI and public library must expose the
-  same capabilities for custom local and hosted workflows.
+- **Powerful for an expert:** project-local Dart executables and the public
+  library must expose the same capabilities for custom local and hosted
+  workflows.
 - **Safe by construction:** irreversible delivery follows review, exact-build
   verification, and explicit configuration.
 - **Platform independent:** iOS and future platforms own separate versions,
@@ -41,7 +42,7 @@ conflict. Explicit user instructions always take precedence.
 This is a single Dart package, not a monorepo.
 
 ```text
-bin/                         Executable entrypoints and command aliases
+bin/                         Project-local executable entrypoints
 lib/smf.dart     Deliberate public library surface
 lib/src/                     Release engine and infrastructure
 lib/src/apple/               Signing, build, upload, and Apple API behavior
@@ -64,12 +65,13 @@ and outputs.
 - `ReleaseOrchestrator` owns workflow-phase selection.
 - GitHub branch/PR/release behavior belongs in the GitHub domain files.
 - Apple signing and App Store Connect behavior belongs under `lib/src/apple/`.
-- The CLI is an adapter over those domains, not a second implementation.
+- Package executables are adapters over those domains, not second
+  implementations.
 - The TypeScript Action must not reimplement release, GitHub, signing, or Apple
   logic.
 
-When behavior must work in the CLI, public API, and Action, implement it once in
-Dart and keep adapters thin.
+When behavior must work in package executables, the public API, and the Action,
+implement it once in Dart and keep adapters thin.
 
 Ignored local `dist/`, `node_modules/`, and `coverage/` directories are not
 source for this package. Do not restore, edit, or publish the retired Node
@@ -122,7 +124,7 @@ redesign.
 
 ### Stable machine interfaces
 
-- CLI success writes exactly one JSON value to stdout.
+- Package executable success writes exactly one JSON value to stdout.
 - Diagnostics and failures go to stderr.
 - Do not print progress or debug text to stdout.
 - Do not accept raw secrets in command-line flags.
@@ -309,8 +311,8 @@ cleanly, and explain the exception immediately beside it.
 - Do not expose an implementation merely to simplify a test.
 - Before changing, renaming, or removing an export, search examples,
   executable aliases, tests, documentation, and the companion Action protocol.
-- Breaking public or CLI changes require explicit authorization and a migration
-  plan.
+- Breaking public or executable changes require explicit authorization and a
+  migration plan.
 
 ### Errors
 
@@ -358,28 +360,30 @@ consumer documentation just like a public Dart API change.
 
 ---
 
-## 7. CLI and custom workflow rules
+## 7. Package executable and custom workflow rules
 
-The main CLI and package-qualified aliases must remain behaviorally aligned:
+SMF has no unified command router. Each operation is a project-local
+package-qualified executable. Equivalent lifecycle executables must remain
+behaviorally aligned:
 
-- `open-pr` and `release`
-- `candidate` and `testflight`
-- `promote` and `app-store`
+- `smf:open_pr` and `smf:release`
+- `smf:candidate` and `smf:testflight`
+- `smf:promote` and `smf:app_store`
 
-When adding or changing a command:
+When adding or changing an executable:
 
-1. update argument parsing and top-level help;
+1. update its argument parsing and executable-specific help;
 2. keep secrets in environment variables or file inputs;
 3. preserve the single-JSON stdout contract;
 4. document branch, runner, credential, full-history, and clean-tree
    requirements;
 5. document every mutation and external side effect;
-6. update executable aliases when applicable;
-7. add CLI-level tests, not only domain-unit tests;
+6. update equivalent lifecycle executables when applicable;
+7. add executable-level tests, not only domain-unit tests;
 8. update the Action only when the machine protocol is affected.
 
-The internal `action` command is a machine adapter. Do not encourage consumers
-to depend on undocumented protocol details.
+The internal `smf:action` executable is a machine adapter. Do not encourage
+consumers to depend on undocumented protocol details.
 
 Repository hooks and the build command execute repository-owned code from the
 release checkout. Pass only the documented non-secret context and strip
@@ -473,8 +477,8 @@ Untested release behavior is broken behavior.
 - Git behavior uses disposable local repositories.
 - GitHub behavior uses mocked HTTP or a fake `GitHubApi`.
 - Apple behavior uses a fake `AppStoreConnectApi` and synthetic artifacts.
-- CLI tests verify exit codes, stdout JSON, stderr, alias behavior, and secret
-  rejection.
+- Executable tests verify exit codes, stdout JSON, stderr, equivalent lifecycle
+  behavior, and secret rejection.
 - Filesystem/security tests cover path escape, symlink, permissions, cleanup,
   and dirty-tree failures where relevant.
 
@@ -491,8 +495,8 @@ such.
 ## 11. Documentation ownership
 
 - `README.md` is the product-first onboarding path and requirements summary.
-- `doc/` is consumer-facing: configuration, CLI use, operations, security, and
-  Apple bootstrap.
+- `doc/` is consumer-facing: configuration, package executable use, operations,
+  security, and Apple bootstrap.
 - `CONTRIBUTING.md` is the concise human contribution guide.
 - `AGENTS.md` contains detailed agent-specific engineering rules.
 - `RELEASING.md` is the maintainer contract for publishing this package and
@@ -504,7 +508,8 @@ Keep documentation synchronized with behavior:
 - setup/tooling/dependency changes update README and AGENTS when applicable;
 - configuration changes update schema, generated defaults, tests, and consumer
   docs;
-- CLI changes update help, CLI reference, examples, and tests;
+- executable changes update help, the executable reference, examples, and
+  tests;
 - security-boundary changes update `doc/security.md`;
 - release/provenance changes update `RELEASING.md`;
 - Apple capability changes state the verified/unverified live boundary.
@@ -529,7 +534,7 @@ directory focused on package consumers.
 6. **No dead code.** Do not leave temporary flags, debug output, commented
    implementations, unused compatibility shims, or untracked generated files.
 7. **No silent contracts.** Analyze downstream effects before changing public
-   exports, CLI JSON, error codes, configuration/state schemas, branch/tag
+   exports, executable JSON, error codes, configuration/state schemas, branch/tag
    conventions, or receipt fields.
 8. **Fix lints, do not suppress them.** Suppression is the documented last
    resort for a genuine analyzer limitation.
@@ -560,7 +565,7 @@ Keep unrelated work separate. Pull requests must explain:
 
 - the user-visible or operator-visible behavior;
 - why the change belongs in the core rather than an adapter;
-- configuration, public API, CLI, security, or migration impact;
+- configuration, public API, executable, security, or migration impact;
 - tests performed;
 - whether Apple behavior was mocked, tested with a disposable app, or not
   exercised live.
@@ -568,7 +573,7 @@ Keep unrelated work separate. Pull requests must explain:
 Before declaring work complete:
 
 - [ ] Requested behavior is implemented without unrelated changes.
-- [ ] Public API, CLI, schema, templates, and docs are synchronized.
+- [ ] Public API, executables, schema, templates, and docs are synchronized.
 - [ ] Regression/behavior tests cover the change.
 - [ ] Dart 3.10 compatibility is preserved.
 - [ ] The complete local gate passes.

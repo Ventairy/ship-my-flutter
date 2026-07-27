@@ -5,7 +5,7 @@ import '../models/release_enums.dart';
 part 'command_result.freezed.dart';
 part 'command_result.g.dart';
 
-/// Stable machine-readable output emitted by a CLI workflow command.
+/// Stable machine-readable output emitted by a workflow operation.
 @freezed
 abstract class CommandResult with _$CommandResult {
   /// Creates a command result.

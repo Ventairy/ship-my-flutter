@@ -28,7 +28,6 @@ export 'src/candidate_receipt.dart'
     show loadCandidateReceipt, validateCandidateReceipt;
 export 'src/changelog.dart'
     show formatChange, releaseNotesMarkdown, releasePullRequestBody;
-export 'src/cli.dart' show CliIo, runSmfCli, smfVersion;
 export 'src/config.dart'
     show
         loadChangelog,
@@ -93,3 +92,4 @@ export 'src/release_branch.dart' show releaseBranchName;
 export 'src/release_plan.dart'
     show ReleasePlanner, createReleasePlan, releaseNeedsPromotion, releaseTag;
 export 'src/validate.dart' show validateRepository;
+export 'src/version.dart' show smfVersion;

@@ -22,7 +22,7 @@ automation cannot appear healthy.
 The release PR updates these synchronized version surfaces:
 
 - `pubspec.yaml`;
-- `lib/src/cli.dart`;
+- `lib/src/version.dart`;
 - `CHANGELOG.md`;
 - `.release-please-manifest.json`.
 
@@ -53,7 +53,7 @@ bootstrap release so `.github/workflows/publish.yml` safely skips publication:
 3. Run `dart pub publish` and complete pub.dev authentication.
 4. Verify the published version and archive on pub.dev.
 5. In a clean Flutter consumer, verify `dart pub add --dev smf` and invoke the
-   installed package with `dart run smf --help`.
+   installed package with `dart run smf:init --help`.
 
 Only after the first version exists, configure trusted publishing:
 

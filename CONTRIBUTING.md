@@ -39,20 +39,20 @@ Use Conventional Commits. A change limited to an app delivery platform should
 use its platform scope, for example
 `fix(ios): handle expired profiles`.
 
-## Public API and CLI
+## Public API and package executables
 
 The Dart library is the product. Keep release decisions, GitHub behavior,
 signing, and store delivery in `lib/`; the companion Action is only an adapter
-that invokes the CLI.
+that invokes the private `smf:action` executable.
 
 Use Freezed for immutable, non-secret value models that benefit from deep
 equality and `copyWith`. Use json_serializable for persisted and transport DTO
 boundaries. Never apply generated value semantics to credentials or tokens,
 because generated diagnostics may expose field values.
 
-CLI success output is one JSON value on stdout. Human diagnostics and errors go
-to stderr. Never add a command-line flag that accepts a raw secret—use a
-documented environment variable or file path.
+Package executable success output is one JSON value on stdout. Human
+diagnostics and errors go to stderr. Never add an argument that accepts a raw
+secret—use a documented environment variable or file path.
 
 ## Apple integration changes
 

@@ -23,8 +23,9 @@ platforms:
       mode: upload
 ```
 
-SMF rejects unknown keys. The JSON Schema helps while editing, but the CLI is
-authoritative for cross-field, shell, and filesystem safety checks.
+SMF rejects unknown keys. The JSON Schema helps while editing, but
+`smf:validate` is authoritative for cross-field, shell, and filesystem safety
+checks.
 
 ## App and configuration discovery
 
@@ -41,18 +42,18 @@ repository/
       hooks/
 ```
 
-The CLI and Action search forward from their working directory for
+The package executables and Action search forward from their working directory for
 `smf/config.yaml`. One match is selected automatically. Zero matches fail with
 initialization guidance. Multiple matches fail and list every candidate; pass
-`--smf-path apps/mobile/smf` to the CLI or `smf-path: apps/mobile/smf` to the
-Action.
+`--smf-path apps/mobile/smf` to the executable or
+`smf-path: apps/mobile/smf` to the Action.
 
 The explicit path must point directly to a directory named `smf`, stay below
 the working directory, and contain `config.yaml`. Discovery does not follow
 symbolic links and prunes Git metadata, hidden directories, build output,
 dependency caches, FVM caches, and `node_modules`.
 
-`dart run smf init` is run from the Flutter app directory. It writes
+`dart run smf:init` is run from the Flutter app directory. It writes
 `<app>/smf/config.yaml` and `<repository>/.github/workflows/smf.yml`; there is
 no configurable app-path field. The generated workflow pins that exact
 repository-relative `smf/` path and supplies it to every Action phase.

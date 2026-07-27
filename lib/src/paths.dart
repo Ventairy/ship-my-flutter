@@ -137,7 +137,8 @@ String _discoverSmfDirectory(String start) {
   _collectSmfDirectories(start, matches, isSearchRoot: true);
   if (matches.isEmpty) {
     throw SmfError(
-      'No smf/config.yaml was found at or below $start. Run `smf init` from '
+      'No smf/config.yaml was found at or below $start. Run '
+          '`dart run smf:init` from '
           'the Flutter app directory or pass --smf-path.',
       'SMF_NOT_FOUND',
     );
