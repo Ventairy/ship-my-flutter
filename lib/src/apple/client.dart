@@ -52,8 +52,9 @@ abstract interface class AppStoreConnectApi {
 
   Future<ApiResource<AppStoreVersionAttributes>> findOrCreateAppStoreVersion(
     String appId,
-    String version,
-  );
+    String version, {
+    required bool releaseAutomatically,
+  });
 
   Future<void> attachBuildToVersion(String appStoreVersionId, String buildId);
 
@@ -416,9 +417,12 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
   @override
   Future<ApiResource<AppStoreVersionAttributes>> findOrCreateAppStoreVersion(
     String appId,
-    String version,
-  ) async {
-    const desiredReleaseType = 'AFTER_APPROVAL';
+    String version, {
+    required bool releaseAutomatically,
+  }) async {
+    final desiredReleaseType = releaseAutomatically
+        ? 'AFTER_APPROVAL'
+        : 'MANUAL';
     final query = Uri(
       queryParameters: <String, String>{
         'filter[platform]': 'IOS',

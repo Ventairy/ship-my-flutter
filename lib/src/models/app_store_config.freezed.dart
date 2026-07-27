@@ -206,7 +206,7 @@ return $default(_that.mode);case _:
 
 
 class _AppStoreConfig implements AppStoreConfig {
-  const _AppStoreConfig({this.mode = ReleaseMode.uploadOnly});
+  const _AppStoreConfig({this.mode = ReleaseMode.upload});
   
 
 @override@JsonKey() final  ReleaseMode mode;

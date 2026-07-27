@@ -30,7 +30,7 @@ platforms:
         - Internal
       wait_timeout_minutes: 45
     app_store:
-      mode: upload-only
+      mode: upload
 ```
 
 ## Repository fields
@@ -187,12 +187,13 @@ response; it does not bypass external testing review.
 
 `app_store.mode` supports:
 
-- `upload-only`: keep the tested build in TestFlight and finish the GitHub
-  Release after merge;
-- `submit-for-review`: attach the tested build, apply supplied notes, and submit
-  the version for App Review. Apple releases it automatically after approval.
+- `upload`: keep the tested build in TestFlight and finish the GitHub Release
+  after merge;
+- `review`: attach the tested build, apply supplied notes, and submit the
+  version for App Review, then wait for a manual release after approval;
+- `auto`: submit the same way and release automatically after Apple approval.
 
-The initializer defaults to `upload-only`.
+The initializer defaults to `upload`.
 
 ## Migrating schema version 1
 

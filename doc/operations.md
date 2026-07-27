@@ -21,8 +21,8 @@ receipt, valid TestFlight build, and human test as an explicit manual merge
 gate. Require project-specific PR checks separately; if they must run on the
 generated PR, use the alternate GitHub App/PAT path described in the README.
 
-The initializer defaults to `upload-only`. After the first end-to-end candidate
-works and App Store metadata is complete, opt in to `submit-for-review` in
+The initializer defaults to `upload`. After the first end-to-end candidate
+works and App Store metadata is complete, opt in to `review` or `auto` in
 `config.yaml`.
 
 To submit the already-tested candidate, change `app_store.mode` on the target

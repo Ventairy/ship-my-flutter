@@ -49,8 +49,8 @@ void main() {
       final configFile = File(paths.config);
       await configFile.writeAsString(
         (await configFile.readAsString()).replaceFirst(
-          'mode: upload-only',
-          'mode: submit-for-review',
+          'mode: upload',
+          'mode: auto',
         ),
       );
       final baselineSha = await currentSha(root.path);
@@ -159,6 +159,7 @@ void main() {
       expect(appStore.attachedBuildId, 'build-7');
       expect(appStore.storeNotes.single.whatsNew, 'Ready for launch.');
       expect(appStore.submitted, isTrue);
+      expect(appStore.releaseAutomatically, isTrue);
       expect(github.releases.single.tag, 'ios-v1.1.0');
 
       await File(p.join(root.path, 'app.txt')).writeAsString('untested\n');

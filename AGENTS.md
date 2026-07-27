@@ -105,8 +105,8 @@ redesign.
   build, marketing version, processing state, and merged-source fingerprint.
 - Promotion never rebuilds a candidate that a human supposedly tested.
 - A mismatch is a hard error, never a warning or fallback.
-- `upload-only` remains the safe initializer default.
-- App Review submission requires explicit `submit-for-review` configuration.
+- `upload` remains the safe initializer default.
+- App Review submission requires explicit `review` or `auto` configuration.
 
 ### Git as the audit trail
 

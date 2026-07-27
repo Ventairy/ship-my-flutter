@@ -23,7 +23,7 @@ $bundleLine    testflight:
       groups: []
       wait_timeout_minutes: 45
     app_store:
-      mode: upload-only
+      mode: upload
 ''';
 }
 

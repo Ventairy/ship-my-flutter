@@ -88,10 +88,11 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
 
   String? appStoreVersionId;
   String? reviewSubmissionId;
-  if (config.ios.appStore.mode == ReleaseMode.submitForReview) {
+  if (config.ios.appStore.mode != ReleaseMode.upload) {
     final appStoreVersion = await client.findOrCreateAppStoreVersion(
       app.id,
       state.version,
+      releaseAutomatically: config.ios.appStore.mode == ReleaseMode.automatic,
     );
     appStoreVersionId = appStoreVersion.id;
     if (appStoreVersion.attributes.appStoreState == 'PREPARE_FOR_SUBMISSION') {

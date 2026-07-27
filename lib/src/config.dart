@@ -295,14 +295,15 @@ TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
 
 AppStoreConfig _parseAppStoreConfig(Map<String, Object?> appStore) {
   final mode = switch (_nonEmptyString(
-    appStore['mode'] ?? 'upload-only',
+    appStore['mode'] ?? 'upload',
     'platforms.ios.app_store.mode',
   )) {
-    'submit-for-review' => ReleaseMode.submitForReview,
-    'upload-only' => ReleaseMode.uploadOnly,
+    'auto' => ReleaseMode.automatic,
+    'review' => ReleaseMode.review,
+    'upload' => ReleaseMode.upload,
     final String invalid => _fail(
-      'platforms.ios.app_store.mode must be submit-for-review or upload-only, '
-      'not "$invalid"',
+      'platforms.ios.app_store.mode must be auto, review, or upload, not '
+      '"$invalid"',
     ),
   };
   return AppStoreConfig(mode: mode);

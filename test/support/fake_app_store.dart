@@ -28,6 +28,7 @@ final class FakeAppStoreConnectApi implements AppStoreConnectApi {
   final List<({String versionId, String locale, String whatsNew})> storeNotes =
       <({String versionId, String locale, String whatsNew})>[];
   String? attachedBuildId;
+  bool? releaseAutomatically;
   var submitted = false;
 
   @override
@@ -60,8 +61,10 @@ final class FakeAppStoreConnectApi implements AppStoreConnectApi {
   @override
   Future<ApiResource<AppStoreVersionAttributes>> findOrCreateAppStoreVersion(
     String appId,
-    String version,
-  ) async {
+    String version, {
+    required bool releaseAutomatically,
+  }) async {
+    this.releaseAutomatically = releaseAutomatically;
     final value = appStoreVersion;
     if (value == null) throw StateError('No fake App Store version');
     return value;

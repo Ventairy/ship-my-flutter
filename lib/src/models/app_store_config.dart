@@ -9,6 +9,6 @@ part 'app_store_config.freezed.dart';
 abstract class AppStoreConfig with _$AppStoreConfig {
   /// Creates App Store configuration.
   const factory AppStoreConfig({
-    @Default(ReleaseMode.uploadOnly) ReleaseMode mode,
+    @Default(ReleaseMode.upload) ReleaseMode mode,
   }) = _AppStoreConfig;
 }

@@ -32,7 +32,7 @@ void main() {
     final config = await loadConfig(root.path);
     expect(config.schemaVersion, 2);
     expect(config.ios.buildCommand, isNull);
-    expect(config.ios.appStore.mode, ReleaseMode.uploadOnly);
+    expect(config.ios.appStore.mode, ReleaseMode.upload);
     final configText = await File(
       resolveShipPaths(root.path).config,
     ).readAsString();

@@ -115,9 +115,9 @@
               "additionalProperties": false,
               "properties": {
                 "mode": {
-                  "enum": ["submit-for-review", "upload-only"],
-                  "default": "upload-only",
-                  "description": "Whether merging uploads only or submits the tested build for App Review with automatic release after approval."
+                  "enum": ["auto", "review", "upload"],
+                  "default": "upload",
+                  "description": "Whether promotion uploads only, submits for review with manual release, or submits for review with automatic release after approval."
                 }
               }
             }

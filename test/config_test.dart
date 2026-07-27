@@ -16,7 +16,7 @@ Map<String, Object?> validConfig() => <String, Object?>{
         'groups': <Object?>[],
         'wait_timeout_minutes': 45,
       },
-      'app_store': <String, Object?>{'mode': 'submit-for-review'},
+      'app_store': <String, Object?>{'mode': 'auto'},
     },
   },
 };
@@ -104,7 +104,7 @@ void main() {
       final config = validConfig();
       iosConfig(config).remove('app_store');
       final appStore = validateConfig(config).ios.appStore;
-      expect(appStore.mode, ReleaseMode.uploadOnly);
+      expect(appStore.mode, ReleaseMode.upload);
     });
 
     test('rejects paths that escape the repository', () {
@@ -127,10 +127,25 @@ void main() {
           isA<ShipError>().having(
             (ShipError error) => error.message,
             'message',
-            contains('submit-for-review'),
+            contains('auto, review, or upload'),
           ),
         ),
       );
+    });
+
+    test('maps every App Store mode to its public enum value', () {
+      for (final entry in <String, ReleaseMode>{
+        'auto': ReleaseMode.automatic,
+        'review': ReleaseMode.review,
+        'upload': ReleaseMode.upload,
+      }.entries) {
+        final config = validConfig();
+        final appStore =
+            iosConfig(config)['app_store']! as Map<String, Object?>;
+        appStore['mode'] = entry.key;
+
+        expect(validateConfig(config).ios.appStore.mode, entry.value);
+      }
     });
 
     test('rejects removed App Store release policy fields', () {

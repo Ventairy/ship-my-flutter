@@ -20,9 +20,9 @@ The project follows Semantic Versioning and Conventional Commits.
   configuration. The build command now detects repository FVM configuration
   automatically, while the output defaults to Flutter's standard IPA
   directory.
-- Simplified App Store delivery to `upload-only` or `submit-for-review`.
-  Review submissions now always release automatically after Apple approval;
-  configurable manual and scheduled release policies were removed.
+- Replaced the App Store delivery policy with three explicit modes: `upload`,
+  `review`, and `auto`. Review mode waits for manual release after approval,
+  while auto mode releases automatically after approval.
 
 ### Added
 

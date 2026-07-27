@@ -22,14 +22,14 @@ The Account Holder must first enable App Store Connect API access. The Account
 Holder or an Admin then creates a team key whose role covers the configured
 workflow:
 
-- `Developer` is sufficient for an `upload-only` workflow that does not assign
+- `Developer` is sufficient for an `upload` workflow that does not assign
   the build to TestFlight groups.
 - `App Manager` is the minimum role for the complete workflow: assigning
   testers to builds and submitting an app version for review. `Admin` and
   `Account Holder` also have those permissions.
 
 Do not grant `Admin` or `Account Holder` merely to make automation work. If
-`testflight.groups` is non-empty or `app_store.mode` is `submit-for-review`, use
+`testflight.groups` is non-empty or `app_store.mode` is `review` or `auto`, use
 at least `App Manager`.
 
 Record:
@@ -89,7 +89,7 @@ package or the `v1` Action tag:
 4. configured TestFlight groups receive the build and localized beta notes;
 5. the committed candidate receipt names the processed App Store Connect build;
 6. after merging the release PR, promotion selects that same build and the
-   configured upload-only or review-submission behavior succeeds;
+   configured upload or review-submission behavior succeeds;
 7. the immutable `ios-vX.Y.Z` GitHub Release points at the promoted source.
 
 The first live run uses real Apple credentials and can create a TestFlight

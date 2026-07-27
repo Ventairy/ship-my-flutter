@@ -417,7 +417,7 @@ void main() {
                 'platform': 'IOS',
                 'versionString': '2.0.0',
                 'appStoreState': 'PREPARE_FOR_SUBMISSION',
-                'releaseType': 'AFTER_APPROVAL',
+                'releaseType': 'MANUAL',
               },
             },
           }),
@@ -426,6 +426,7 @@ void main() {
         final version = await create.client.findOrCreateAppStoreVersion(
           'app-1',
           '2.0.0',
+          releaseAutomatically: false,
         );
         expect(requestBody(create.requests[1]), <String, Object?>{
           'data': <String, Object?>{
@@ -433,7 +434,7 @@ void main() {
             'attributes': <String, Object?>{
               'platform': 'IOS',
               'versionString': '2.0.0',
-              'releaseType': 'AFTER_APPROVAL',
+              'releaseType': 'MANUAL',
             },
             'relationships': <String, Object?>{
               'app': <String, Object?>{
@@ -479,6 +480,7 @@ void main() {
         final updated = await update.client.findOrCreateAppStoreVersion(
           'app-1',
           '2.0.0',
+          releaseAutomatically: true,
         );
         expect(updated.attributes.releaseType, 'AFTER_APPROVAL');
         expect(requestBody(update.requests.last), <String, Object?>{

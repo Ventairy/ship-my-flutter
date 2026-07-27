@@ -262,17 +262,19 @@ platforms:
         - Internal
       wait_timeout_minutes: 45
     app_store:
-      mode: upload-only
+      mode: upload
 ```
 
-- `submit-for-review` creates or reuses the App Store version, attaches the
-  tested build, applies localized notes, submits it, and releases automatically
+- `auto` submits the tested build for App Review and releases it automatically
   after Apple approval.
-- `upload-only` keeps the tested build in TestFlight/App Store Connect and still creates the platform GitHub Release after merge.
+- `review` submits the tested build for App Review and waits for you to release
+  it manually after approval.
+- `upload` keeps the tested build in TestFlight/App Store Connect without
+  submitting it for review.
 
-The initializer deliberately defaults to `upload-only`. Change it to
-`submit-for-review` only after the first candidate succeeds and the app's
-submission metadata is complete.
+The initializer deliberately defaults to `upload`. Change it to `review` or
+`auto` only after the first candidate succeeds and the app's submission
+metadata is complete.
 
 The complete contract is in [Configuration](doc/configuration.md).
 
@@ -396,7 +398,7 @@ Secrets are passed only as action inputs, masked by GitHub, written with restric
   introduce uncommitted dependency changes.
 - A GitHub-hosted or self-hosted macOS runner capable of Xcode 26 builds.
 - An existing App Store Connect app record; Apple does not let the API create one.
-- An App Store Connect API key with `Developer` access for upload-only delivery
+- An App Store Connect API key with `Developer` access for upload delivery
   without TestFlight groups, or at least `App Manager` access for group
   assignment and App Review submission; plus an Apple Distribution certificate
   and App Store provisioning profile.

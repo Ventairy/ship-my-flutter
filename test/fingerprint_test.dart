@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 String configYaml({
   String buildCommand = 'flutter build ipa --release',
   List<String> groups = const <String>[],
-  String mode = 'upload-only',
+  String mode = 'upload',
   String? beforeCandidate,
 }) =>
     '''
@@ -57,10 +57,7 @@ void main() {
       await File(paths.storeReleaseNotes).writeAsString('{"ios":{}}\n');
       await receipt.writeAsString('{"build":"1"}\n');
       await File(paths.config).writeAsString(
-        configYaml(
-          groups: const <String>['Internal'],
-          mode: 'submit-for-review',
-        ),
+        configYaml(groups: const <String>['Internal'], mode: 'auto'),
       );
       expect(await sourceFingerprint(root.path), before);
 

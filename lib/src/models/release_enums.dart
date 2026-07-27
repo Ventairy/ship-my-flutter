@@ -43,13 +43,16 @@ enum Bump {
   };
 }
 
-/// Determines whether promotion uploads only or submits for App Review.
+/// Determines how the tested build is delivered after promotion.
 enum ReleaseMode {
-  /// Submits the tested build to App Review.
-  submitForReview('submit-for-review'),
+  /// Submits for review and releases automatically after Apple approval.
+  automatic('auto'),
 
-  /// Leaves the tested build uploaded without submitting it.
-  uploadOnly('upload-only');
+  /// Submits for review and waits for a manual release after Apple approval.
+  review('review'),
+
+  /// Leaves the tested build uploaded without submitting it for review.
+  upload('upload');
 
   const ReleaseMode(this.value);
 
