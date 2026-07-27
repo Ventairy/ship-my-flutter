@@ -117,33 +117,7 @@
                 "mode": {
                   "enum": ["submit-for-review", "upload-only"],
                   "default": "upload-only",
-                  "description": "Whether merging uploads only or also submits the tested build for App Review."
-                },
-                "release_type": {
-                  "enum": ["manual", "automatic", "scheduled"],
-                  "default": "manual",
-                  "description": "Release behavior after Apple approves the submission."
-                },
-                "earliest_release_date": {
-                  "type": "string",
-                  "format": "date-time",
-                  "description": "ISO 8601 release time required for a scheduled release."
-                }
-              },
-              "if": {
-                "properties": {
-                  "release_type": {
-                    "const": "scheduled"
-                  }
-                },
-                "required": ["release_type"]
-              },
-              "then": {
-                "required": ["earliest_release_date"]
-              },
-              "else": {
-                "not": {
-                  "required": ["earliest_release_date"]
+                  "description": "Whether merging uploads only or submits the tested build for App Review with automatic release after approval."
                 }
               }
             }

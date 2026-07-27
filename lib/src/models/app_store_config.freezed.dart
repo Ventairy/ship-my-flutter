@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppStoreConfig {
 
- ReleaseMode get mode; StoreReleaseType get releaseType; DateTime? get earliestReleaseDate;
+ ReleaseMode get mode;
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $AppStoreConfigCopyWith<AppStoreConfig> get copyWith => _$AppStoreConfigCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStoreConfig&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.releaseType, releaseType) || other.releaseType == releaseType)&&(identical(other.earliestReleaseDate, earliestReleaseDate) || other.earliestReleaseDate == earliestReleaseDate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStoreConfig&&(identical(other.mode, mode) || other.mode == mode));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,mode,releaseType,earliestReleaseDate);
+int get hashCode => Object.hash(runtimeType,mode);
 
 @override
 String toString() {
-  return 'AppStoreConfig(mode: $mode, releaseType: $releaseType, earliestReleaseDate: $earliestReleaseDate)';
+  return 'AppStoreConfig(mode: $mode)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $AppStoreConfigCopyWith<$Res>  {
   factory $AppStoreConfigCopyWith(AppStoreConfig value, $Res Function(AppStoreConfig) _then) = _$AppStoreConfigCopyWithImpl;
 @useResult
 $Res call({
- ReleaseMode mode, StoreReleaseType releaseType, DateTime? earliestReleaseDate
+ ReleaseMode mode
 });
 
 
@@ -62,12 +62,10 @@ class _$AppStoreConfigCopyWithImpl<$Res>
 
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? mode = null,Object? releaseType = null,Object? earliestReleaseDate = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? mode = null,}) {
   return _then(_self.copyWith(
 mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
-as ReleaseMode,releaseType: null == releaseType ? _self.releaseType : releaseType // ignore: cast_nullable_to_non_nullable
-as StoreReleaseType,earliestReleaseDate: freezed == earliestReleaseDate ? _self.earliestReleaseDate : earliestReleaseDate // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as ReleaseMode,
   ));
 }
 
@@ -152,10 +150,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ReleaseMode mode,  StoreReleaseType releaseType,  DateTime? earliestReleaseDate)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ReleaseMode mode)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppStoreConfig() when $default != null:
-return $default(_that.mode,_that.releaseType,_that.earliestReleaseDate);case _:
+return $default(_that.mode);case _:
   return orElse();
 
 }
@@ -173,10 +171,10 @@ return $default(_that.mode,_that.releaseType,_that.earliestReleaseDate);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ReleaseMode mode,  StoreReleaseType releaseType,  DateTime? earliestReleaseDate)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ReleaseMode mode)  $default,) {final _that = this;
 switch (_that) {
 case _AppStoreConfig():
-return $default(_that.mode,_that.releaseType,_that.earliestReleaseDate);case _:
+return $default(_that.mode);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -193,10 +191,10 @@ return $default(_that.mode,_that.releaseType,_that.earliestReleaseDate);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ReleaseMode mode,  StoreReleaseType releaseType,  DateTime? earliestReleaseDate)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ReleaseMode mode)?  $default,) {final _that = this;
 switch (_that) {
 case _AppStoreConfig() when $default != null:
-return $default(_that.mode,_that.releaseType,_that.earliestReleaseDate);case _:
+return $default(_that.mode);case _:
   return null;
 
 }
@@ -208,12 +206,10 @@ return $default(_that.mode,_that.releaseType,_that.earliestReleaseDate);case _:
 
 
 class _AppStoreConfig implements AppStoreConfig {
-  const _AppStoreConfig({this.mode = ReleaseMode.uploadOnly, this.releaseType = StoreReleaseType.manual, this.earliestReleaseDate});
+  const _AppStoreConfig({this.mode = ReleaseMode.uploadOnly});
   
 
 @override@JsonKey() final  ReleaseMode mode;
-@override@JsonKey() final  StoreReleaseType releaseType;
-@override final  DateTime? earliestReleaseDate;
 
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -225,16 +221,16 @@ _$AppStoreConfigCopyWith<_AppStoreConfig> get copyWith => __$AppStoreConfigCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStoreConfig&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.releaseType, releaseType) || other.releaseType == releaseType)&&(identical(other.earliestReleaseDate, earliestReleaseDate) || other.earliestReleaseDate == earliestReleaseDate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStoreConfig&&(identical(other.mode, mode) || other.mode == mode));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,mode,releaseType,earliestReleaseDate);
+int get hashCode => Object.hash(runtimeType,mode);
 
 @override
 String toString() {
-  return 'AppStoreConfig(mode: $mode, releaseType: $releaseType, earliestReleaseDate: $earliestReleaseDate)';
+  return 'AppStoreConfig(mode: $mode)';
 }
 
 
@@ -245,7 +241,7 @@ abstract mixin class _$AppStoreConfigCopyWith<$Res> implements $AppStoreConfigCo
   factory _$AppStoreConfigCopyWith(_AppStoreConfig value, $Res Function(_AppStoreConfig) _then) = __$AppStoreConfigCopyWithImpl;
 @override @useResult
 $Res call({
- ReleaseMode mode, StoreReleaseType releaseType, DateTime? earliestReleaseDate
+ ReleaseMode mode
 });
 
 
@@ -262,12 +258,10 @@ class __$AppStoreConfigCopyWithImpl<$Res>
 
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? mode = null,Object? releaseType = null,Object? earliestReleaseDate = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? mode = null,}) {
   return _then(_AppStoreConfig(
 mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
-as ReleaseMode,releaseType: null == releaseType ? _self.releaseType : releaseType // ignore: cast_nullable_to_non_nullable
-as StoreReleaseType,earliestReleaseDate: freezed == earliestReleaseDate ? _self.earliestReleaseDate : earliestReleaseDate // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as ReleaseMode,
   ));
 }
 

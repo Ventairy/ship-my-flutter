@@ -13,7 +13,6 @@ abstract class AppStoreVersionAttributes with _$AppStoreVersionAttributes {
     required String versionString,
     required String appStoreState,
     required String releaseType,
-    String? earliestReleaseDate,
   }) = _AppStoreVersionAttributes;
 
   /// Decodes App Store version attributes from JSON.

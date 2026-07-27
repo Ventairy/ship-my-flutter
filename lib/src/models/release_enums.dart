@@ -56,20 +56,3 @@ enum ReleaseMode {
   /// The stable configuration value.
   final String value;
 }
-
-/// Controls how Apple releases an approved App Store version.
-enum StoreReleaseType {
-  /// Requires a manual release after approval.
-  manual('manual'),
-
-  /// Releases automatically after approval.
-  automatic('automatic'),
-
-  /// Releases no earlier than the configured date.
-  scheduled('scheduled');
-
-  const StoreReleaseType(this.value);
-
-  /// The stable configuration value.
-  final String value;
-}

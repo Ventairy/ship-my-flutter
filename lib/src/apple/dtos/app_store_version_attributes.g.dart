@@ -14,10 +14,6 @@ _AppStoreVersionAttributes _$AppStoreVersionAttributesFromJson(
     versionString: $checkedConvert('versionString', (v) => v as String),
     appStoreState: $checkedConvert('appStoreState', (v) => v as String),
     releaseType: $checkedConvert('releaseType', (v) => v as String),
-    earliestReleaseDate: $checkedConvert(
-      'earliestReleaseDate',
-      (v) => v as String?,
-    ),
   );
   return val;
 });
@@ -29,5 +25,4 @@ Map<String, dynamic> _$AppStoreVersionAttributesToJson(
   'versionString': instance.versionString,
   'appStoreState': instance.appStoreState,
   'releaseType': instance.releaseType,
-  'earliestReleaseDate': instance.earliestReleaseDate,
 };

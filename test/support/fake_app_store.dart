@@ -61,9 +61,7 @@ final class FakeAppStoreConnectApi implements AppStoreConnectApi {
   Future<ApiResource<AppStoreVersionAttributes>> findOrCreateAppStoreVersion(
     String appId,
     String version,
-    StoreReleaseType releaseType, {
-    DateTime? earliestReleaseDate,
-  }) async {
+  ) async {
     final value = appStoreVersion;
     if (value == null) throw StateError('No fake App Store version');
     return value;

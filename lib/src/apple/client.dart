@@ -53,9 +53,7 @@ abstract interface class AppStoreConnectApi {
   Future<ApiResource<AppStoreVersionAttributes>> findOrCreateAppStoreVersion(
     String appId,
     String version,
-    StoreReleaseType releaseType, {
-    DateTime? earliestReleaseDate,
-  });
+  );
 
   Future<void> attachBuildToVersion(String appStoreVersionId, String buildId);
 
@@ -419,19 +417,8 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
   Future<ApiResource<AppStoreVersionAttributes>> findOrCreateAppStoreVersion(
     String appId,
     String version,
-    StoreReleaseType releaseType, {
-    DateTime? earliestReleaseDate,
-  }) async {
-    invariant(
-      releaseType != StoreReleaseType.scheduled || earliestReleaseDate != null,
-      'earliestReleaseDate is required for a scheduled App Store release.',
-      'SCHEDULED_RELEASE_DATE',
-    );
-    final desiredReleaseType = switch (releaseType) {
-      StoreReleaseType.manual => 'MANUAL',
-      StoreReleaseType.automatic => 'AFTER_APPROVAL',
-      StoreReleaseType.scheduled => 'SCHEDULED',
-    };
+  ) async {
+    const desiredReleaseType = 'AFTER_APPROVAL';
     final query = Uri(
       queryParameters: <String, String>{
         'filter[platform]': 'IOS',
@@ -451,15 +438,8 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
               item.attributes.versionString == version,
         )
         .firstOrNull;
-    final earliestIso = earliestReleaseDate?.toUtc().toIso8601String();
     if (match != null) {
-      final existingDate = match.attributes.earliestReleaseDate;
-      final releasePolicyChanged =
-          match.attributes.releaseType != desiredReleaseType ||
-          (releaseType == StoreReleaseType.scheduled &&
-              DateTime.tryParse(existingDate ?? '')?.toUtc() !=
-                  earliestReleaseDate?.toUtc());
-      if (releasePolicyChanged) {
+      if (match.attributes.releaseType != desiredReleaseType) {
         invariant(
           match.attributes.appStoreState == 'PREPARE_FOR_SUBMISSION',
           'App Store version $version is already '
@@ -477,7 +457,6 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
                 'id': match.id,
                 'attributes': <String, Object?>{
                   'releaseType': desiredReleaseType,
-                  'earliestReleaseDate': ?earliestIso,
                 },
               },
             },
@@ -499,7 +478,6 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
               'platform': 'IOS',
               'versionString': version,
               'releaseType': desiredReleaseType,
-              'earliestReleaseDate': ?earliestIso,
             },
             'relationships': <String, Object?>{
               'app': <String, Object?>{

@@ -16,10 +16,7 @@ Map<String, Object?> validConfig() => <String, Object?>{
         'groups': <Object?>[],
         'wait_timeout_minutes': 45,
       },
-      'app_store': <String, Object?>{
-        'mode': 'submit-for-review',
-        'release_type': 'manual',
-      },
+      'app_store': <String, Object?>{'mode': 'submit-for-review'},
     },
   },
 };
@@ -108,7 +105,6 @@ void main() {
       iosConfig(config).remove('app_store');
       final appStore = validateConfig(config).ios.appStore;
       expect(appStore.mode, ReleaseMode.uploadOnly);
-      expect(appStore.releaseType, StoreReleaseType.manual);
     });
 
     test('rejects paths that escape the repository', () {
@@ -137,36 +133,23 @@ void main() {
       );
     });
 
-    test('requires a date only for scheduled App Store releases', () {
-      final missingDate = validConfig();
-      final scheduled =
-          iosConfig(missingDate)['app_store']! as Map<String, Object?>;
-      scheduled['release_type'] = 'scheduled';
-      expect(
-        () => validateConfig(missingDate),
-        throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
-            'message',
-            contains('required when release_type is scheduled'),
+    test('rejects removed App Store release policy fields', () {
+      for (final field in <String>['release_type', 'earliest_release_date']) {
+        final config = validConfig();
+        final appStore =
+            iosConfig(config)['app_store']! as Map<String, Object?>;
+        appStore[field] = 'removed';
+        expect(
+          () => validateConfig(config),
+          throwsA(
+            isA<ShipError>().having(
+              (ShipError error) => error.message,
+              'message',
+              allOf(contains('unknown field'), contains(field)),
+            ),
           ),
-        ),
-      );
-
-      final unexpectedDate = validConfig();
-      final manual =
-          iosConfig(unexpectedDate)['app_store']! as Map<String, Object?>;
-      manual['earliest_release_date'] = '2026-08-01T12:00:00.000Z';
-      expect(
-        () => validateConfig(unexpectedDate),
-        throwsA(
-          isA<ShipError>().having(
-            (ShipError error) => error.message,
-            'message',
-            contains('only valid when release_type is scheduled'),
-          ),
-        ),
-      );
+        );
+      }
     });
 
     test('accepts project-owned shell commands and hooks', () {

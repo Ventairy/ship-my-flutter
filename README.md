@@ -263,12 +263,12 @@ platforms:
       wait_timeout_minutes: 45
     app_store:
       mode: upload-only
-      release_type: manual
 ```
 
-- `submit-for-review` creates or reuses the App Store version, attaches the tested build, applies localized notes, and submits it.
+- `submit-for-review` creates or reuses the App Store version, attaches the
+  tested build, applies localized notes, submits it, and releases automatically
+  after Apple approval.
 - `upload-only` keeps the tested build in TestFlight/App Store Connect and still creates the platform GitHub Release after merge.
-- `release_type` controls what happens after Apple approval: `manual`, `automatic`, or `scheduled`.
 
 The initializer deliberately defaults to `upload-only`. Change it to
 `submit-for-review` only after the first candidate succeeds and the app's

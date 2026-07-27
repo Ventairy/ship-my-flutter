@@ -31,7 +31,6 @@ platforms:
       wait_timeout_minutes: 45
     app_store:
       mode: upload-only
-      release_type: manual
 ```
 
 ## Repository fields
@@ -191,15 +190,9 @@ response; it does not bypass external testing review.
 - `upload-only`: keep the tested build in TestFlight and finish the GitHub
   Release after merge;
 - `submit-for-review`: attach the tested build, apply supplied notes, and submit
-  the version for App Review.
+  the version for App Review. Apple releases it automatically after approval.
 
 The initializer defaults to `upload-only`.
-
-`app_store.release_type` controls behavior after approval:
-
-- `manual`: wait in Pending Developer Release;
-- `automatic`: release after approval;
-- `scheduled`: require `earliest_release_date` as an ISO 8601 timestamp.
 
 ## Migrating schema version 1
 
@@ -217,8 +210,6 @@ Version 2 replaces camelCase configuration keys and the Flutter-specific
 | `platforms.ios.buildArgs` | include project-specific flags in `build_command` |
 | `testflight.waitTimeoutMinutes` | `testflight.wait_timeout_minutes` |
 | `appStore` | `app_store` |
-| `releaseType` | `release_type` |
-| `earliestReleaseDate` | `earliest_release_date` |
 
 Override `build_command` only for a custom build invocation, and
 `ipa_output_path` only when that invocation writes outside `build/ios/ipa`.

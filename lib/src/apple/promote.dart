@@ -92,8 +92,6 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     final appStoreVersion = await client.findOrCreateAppStoreVersion(
       app.id,
       state.version,
-      config.ios.appStore.releaseType,
-      earliestReleaseDate: config.ios.appStore.earliestReleaseDate,
     );
     appStoreVersionId = appStoreVersion.id;
     if (appStoreVersion.attributes.appStoreState == 'PREPARE_FOR_SUBMISSION') {

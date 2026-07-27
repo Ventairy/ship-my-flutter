@@ -35,11 +35,7 @@ const Set<String> _testflightFields = <String>{
   'groups',
   'wait_timeout_minutes',
 };
-const Set<String> _appStoreFields = <String>{
-  'mode',
-  'release_type',
-  'earliest_release_date',
-};
+const Set<String> _appStoreFields = <String>{'mode'};
 
 Future<ShipConfig> loadConfig([String? root]) async {
   final paths = resolveShipPaths(root);
@@ -298,7 +294,7 @@ TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
 }
 
 AppStoreConfig _parseAppStoreConfig(Map<String, Object?> appStore) {
-  final releaseMode = switch (_nonEmptyString(
+  final mode = switch (_nonEmptyString(
     appStore['mode'] ?? 'upload-only',
     'platforms.ios.app_store.mode',
   )) {
@@ -309,54 +305,7 @@ AppStoreConfig _parseAppStoreConfig(Map<String, Object?> appStore) {
       'not "$invalid"',
     ),
   };
-  final releaseType = switch (_nonEmptyString(
-    appStore['release_type'] ?? 'manual',
-    'platforms.ios.app_store.release_type',
-  )) {
-    'manual' => StoreReleaseType.manual,
-    'automatic' => StoreReleaseType.automatic,
-    'scheduled' => StoreReleaseType.scheduled,
-    final String invalid => _fail(
-      'platforms.ios.app_store.release_type must be manual, automatic, or '
-      'scheduled, not "$invalid"',
-    ),
-  };
-  final earliestValue = _optionalString(
-    appStore['earliest_release_date'],
-    'platforms.ios.app_store.earliest_release_date',
-  );
-  final earliestReleaseDate = earliestValue == null
-      ? null
-      : _dateTime(
-          earliestValue,
-          'platforms.ios.app_store.earliest_release_date',
-        );
-  _validateReleaseDate(releaseType, earliestReleaseDate);
-  return AppStoreConfig(
-    mode: releaseMode,
-    releaseType: releaseType,
-    earliestReleaseDate: earliestReleaseDate,
-  );
-}
-
-void _validateReleaseDate(
-  StoreReleaseType releaseType,
-  DateTime? earliestReleaseDate,
-) {
-  if (releaseType == StoreReleaseType.scheduled &&
-      earliestReleaseDate == null) {
-    _fail(
-      'platforms.ios.app_store.earliest_release_date is required when '
-      'release_type is scheduled',
-    );
-  }
-  if (releaseType != StoreReleaseType.scheduled &&
-      earliestReleaseDate != null) {
-    _fail(
-      'platforms.ios.app_store.earliest_release_date is only valid when '
-      'release_type is scheduled',
-    );
-  }
+  return AppStoreConfig(mode: mode);
 }
 
 ShipManifest validateManifest(Object? value, {String source = 'manifest'}) {

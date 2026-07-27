@@ -24,7 +24,6 @@ $bundleLine    testflight:
       wait_timeout_minutes: 45
     app_store:
       mode: upload-only
-      release_type: manual
 ''';
 }
 

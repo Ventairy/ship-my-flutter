@@ -10,7 +10,5 @@ abstract class AppStoreConfig with _$AppStoreConfig {
   /// Creates App Store configuration.
   const factory AppStoreConfig({
     @Default(ReleaseMode.uploadOnly) ReleaseMode mode,
-    @Default(StoreReleaseType.manual) StoreReleaseType releaseType,
-    DateTime? earliestReleaseDate,
   }) = _AppStoreConfig;
 }

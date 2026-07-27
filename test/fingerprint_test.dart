@@ -8,7 +8,6 @@ String configYaml({
   String buildCommand = 'flutter build ipa --release',
   List<String> groups = const <String>[],
   String mode = 'upload-only',
-  String releaseType = 'manual',
   String? beforeCandidate,
 }) =>
     '''
@@ -24,7 +23,6 @@ platforms:
 ${groups.map((String value) => '        - "$value"').join('\n')}
     app_store:
       mode: $mode
-      release_type: $releaseType
 ''';
 
 void main() {
@@ -62,7 +60,6 @@ void main() {
         configYaml(
           groups: const <String>['Internal'],
           mode: 'submit-for-review',
-          releaseType: 'automatic',
         ),
       );
       expect(await sourceFingerprint(root.path), before);
