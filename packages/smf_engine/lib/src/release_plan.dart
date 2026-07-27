@@ -29,7 +29,11 @@ final class ReleasePlanner {
     final commits = await gitClient.commitsBetween(baseSha, headSha);
     final changes = commits
         .map(
-          (commit) => parseConventionalCommit(commit.sha, commit.message),
+          (commit) => parseConventionalCommitForPlatform(
+            commit.sha,
+            commit.message,
+            platform,
+          ),
         )
         .where(
           (change) =>

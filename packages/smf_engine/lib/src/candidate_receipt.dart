@@ -10,8 +10,16 @@ CandidateReceipt validateCandidateReceipt(
 }) {
   try {
     final receipt = _map(value);
-    _equal(receipt['schemaVersion'], 1, 'schemaVersion');
-    _equal(receipt['platform'], 'ios', 'platform');
+    final schemaVersion = receipt['schemaVersion'];
+    if (schemaVersion != 1 && schemaVersion != 2) {
+      _fail('schemaVersion must be 1 or 2');
+    }
+    final platform = Platform.parse(
+      _nonEmptyString(receipt['platform'], 'platform'),
+    );
+    if (schemaVersion == 1 && platform != Platform.ios) {
+      _fail('schemaVersion 1 only supports ios');
+    }
     _equal(receipt['processingState'], 'VALID', 'processingState');
     final version = _string(receipt['version'], 'version');
     if (!RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version)) {
@@ -29,31 +37,47 @@ CandidateReceipt validateCandidateReceipt(
       receipt['sourceFingerprint'],
       'sourceFingerprint',
     );
-    final ipaSha256 = _digest(receipt['ipaSha256'], 'ipaSha256');
+    final artifactSha256 = _digest(
+      schemaVersion == 1 ? receipt['ipaSha256'] : receipt['artifactSha256'],
+      'artifactSha256',
+    );
     final uploadedAt = _dateTime(receipt['uploadedAt'], 'uploadedAt');
-    final groupsValue = receipt['testflightGroups'];
+    final groupsValue = schemaVersion == 1
+        ? receipt['testflightGroups']
+        : receipt['testingDestinations'];
     if (groupsValue is! List<Object?>) {
-      _fail('testflightGroups must be a list');
+      _fail('testingDestinations must be a list');
     }
     final groups = <String>[
       for (final group in groupsValue)
-        _nonEmptyString(group, 'testflightGroups'),
+        _nonEmptyString(group, 'testingDestinations'),
     ];
     return CandidateReceipt(
+      platform: platform,
       version: version,
       buildNumber: buildNumber,
-      buildId: _nonEmptyString(receipt['buildId'], 'buildId'),
-      appId: _nonEmptyString(receipt['appId'], 'appId'),
-      bundleId: _nonEmptyString(receipt['bundleId'], 'bundleId'),
+      artifactId: _nonEmptyString(
+        schemaVersion == 1 ? receipt['buildId'] : receipt['artifactId'],
+        'artifactId',
+      ),
+      applicationId: _nonEmptyString(
+        schemaVersion == 1 ? receipt['bundleId'] : receipt['applicationId'],
+        'applicationId',
+      ),
+      storeApplicationId: _nonEmptyString(
+        schemaVersion == 1 ? receipt['appId'] : receipt['storeApplicationId'],
+        'storeApplicationId',
+      ),
       sourceSha: sourceSha,
       sourceFingerprint: sourceFingerprint,
-      ipaSha256: ipaSha256,
+      artifactSha256: artifactSha256,
       uploadedAt: uploadedAt,
-      testflightGroups: groups,
+      testingDestinations: groups,
     );
-  } on SmfError catch (error) {
+  } on Object catch (error) {
+    final message = error is SmfError ? error.message : error.toString();
     throw SmfError(
-      '$source is invalid:\n${error.message}',
+      '$source is invalid:\n$message',
       'INVALID_CANDIDATE_RECEIPT',
       cause: error,
     );

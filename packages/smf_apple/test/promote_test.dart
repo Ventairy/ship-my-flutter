@@ -103,16 +103,17 @@ void main() {
       final sourceSha = await currentSha(root.path);
       final fingerprint = await sourceFingerprint(root.path);
       final receipt = CandidateReceipt(
+        platform: Platform.ios,
         version: '1.1.0',
         buildNumber: '7',
-        buildId: 'build-7',
-        appId: 'app-1',
-        bundleId: 'dev.example.app',
+        artifactId: 'build-7',
+        applicationId: 'dev.example.app',
+        storeApplicationId: 'app-1',
         sourceSha: sourceSha,
         sourceFingerprint: fingerprint,
-        ipaSha256: List<String>.filled(64, 'a').join(),
+        artifactSha256: List<String>.filled(64, 'a').join(),
         uploadedAt: DateTime.utc(2026, 7, 26),
-        testflightGroups: const <String>['Internal'],
+        testingDestinations: const <String>['Internal'],
       );
       await writeObject(
         candidatePath(root.path, Platform.ios, '1.1.0'),
@@ -164,7 +165,7 @@ void main() {
       );
 
       expect(result.version, '1.1.0');
-      expect(result.buildId, 'build-7');
+      expect(result.artifactId, 'build-7');
       expect(result.appStoreVersionId, 'version-1');
       expect(result.reviewSubmissionId, 'submission-1');
       expect(appStore.attachedBuildId, 'build-7');

@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CandidateReceipt {
 
- String get version; String get buildNumber; String get buildId; String get appId; String get bundleId; String get sourceSha; String get sourceFingerprint; String get ipaSha256; DateTime get uploadedAt; List<String> get testflightGroups; int get schemaVersion; Platform get platform;
+ Platform get platform; String get version; String get buildNumber; String get artifactId; String get applicationId; String get storeApplicationId; String get sourceSha; String get sourceFingerprint; String get artifactSha256; DateTime get uploadedAt; List<String> get testingDestinations; String get processingState; int get schemaVersion;
 /// Create a copy of CandidateReceipt
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $CandidateReceiptCopyWith<CandidateReceipt> get copyWith => _$CandidateReceiptCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CandidateReceipt&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.buildId, buildId) || other.buildId == buildId)&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.bundleId, bundleId) || other.bundleId == bundleId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.ipaSha256, ipaSha256) || other.ipaSha256 == ipaSha256)&&(identical(other.uploadedAt, uploadedAt) || other.uploadedAt == uploadedAt)&&const DeepCollectionEquality().equals(other.testflightGroups, testflightGroups)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.platform, platform) || other.platform == platform));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CandidateReceipt&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.artifactId, artifactId) || other.artifactId == artifactId)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.storeApplicationId, storeApplicationId) || other.storeApplicationId == storeApplicationId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.artifactSha256, artifactSha256) || other.artifactSha256 == artifactSha256)&&(identical(other.uploadedAt, uploadedAt) || other.uploadedAt == uploadedAt)&&const DeepCollectionEquality().equals(other.testingDestinations, testingDestinations)&&(identical(other.processingState, processingState) || other.processingState == processingState)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,version,buildNumber,buildId,appId,bundleId,sourceSha,sourceFingerprint,ipaSha256,uploadedAt,const DeepCollectionEquality().hash(testflightGroups),schemaVersion,platform);
+int get hashCode => Object.hash(runtimeType,platform,version,buildNumber,artifactId,applicationId,storeApplicationId,sourceSha,sourceFingerprint,artifactSha256,uploadedAt,const DeepCollectionEquality().hash(testingDestinations),processingState,schemaVersion);
 
 @override
 String toString() {
-  return 'CandidateReceipt(version: $version, buildNumber: $buildNumber, buildId: $buildId, appId: $appId, bundleId: $bundleId, sourceSha: $sourceSha, sourceFingerprint: $sourceFingerprint, ipaSha256: $ipaSha256, uploadedAt: $uploadedAt, testflightGroups: $testflightGroups, schemaVersion: $schemaVersion, platform: $platform)';
+  return 'CandidateReceipt(platform: $platform, version: $version, buildNumber: $buildNumber, artifactId: $artifactId, applicationId: $applicationId, storeApplicationId: $storeApplicationId, sourceSha: $sourceSha, sourceFingerprint: $sourceFingerprint, artifactSha256: $artifactSha256, uploadedAt: $uploadedAt, testingDestinations: $testingDestinations, processingState: $processingState, schemaVersion: $schemaVersion)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $CandidateReceiptCopyWith<$Res>  {
   factory $CandidateReceiptCopyWith(CandidateReceipt value, $Res Function(CandidateReceipt) _then) = _$CandidateReceiptCopyWithImpl;
 @useResult
 $Res call({
- String version, String buildNumber, String buildId, String appId, String bundleId, String sourceSha, String sourceFingerprint, String ipaSha256, DateTime uploadedAt, List<String> testflightGroups, int schemaVersion, Platform platform
+ Platform platform, String version, String buildNumber, String artifactId, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime uploadedAt, List<String> testingDestinations, String processingState, int schemaVersion
 });
 
 
@@ -62,21 +62,22 @@ class _$CandidateReceiptCopyWithImpl<$Res>
 
 /// Create a copy of CandidateReceipt
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? version = null,Object? buildNumber = null,Object? buildId = null,Object? appId = null,Object? bundleId = null,Object? sourceSha = null,Object? sourceFingerprint = null,Object? ipaSha256 = null,Object? uploadedAt = null,Object? testflightGroups = null,Object? schemaVersion = null,Object? platform = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? platform = null,Object? version = null,Object? buildNumber = null,Object? artifactId = null,Object? applicationId = null,Object? storeApplicationId = null,Object? sourceSha = null,Object? sourceFingerprint = null,Object? artifactSha256 = null,Object? uploadedAt = null,Object? testingDestinations = null,Object? processingState = null,Object? schemaVersion = null,}) {
   return _then(_self.copyWith(
-version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
+platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
+as Platform,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,buildNumber: null == buildNumber ? _self.buildNumber : buildNumber // ignore: cast_nullable_to_non_nullable
-as String,buildId: null == buildId ? _self.buildId : buildId // ignore: cast_nullable_to_non_nullable
-as String,appId: null == appId ? _self.appId : appId // ignore: cast_nullable_to_non_nullable
-as String,bundleId: null == bundleId ? _self.bundleId : bundleId // ignore: cast_nullable_to_non_nullable
+as String,artifactId: null == artifactId ? _self.artifactId : artifactId // ignore: cast_nullable_to_non_nullable
+as String,applicationId: null == applicationId ? _self.applicationId : applicationId // ignore: cast_nullable_to_non_nullable
+as String,storeApplicationId: null == storeApplicationId ? _self.storeApplicationId : storeApplicationId // ignore: cast_nullable_to_non_nullable
 as String,sourceSha: null == sourceSha ? _self.sourceSha : sourceSha // ignore: cast_nullable_to_non_nullable
 as String,sourceFingerprint: null == sourceFingerprint ? _self.sourceFingerprint : sourceFingerprint // ignore: cast_nullable_to_non_nullable
-as String,ipaSha256: null == ipaSha256 ? _self.ipaSha256 : ipaSha256 // ignore: cast_nullable_to_non_nullable
+as String,artifactSha256: null == artifactSha256 ? _self.artifactSha256 : artifactSha256 // ignore: cast_nullable_to_non_nullable
 as String,uploadedAt: null == uploadedAt ? _self.uploadedAt : uploadedAt // ignore: cast_nullable_to_non_nullable
-as DateTime,testflightGroups: null == testflightGroups ? _self.testflightGroups : testflightGroups // ignore: cast_nullable_to_non_nullable
-as List<String>,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
-as int,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as Platform,
+as DateTime,testingDestinations: null == testingDestinations ? _self.testingDestinations : testingDestinations // ignore: cast_nullable_to_non_nullable
+as List<String>,processingState: null == processingState ? _self.processingState : processingState // ignore: cast_nullable_to_non_nullable
+as String,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -161,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  String buildNumber,  String buildId,  String appId,  String bundleId,  String sourceSha,  String sourceFingerprint,  String ipaSha256,  DateTime uploadedAt,  List<String> testflightGroups,  int schemaVersion,  Platform platform)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime uploadedAt,  List<String> testingDestinations,  String processingState,  int schemaVersion)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CandidateReceipt() when $default != null:
-return $default(_that.version,_that.buildNumber,_that.buildId,_that.appId,_that.bundleId,_that.sourceSha,_that.sourceFingerprint,_that.ipaSha256,_that.uploadedAt,_that.testflightGroups,_that.schemaVersion,_that.platform);case _:
+return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.uploadedAt,_that.testingDestinations,_that.processingState,_that.schemaVersion);case _:
   return orElse();
 
 }
@@ -182,10 +183,10 @@ return $default(_that.version,_that.buildNumber,_that.buildId,_that.appId,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  String buildNumber,  String buildId,  String appId,  String bundleId,  String sourceSha,  String sourceFingerprint,  String ipaSha256,  DateTime uploadedAt,  List<String> testflightGroups,  int schemaVersion,  Platform platform)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime uploadedAt,  List<String> testingDestinations,  String processingState,  int schemaVersion)  $default,) {final _that = this;
 switch (_that) {
 case _CandidateReceipt():
-return $default(_that.version,_that.buildNumber,_that.buildId,_that.appId,_that.bundleId,_that.sourceSha,_that.sourceFingerprint,_that.ipaSha256,_that.uploadedAt,_that.testflightGroups,_that.schemaVersion,_that.platform);case _:
+return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.uploadedAt,_that.testingDestinations,_that.processingState,_that.schemaVersion);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +203,10 @@ return $default(_that.version,_that.buildNumber,_that.buildId,_that.appId,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  String buildNumber,  String buildId,  String appId,  String bundleId,  String sourceSha,  String sourceFingerprint,  String ipaSha256,  DateTime uploadedAt,  List<String> testflightGroups,  int schemaVersion,  Platform platform)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime uploadedAt,  List<String> testingDestinations,  String processingState,  int schemaVersion)?  $default,) {final _that = this;
 switch (_that) {
 case _CandidateReceipt() when $default != null:
-return $default(_that.version,_that.buildNumber,_that.buildId,_that.appId,_that.bundleId,_that.sourceSha,_that.sourceFingerprint,_that.ipaSha256,_that.uploadedAt,_that.testflightGroups,_that.schemaVersion,_that.platform);case _:
+return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.uploadedAt,_that.testingDestinations,_that.processingState,_that.schemaVersion);case _:
   return null;
 
 }
@@ -217,27 +218,28 @@ return $default(_that.version,_that.buildNumber,_that.buildId,_that.appId,_that.
 
 
 class _CandidateReceipt extends CandidateReceipt {
-  const _CandidateReceipt({required this.version, required this.buildNumber, required this.buildId, required this.appId, required this.bundleId, required this.sourceSha, required this.sourceFingerprint, required this.ipaSha256, required this.uploadedAt, required final  List<String> testflightGroups, this.schemaVersion = 1, this.platform = Platform.ios}): _testflightGroups = testflightGroups,super._();
+  const _CandidateReceipt({required this.platform, required this.version, required this.buildNumber, required this.artifactId, required this.applicationId, required this.storeApplicationId, required this.sourceSha, required this.sourceFingerprint, required this.artifactSha256, required this.uploadedAt, required final  List<String> testingDestinations, this.processingState = 'VALID', this.schemaVersion = 2}): _testingDestinations = testingDestinations,super._();
   
 
+@override final  Platform platform;
 @override final  String version;
 @override final  String buildNumber;
-@override final  String buildId;
-@override final  String appId;
-@override final  String bundleId;
+@override final  String artifactId;
+@override final  String applicationId;
+@override final  String storeApplicationId;
 @override final  String sourceSha;
 @override final  String sourceFingerprint;
-@override final  String ipaSha256;
+@override final  String artifactSha256;
 @override final  DateTime uploadedAt;
- final  List<String> _testflightGroups;
-@override List<String> get testflightGroups {
-  if (_testflightGroups is EqualUnmodifiableListView) return _testflightGroups;
+ final  List<String> _testingDestinations;
+@override List<String> get testingDestinations {
+  if (_testingDestinations is EqualUnmodifiableListView) return _testingDestinations;
   // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(_testflightGroups);
+  return EqualUnmodifiableListView(_testingDestinations);
 }
 
+@override@JsonKey() final  String processingState;
 @override@JsonKey() final  int schemaVersion;
-@override@JsonKey() final  Platform platform;
 
 /// Create a copy of CandidateReceipt
 /// with the given fields replaced by the non-null parameter values.
@@ -249,16 +251,16 @@ _$CandidateReceiptCopyWith<_CandidateReceipt> get copyWith => __$CandidateReceip
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CandidateReceipt&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.buildId, buildId) || other.buildId == buildId)&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.bundleId, bundleId) || other.bundleId == bundleId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.ipaSha256, ipaSha256) || other.ipaSha256 == ipaSha256)&&(identical(other.uploadedAt, uploadedAt) || other.uploadedAt == uploadedAt)&&const DeepCollectionEquality().equals(other._testflightGroups, _testflightGroups)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.platform, platform) || other.platform == platform));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CandidateReceipt&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.artifactId, artifactId) || other.artifactId == artifactId)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.storeApplicationId, storeApplicationId) || other.storeApplicationId == storeApplicationId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.artifactSha256, artifactSha256) || other.artifactSha256 == artifactSha256)&&(identical(other.uploadedAt, uploadedAt) || other.uploadedAt == uploadedAt)&&const DeepCollectionEquality().equals(other._testingDestinations, _testingDestinations)&&(identical(other.processingState, processingState) || other.processingState == processingState)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,version,buildNumber,buildId,appId,bundleId,sourceSha,sourceFingerprint,ipaSha256,uploadedAt,const DeepCollectionEquality().hash(_testflightGroups),schemaVersion,platform);
+int get hashCode => Object.hash(runtimeType,platform,version,buildNumber,artifactId,applicationId,storeApplicationId,sourceSha,sourceFingerprint,artifactSha256,uploadedAt,const DeepCollectionEquality().hash(_testingDestinations),processingState,schemaVersion);
 
 @override
 String toString() {
-  return 'CandidateReceipt(version: $version, buildNumber: $buildNumber, buildId: $buildId, appId: $appId, bundleId: $bundleId, sourceSha: $sourceSha, sourceFingerprint: $sourceFingerprint, ipaSha256: $ipaSha256, uploadedAt: $uploadedAt, testflightGroups: $testflightGroups, schemaVersion: $schemaVersion, platform: $platform)';
+  return 'CandidateReceipt(platform: $platform, version: $version, buildNumber: $buildNumber, artifactId: $artifactId, applicationId: $applicationId, storeApplicationId: $storeApplicationId, sourceSha: $sourceSha, sourceFingerprint: $sourceFingerprint, artifactSha256: $artifactSha256, uploadedAt: $uploadedAt, testingDestinations: $testingDestinations, processingState: $processingState, schemaVersion: $schemaVersion)';
 }
 
 
@@ -269,7 +271,7 @@ abstract mixin class _$CandidateReceiptCopyWith<$Res> implements $CandidateRecei
   factory _$CandidateReceiptCopyWith(_CandidateReceipt value, $Res Function(_CandidateReceipt) _then) = __$CandidateReceiptCopyWithImpl;
 @override @useResult
 $Res call({
- String version, String buildNumber, String buildId, String appId, String bundleId, String sourceSha, String sourceFingerprint, String ipaSha256, DateTime uploadedAt, List<String> testflightGroups, int schemaVersion, Platform platform
+ Platform platform, String version, String buildNumber, String artifactId, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime uploadedAt, List<String> testingDestinations, String processingState, int schemaVersion
 });
 
 
@@ -286,21 +288,22 @@ class __$CandidateReceiptCopyWithImpl<$Res>
 
 /// Create a copy of CandidateReceipt
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? version = null,Object? buildNumber = null,Object? buildId = null,Object? appId = null,Object? bundleId = null,Object? sourceSha = null,Object? sourceFingerprint = null,Object? ipaSha256 = null,Object? uploadedAt = null,Object? testflightGroups = null,Object? schemaVersion = null,Object? platform = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? platform = null,Object? version = null,Object? buildNumber = null,Object? artifactId = null,Object? applicationId = null,Object? storeApplicationId = null,Object? sourceSha = null,Object? sourceFingerprint = null,Object? artifactSha256 = null,Object? uploadedAt = null,Object? testingDestinations = null,Object? processingState = null,Object? schemaVersion = null,}) {
   return _then(_CandidateReceipt(
-version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
+platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
+as Platform,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,buildNumber: null == buildNumber ? _self.buildNumber : buildNumber // ignore: cast_nullable_to_non_nullable
-as String,buildId: null == buildId ? _self.buildId : buildId // ignore: cast_nullable_to_non_nullable
-as String,appId: null == appId ? _self.appId : appId // ignore: cast_nullable_to_non_nullable
-as String,bundleId: null == bundleId ? _self.bundleId : bundleId // ignore: cast_nullable_to_non_nullable
+as String,artifactId: null == artifactId ? _self.artifactId : artifactId // ignore: cast_nullable_to_non_nullable
+as String,applicationId: null == applicationId ? _self.applicationId : applicationId // ignore: cast_nullable_to_non_nullable
+as String,storeApplicationId: null == storeApplicationId ? _self.storeApplicationId : storeApplicationId // ignore: cast_nullable_to_non_nullable
 as String,sourceSha: null == sourceSha ? _self.sourceSha : sourceSha // ignore: cast_nullable_to_non_nullable
 as String,sourceFingerprint: null == sourceFingerprint ? _self.sourceFingerprint : sourceFingerprint // ignore: cast_nullable_to_non_nullable
-as String,ipaSha256: null == ipaSha256 ? _self.ipaSha256 : ipaSha256 // ignore: cast_nullable_to_non_nullable
+as String,artifactSha256: null == artifactSha256 ? _self.artifactSha256 : artifactSha256 // ignore: cast_nullable_to_non_nullable
 as String,uploadedAt: null == uploadedAt ? _self.uploadedAt : uploadedAt // ignore: cast_nullable_to_non_nullable
-as DateTime,testflightGroups: null == testflightGroups ? _self._testflightGroups : testflightGroups // ignore: cast_nullable_to_non_nullable
-as List<String>,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
-as int,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as Platform,
+as DateTime,testingDestinations: null == testingDestinations ? _self._testingDestinations : testingDestinations // ignore: cast_nullable_to_non_nullable
+as List<String>,processingState: null == processingState ? _self.processingState : processingState // ignore: cast_nullable_to_non_nullable
+as String,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

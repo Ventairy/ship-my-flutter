@@ -71,22 +71,21 @@ void main() {
       expect(workflow, contains('SMF_PATH: "smf"'));
       expect(
         RegExp(r'smf-path: \$\{\{ env\.SMF_PATH \}\}').allMatches(workflow),
-        hasLength(3),
+        hasLength(5),
       );
       expect(workflow, contains('Ventairy/smf-action@v1'));
-      expect(workflow, contains('subosito/flutter-action@'));
       expect(
         workflow,
-        contains("format('{0}/.fvmrc', steps.project.outputs.fvm_root)"),
+        contains('Ventairy/smf-action/resolve-project@v1'),
       );
-      expect(workflow, contains('dart pub global activate fvm 4.1.2'));
       expect(
         workflow,
-        contains("steps.project.outputs.has_before_create_hook == 'true'"),
+        contains('Ventairy/smf-action/setup-flutter@v1'),
       );
-      expect(workflow, contains("steps.project.outputs.uses_fvm == 'true'"));
+      expect(workflow, contains(r'include: ${{ fromJSON('));
+      expect(workflow, contains(r'platform: ${{ matrix.platform }}'));
       expect(workflow, isNot(contains('find . -type f')));
-      expect(workflow, contains('runs-on: macos-26'));
+      expect(workflow, contains("'macos-26' || 'ubuntu-latest'"));
       expect(workflow, contains('  pull_request:'));
       expect(workflow, contains('  release_candidate:'));
       expect(workflow, contains('  ship:'));

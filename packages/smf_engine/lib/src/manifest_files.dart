@@ -46,9 +46,16 @@ Future<void> applyReleasePlan(
         pendingRelease: true,
       ),
     ),
+    Platform.android => manifest.copyWith(
+      android: manifest.android.copyWith(
+        version: plan.nextVersion,
+        pendingRelease: true,
+      ),
+    ),
   };
   final nextChangelog = switch (plan.platform) {
     Platform.ios => changelog.copyWith(iosReleases: releases),
+    Platform.android => changelog.copyWith(androidReleases: releases),
   };
   await (
     writeJson(paths.manifest, nextManifest.toJson()),
@@ -56,5 +63,6 @@ Future<void> applyReleasePlan(
   ).wait;
 }
 
-ChangelogManifest emptyChangelog() =>
-    const ChangelogManifest(iosReleases: <String, ChangelogRelease>{});
+ChangelogManifest emptyChangelog() => const ChangelogManifest(
+  iosReleases: <String, ChangelogRelease>{},
+);

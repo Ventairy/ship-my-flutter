@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PromotionResult {
 
- String get version; String get tag; String get buildId; String get githubReleaseUrl; String? get appStoreVersionId; String? get reviewSubmissionId;
+ String get version; String get tag; String get artifactId; String get buildNumber; String get githubReleaseUrl; Platform get platform; String? get appStoreVersionId; String? get reviewSubmissionId;
 /// Create a copy of PromotionResult
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $PromotionResultCopyWith<PromotionResult> get copyWith => _$PromotionResultCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PromotionResult&&(identical(other.version, version) || other.version == version)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.buildId, buildId) || other.buildId == buildId)&&(identical(other.githubReleaseUrl, githubReleaseUrl) || other.githubReleaseUrl == githubReleaseUrl)&&(identical(other.appStoreVersionId, appStoreVersionId) || other.appStoreVersionId == appStoreVersionId)&&(identical(other.reviewSubmissionId, reviewSubmissionId) || other.reviewSubmissionId == reviewSubmissionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PromotionResult&&(identical(other.version, version) || other.version == version)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.artifactId, artifactId) || other.artifactId == artifactId)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.githubReleaseUrl, githubReleaseUrl) || other.githubReleaseUrl == githubReleaseUrl)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.appStoreVersionId, appStoreVersionId) || other.appStoreVersionId == appStoreVersionId)&&(identical(other.reviewSubmissionId, reviewSubmissionId) || other.reviewSubmissionId == reviewSubmissionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,version,tag,buildId,githubReleaseUrl,appStoreVersionId,reviewSubmissionId);
+int get hashCode => Object.hash(runtimeType,version,tag,artifactId,buildNumber,githubReleaseUrl,platform,appStoreVersionId,reviewSubmissionId);
 
 @override
 String toString() {
-  return 'PromotionResult(version: $version, tag: $tag, buildId: $buildId, githubReleaseUrl: $githubReleaseUrl, appStoreVersionId: $appStoreVersionId, reviewSubmissionId: $reviewSubmissionId)';
+  return 'PromotionResult(version: $version, tag: $tag, artifactId: $artifactId, buildNumber: $buildNumber, githubReleaseUrl: $githubReleaseUrl, platform: $platform, appStoreVersionId: $appStoreVersionId, reviewSubmissionId: $reviewSubmissionId)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $PromotionResultCopyWith<$Res>  {
   factory $PromotionResultCopyWith(PromotionResult value, $Res Function(PromotionResult) _then) = _$PromotionResultCopyWithImpl;
 @useResult
 $Res call({
- String version, String tag, String buildId, String githubReleaseUrl, String? appStoreVersionId, String? reviewSubmissionId
+ String version, String tag, String artifactId, String buildNumber, String githubReleaseUrl, Platform platform, String? appStoreVersionId, String? reviewSubmissionId
 });
 
 
@@ -65,13 +65,15 @@ class _$PromotionResultCopyWithImpl<$Res>
 
 /// Create a copy of PromotionResult
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? version = null,Object? tag = null,Object? buildId = null,Object? githubReleaseUrl = null,Object? appStoreVersionId = freezed,Object? reviewSubmissionId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? version = null,Object? tag = null,Object? artifactId = null,Object? buildNumber = null,Object? githubReleaseUrl = null,Object? platform = null,Object? appStoreVersionId = freezed,Object? reviewSubmissionId = freezed,}) {
   return _then(_self.copyWith(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,tag: null == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
-as String,buildId: null == buildId ? _self.buildId : buildId // ignore: cast_nullable_to_non_nullable
+as String,artifactId: null == artifactId ? _self.artifactId : artifactId // ignore: cast_nullable_to_non_nullable
+as String,buildNumber: null == buildNumber ? _self.buildNumber : buildNumber // ignore: cast_nullable_to_non_nullable
 as String,githubReleaseUrl: null == githubReleaseUrl ? _self.githubReleaseUrl : githubReleaseUrl // ignore: cast_nullable_to_non_nullable
-as String,appStoreVersionId: freezed == appStoreVersionId ? _self.appStoreVersionId : appStoreVersionId // ignore: cast_nullable_to_non_nullable
+as String,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
+as Platform,appStoreVersionId: freezed == appStoreVersionId ? _self.appStoreVersionId : appStoreVersionId // ignore: cast_nullable_to_non_nullable
 as String?,reviewSubmissionId: freezed == reviewSubmissionId ? _self.reviewSubmissionId : reviewSubmissionId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
@@ -158,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  String tag,  String buildId,  String githubReleaseUrl,  String? appStoreVersionId,  String? reviewSubmissionId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  String tag,  String artifactId,  String buildNumber,  String githubReleaseUrl,  Platform platform,  String? appStoreVersionId,  String? reviewSubmissionId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PromotionResult() when $default != null:
-return $default(_that.version,_that.tag,_that.buildId,_that.githubReleaseUrl,_that.appStoreVersionId,_that.reviewSubmissionId);case _:
+return $default(_that.version,_that.tag,_that.artifactId,_that.buildNumber,_that.githubReleaseUrl,_that.platform,_that.appStoreVersionId,_that.reviewSubmissionId);case _:
   return orElse();
 
 }
@@ -179,10 +181,10 @@ return $default(_that.version,_that.tag,_that.buildId,_that.githubReleaseUrl,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  String tag,  String buildId,  String githubReleaseUrl,  String? appStoreVersionId,  String? reviewSubmissionId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  String tag,  String artifactId,  String buildNumber,  String githubReleaseUrl,  Platform platform,  String? appStoreVersionId,  String? reviewSubmissionId)  $default,) {final _that = this;
 switch (_that) {
 case _PromotionResult():
-return $default(_that.version,_that.tag,_that.buildId,_that.githubReleaseUrl,_that.appStoreVersionId,_that.reviewSubmissionId);case _:
+return $default(_that.version,_that.tag,_that.artifactId,_that.buildNumber,_that.githubReleaseUrl,_that.platform,_that.appStoreVersionId,_that.reviewSubmissionId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +201,10 @@ return $default(_that.version,_that.tag,_that.buildId,_that.githubReleaseUrl,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  String tag,  String buildId,  String githubReleaseUrl,  String? appStoreVersionId,  String? reviewSubmissionId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  String tag,  String artifactId,  String buildNumber,  String githubReleaseUrl,  Platform platform,  String? appStoreVersionId,  String? reviewSubmissionId)?  $default,) {final _that = this;
 switch (_that) {
 case _PromotionResult() when $default != null:
-return $default(_that.version,_that.tag,_that.buildId,_that.githubReleaseUrl,_that.appStoreVersionId,_that.reviewSubmissionId);case _:
+return $default(_that.version,_that.tag,_that.artifactId,_that.buildNumber,_that.githubReleaseUrl,_that.platform,_that.appStoreVersionId,_that.reviewSubmissionId);case _:
   return null;
 
 }
@@ -214,13 +216,15 @@ return $default(_that.version,_that.tag,_that.buildId,_that.githubReleaseUrl,_th
 
 @JsonSerializable(checked: true, includeIfNull: false)
 class _PromotionResult implements PromotionResult {
-  const _PromotionResult({required this.version, required this.tag, required this.buildId, required this.githubReleaseUrl, this.appStoreVersionId, this.reviewSubmissionId});
+  const _PromotionResult({required this.version, required this.tag, required this.artifactId, required this.buildNumber, required this.githubReleaseUrl, this.platform = Platform.ios, this.appStoreVersionId, this.reviewSubmissionId});
   factory _PromotionResult.fromJson(Map<String, dynamic> json) => _$PromotionResultFromJson(json);
 
 @override final  String version;
 @override final  String tag;
-@override final  String buildId;
+@override final  String artifactId;
+@override final  String buildNumber;
 @override final  String githubReleaseUrl;
+@override@JsonKey() final  Platform platform;
 @override final  String? appStoreVersionId;
 @override final  String? reviewSubmissionId;
 
@@ -237,16 +241,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PromotionResult&&(identical(other.version, version) || other.version == version)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.buildId, buildId) || other.buildId == buildId)&&(identical(other.githubReleaseUrl, githubReleaseUrl) || other.githubReleaseUrl == githubReleaseUrl)&&(identical(other.appStoreVersionId, appStoreVersionId) || other.appStoreVersionId == appStoreVersionId)&&(identical(other.reviewSubmissionId, reviewSubmissionId) || other.reviewSubmissionId == reviewSubmissionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PromotionResult&&(identical(other.version, version) || other.version == version)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.artifactId, artifactId) || other.artifactId == artifactId)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.githubReleaseUrl, githubReleaseUrl) || other.githubReleaseUrl == githubReleaseUrl)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.appStoreVersionId, appStoreVersionId) || other.appStoreVersionId == appStoreVersionId)&&(identical(other.reviewSubmissionId, reviewSubmissionId) || other.reviewSubmissionId == reviewSubmissionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,version,tag,buildId,githubReleaseUrl,appStoreVersionId,reviewSubmissionId);
+int get hashCode => Object.hash(runtimeType,version,tag,artifactId,buildNumber,githubReleaseUrl,platform,appStoreVersionId,reviewSubmissionId);
 
 @override
 String toString() {
-  return 'PromotionResult(version: $version, tag: $tag, buildId: $buildId, githubReleaseUrl: $githubReleaseUrl, appStoreVersionId: $appStoreVersionId, reviewSubmissionId: $reviewSubmissionId)';
+  return 'PromotionResult(version: $version, tag: $tag, artifactId: $artifactId, buildNumber: $buildNumber, githubReleaseUrl: $githubReleaseUrl, platform: $platform, appStoreVersionId: $appStoreVersionId, reviewSubmissionId: $reviewSubmissionId)';
 }
 
 
@@ -257,7 +261,7 @@ abstract mixin class _$PromotionResultCopyWith<$Res> implements $PromotionResult
   factory _$PromotionResultCopyWith(_PromotionResult value, $Res Function(_PromotionResult) _then) = __$PromotionResultCopyWithImpl;
 @override @useResult
 $Res call({
- String version, String tag, String buildId, String githubReleaseUrl, String? appStoreVersionId, String? reviewSubmissionId
+ String version, String tag, String artifactId, String buildNumber, String githubReleaseUrl, Platform platform, String? appStoreVersionId, String? reviewSubmissionId
 });
 
 
@@ -274,13 +278,15 @@ class __$PromotionResultCopyWithImpl<$Res>
 
 /// Create a copy of PromotionResult
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? version = null,Object? tag = null,Object? buildId = null,Object? githubReleaseUrl = null,Object? appStoreVersionId = freezed,Object? reviewSubmissionId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? version = null,Object? tag = null,Object? artifactId = null,Object? buildNumber = null,Object? githubReleaseUrl = null,Object? platform = null,Object? appStoreVersionId = freezed,Object? reviewSubmissionId = freezed,}) {
   return _then(_PromotionResult(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,tag: null == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
-as String,buildId: null == buildId ? _self.buildId : buildId // ignore: cast_nullable_to_non_nullable
+as String,artifactId: null == artifactId ? _self.artifactId : artifactId // ignore: cast_nullable_to_non_nullable
+as String,buildNumber: null == buildNumber ? _self.buildNumber : buildNumber // ignore: cast_nullable_to_non_nullable
 as String,githubReleaseUrl: null == githubReleaseUrl ? _self.githubReleaseUrl : githubReleaseUrl // ignore: cast_nullable_to_non_nullable
-as String,appStoreVersionId: freezed == appStoreVersionId ? _self.appStoreVersionId : appStoreVersionId // ignore: cast_nullable_to_non_nullable
+as String,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
+as Platform,appStoreVersionId: freezed == appStoreVersionId ? _self.appStoreVersionId : appStoreVersionId // ignore: cast_nullable_to_non_nullable
 as String?,reviewSubmissionId: freezed == reviewSubmissionId ? _self.reviewSubmissionId : reviewSubmissionId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));

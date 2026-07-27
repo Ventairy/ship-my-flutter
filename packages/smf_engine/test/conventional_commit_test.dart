@@ -4,18 +4,22 @@ import 'package:test/test.dart';
 void main() {
   group('platform-scoped Conventional Commits', () {
     final cases = <(String, List<Platform>, Bump?)>[
-      ('feat: shared feature', <Platform>[Platform.ios], Bump.minor),
+      ('feat: shared feature', Platform.values, Bump.minor),
       (
         'feat(auth): shared scoped feature',
-        <Platform>[Platform.ios],
+        Platform.values,
         Bump.minor,
       ),
       ('fix(ios): iPhone fix', <Platform>[Platform.ios], Bump.patch),
-      ('fix(android): Android-only fix', <Platform>[], Bump.patch),
+      (
+        'fix(android): Android-only fix',
+        <Platform>[Platform.android],
+        Bump.patch,
+      ),
       ('fix(web): browser-only fix', <Platform>[], Bump.patch),
       (
         'perf(ios,android): faster startup',
-        <Platform>[Platform.ios],
+        Platform.values,
         Bump.patch,
       ),
       ('chore(ios): maintenance', <Platform>[Platform.ios], null),
@@ -48,9 +52,10 @@ void main() {
         '2.0.0',
       );
       expect(
-        parseConventionalCommit(
+        parseConventionalCommitForPlatform(
           'b',
           'chore: release\n\nRelease-As-ios: 3.0.0',
+          Platform.ios,
         ).releaseAs,
         '3.0.0',
       );

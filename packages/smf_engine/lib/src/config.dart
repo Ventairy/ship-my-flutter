@@ -15,7 +15,7 @@ const Set<String> _rootConfigFields = <String>{
   'target_branch',
   'platforms',
 };
-const Set<String> _platformFields = <String>{'ios'};
+const Set<String> _platformFields = <String>{'ios', 'android'};
 const Set<String> _iosFields = <String>{
   'enabled',
   'initial_version',
@@ -30,6 +30,19 @@ const Set<String> _testflightFields = <String>{
   'wait_timeout_minutes',
 };
 const Set<String> _appStoreFields = <String>{'mode'};
+const Set<String> _androidFields = <String>{
+  'enabled',
+  'initial_version',
+  'package_name',
+  'build_command',
+  'aab_output_path',
+  'google_play',
+};
+const Set<String> _googlePlayFields = <String>{
+  'testing_track',
+  'production_track',
+  'mode',
+};
 
 Future<SmfConfig> loadConfig([String? root]) async {
   final paths = resolveSmfPaths(root);
@@ -58,10 +71,16 @@ Future<SmfManifest> loadManifest([String? root]) async {
   final paths = resolveSmfPaths(root);
   if (!(await fileExists(paths.manifest))) {
     final config = await loadConfig(paths.directory);
+    final baselineSha = await _initialBaselineSha(paths);
     return SmfManifest(
       ios: PlatformManifest(
         version: config.ios.initialVersion,
-        baselineSha: await _initialBaselineSha(paths),
+        baselineSha: baselineSha,
+        pendingRelease: false,
+      ),
+      android: PlatformManifest(
+        version: config.android.initialVersion,
+        baselineSha: baselineSha,
         pendingRelease: false,
       ),
     );
@@ -78,7 +97,9 @@ Future<SmfManifest> loadManifest([String? root]) async {
 Future<ChangelogManifest> loadChangelog([String? root]) async {
   final paths = resolveSmfPaths(root);
   if (!(await fileExists(paths.changelog))) {
-    return const ChangelogManifest(iosReleases: <String, ChangelogRelease>{});
+    return const ChangelogManifest(
+      iosReleases: <String, ChangelogRelease>{},
+    );
   }
   return validateChangelog(
     await _loadJson(paths.changelog),
@@ -149,16 +170,29 @@ SmfConfig validateConfig(Object? value, {String source = 'configuration'}) {
     _rejectUnknownFields(root, _rootConfigFields, source);
     final platforms = _objectMap(root['platforms'], 'platforms');
     _rejectUnknownFields(platforms, _platformFields, 'platforms');
-    final ios = _objectMap(platforms['ios'], 'platforms.ios');
+    final ios = _objectMap(
+      platforms['ios'] ?? const <String, Object?>{},
+      'platforms.ios',
+    );
+    final android = _objectMap(
+      platforms['android'] ?? const <String, Object?>{},
+      'platforms.android',
+    );
     _rejectUnknownFields(ios, _iosFields, 'platforms.ios');
-    return SmfConfig(
+    _rejectUnknownFields(android, _androidFields, 'platforms.android');
+    final config = SmfConfig(
       flavor: _optionalNonEmptyString(root['flavor'], 'flavor'),
       targetBranch: _nonEmptyString(
         root['target_branch'] ?? 'main',
         'target_branch',
       ),
       ios: _parseIosConfig(ios),
+      android: _parseAndroidConfig(android),
     );
+    if (config.enabledPlatforms.isEmpty) {
+      _fail('platforms must enable at least one supported platform');
+    }
+    return config;
   } on SmfError {
     rethrow;
   } on FormatException catch (error) {
@@ -184,7 +218,18 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
     ios['build_command'],
     'platforms.ios.build_command',
   );
-  if (buildCommand != null) _validateBuildCommand(buildCommand);
+  if (buildCommand != null) {
+    _validateBuildCommand(
+      buildCommand,
+      path: 'platforms.ios.build_command',
+      managedFlags: const <String>[
+        '--build-name',
+        '--build-number',
+        '--export-options-plist',
+        '--flavor',
+      ],
+    );
+  }
   final ipaOutputPath = _nonEmptyString(
     ios['ipa_output_path'] ?? 'build/ios/ipa',
     'platforms.ios.ipa_output_path',
@@ -213,30 +258,119 @@ IosConfig _parseIosConfig(Map<String, Object?> ios) {
   );
 }
 
-void _validateBuildCommand(String command) {
-  _validateSingleShellInvocation(command);
-  for (final flag in <String>[
-    '--build-name',
-    '--build-number',
-    '--export-options-plist',
-    '--flavor',
-  ]) {
+AndroidConfig _parseAndroidConfig(Map<String, Object?> android) {
+  final buildCommand = _optionalNonEmptyString(
+    android['build_command'],
+    'platforms.android.build_command',
+  );
+  if (buildCommand != null) {
+    _validateBuildCommand(
+      buildCommand,
+      path: 'platforms.android.build_command',
+      managedFlags: const <String>[
+        '--build-name',
+        '--build-number',
+        '--flavor',
+      ],
+    );
+  }
+  final aabOutputPath = _nonEmptyString(
+    android['aab_output_path'] ?? 'build/app/outputs/bundle/release',
+    'platforms.android.aab_output_path',
+  );
+  _relativePath(aabOutputPath, 'platforms.android.aab_output_path');
+  final googlePlay = _objectMap(
+    android['google_play'] ?? const <String, Object?>{},
+    'platforms.android.google_play',
+  );
+  _rejectUnknownFields(
+    googlePlay,
+    _googlePlayFields,
+    'platforms.android.google_play',
+  );
+  final packageName = _optionalNonEmptyString(
+    android['package_name'],
+    'platforms.android.package_name',
+  );
+  if (packageName != null &&
+      !RegExp(
+        r'^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$',
+      ).hasMatch(packageName)) {
+    _fail(
+      'platforms.android.package_name must be a valid Android application ID',
+    );
+  }
+  return AndroidConfig(
+    enabled: _boolean(
+      android['enabled'] ?? false,
+      'platforms.android.enabled',
+    ),
+    initialVersion: _stableVersion(
+      android['initial_version'] ?? '0.0.0',
+      'platforms.android.initial_version',
+    ),
+    packageName: packageName,
+    buildCommand: buildCommand,
+    aabOutputPath: aabOutputPath,
+    googlePlay: _parseGooglePlayConfig(googlePlay),
+  );
+}
+
+GooglePlayConfig _parseGooglePlayConfig(Map<String, Object?> googlePlay) {
+  final testingTrack = _trackName(
+    googlePlay['testing_track'] ?? 'internal',
+    'platforms.android.google_play.testing_track',
+  );
+  final productionTrack = _trackName(
+    googlePlay['production_track'] ?? 'production',
+    'platforms.android.google_play.production_track',
+  );
+  if (testingTrack == productionTrack) {
+    _fail(
+      'platforms.android.google_play.testing_track and production_track '
+      'must be different',
+    );
+  }
+  return GooglePlayConfig(
+    testingTrack: testingTrack,
+    productionTrack: productionTrack,
+    mode: _releaseMode(
+      googlePlay['mode'] ?? 'upload',
+      'platforms.android.google_play.mode',
+    ),
+  );
+}
+
+String _trackName(Object? value, String path) {
+  final track = _nonEmptyString(value, path);
+  if (!RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(track)) {
+    _fail('$path contains unsupported characters');
+  }
+  return track;
+}
+
+void _validateBuildCommand(
+  String command, {
+  required String path,
+  required List<String> managedFlags,
+}) {
+  _validateSingleShellInvocation(command, path);
+  for (final flag in managedFlags) {
     if (command.contains(flag)) {
       _fail(
-        'platforms.ios.build_command must not set $flag because '
-        'smf appends it automatically',
+        '$path must not set $flag because smf appends it automatically',
       );
     }
   }
 }
 
-void _validateSingleShellInvocation(String command) {
+void _validateSingleShellInvocation(String command, String path) {
   String? quote;
   var escaped = false;
   for (var index = 0; index < command.length; index++) {
     final character = command[index];
     if (character == '\n' || character == '\r') {
-      _invalidBuildCommandShape();
+      _invalidBuildCommandShape(path);
     }
     if (escaped) {
       escaped = false;
@@ -255,7 +389,7 @@ void _validateSingleShellInvocation(String command) {
           (character == r'$' &&
               index + 1 < command.length &&
               command[index + 1] == '(')) {
-        _invalidBuildCommandShape();
+        _invalidBuildCommandShape(path);
       }
       if (character == '"') quote = null;
       continue;
@@ -265,15 +399,15 @@ void _validateSingleShellInvocation(String command) {
       continue;
     }
     if (';&|<>()`'.contains(character)) {
-      _invalidBuildCommandShape();
+      _invalidBuildCommandShape(path);
     }
     if (character == '#' &&
         (index == 0 || _isShellWhitespace(command.codeUnitAt(index - 1)))) {
-      _invalidBuildCommandShape();
+      _invalidBuildCommandShape(path);
     }
   }
   if (quote != null || escaped) {
-    _fail('platforms.ios.build_command contains incomplete shell quoting');
+    _fail('$path contains incomplete shell quoting');
   }
 }
 
@@ -283,8 +417,8 @@ bool _isShellWhitespace(int codeUnit) =>
     codeUnit == 0x0b ||
     codeUnit == 0x0c;
 
-Never _invalidBuildCommandShape() => _fail(
-  'platforms.ios.build_command must be one shell command invocation; '
+Never _invalidBuildCommandShape(String path) => _fail(
+  '$path must be one shell command invocation; '
   'put pipelines, chained commands, redirections, comments, and preparation '
   'steps in smf/hooks/before_build.dart',
 );
@@ -311,20 +445,23 @@ TestflightConfig _parseTestflightConfig(Map<String, Object?> testflight) {
 }
 
 AppStoreConfig _parseAppStoreConfig(Map<String, Object?> appStore) {
-  final mode = switch (_nonEmptyString(
-    appStore['mode'] ?? 'upload',
-    'platforms.ios.app_store.mode',
-  )) {
-    'auto' => ReleaseMode.automatic,
-    'review' => ReleaseMode.review,
-    'upload' => ReleaseMode.upload,
-    final String invalid => _fail(
-      'platforms.ios.app_store.mode must be auto, review, or upload, not '
-      '"$invalid"',
+  return AppStoreConfig(
+    mode: _releaseMode(
+      appStore['mode'] ?? 'upload',
+      'platforms.ios.app_store.mode',
     ),
-  };
-  return AppStoreConfig(mode: mode);
+  );
 }
+
+ReleaseMode _releaseMode(Object? value, String path) =>
+    switch (_nonEmptyString(value, path)) {
+      'auto' => ReleaseMode.automatic,
+      'review' => ReleaseMode.review,
+      'upload' => ReleaseMode.upload,
+      final String invalid => _fail(
+        '$path must be auto, review, or upload, not "$invalid"',
+      ),
+    };
 
 SmfManifest validateManifest(Object? value, {String source = 'manifest'}) {
   try {
@@ -332,15 +469,16 @@ SmfManifest validateManifest(Object? value, {String source = 'manifest'}) {
     _schemaVersion(root, source);
     final platforms = _objectMap(root['platforms'], 'platforms');
     final ios = _objectMap(platforms['ios'], 'platforms.ios');
+    final android = platforms['android'] == null
+        ? <String, Object?>{
+            'version': '0.0.0',
+            'baselineSha': ios['baselineSha'],
+            'pendingRelease': false,
+          }
+        : _objectMap(platforms['android'], 'platforms.android');
     return SmfManifest(
-      ios: PlatformManifest(
-        version: _stableVersion(ios['version'], 'platforms.ios.version'),
-        baselineSha: _gitSha(ios['baselineSha'], 'platforms.ios.baselineSha'),
-        pendingRelease: _boolean(
-          ios['pendingRelease'],
-          'platforms.ios.pendingRelease',
-        ),
-      ),
+      ios: _parsePlatformManifest(ios, 'platforms.ios'),
+      android: _parsePlatformManifest(android, 'platforms.android'),
     );
   } on SmfError {
     rethrow;
@@ -352,6 +490,15 @@ SmfManifest validateManifest(Object? value, {String source = 'manifest'}) {
     );
   }
 }
+
+PlatformManifest _parsePlatformManifest(
+  Map<String, Object?> value,
+  String path,
+) => PlatformManifest(
+  version: _stableVersion(value['version'], '$path.version'),
+  baselineSha: _gitSha(value['baselineSha'], '$path.baselineSha'),
+  pendingRelease: _boolean(value['pendingRelease'], '$path.pendingRelease'),
+);
 
 ChangelogManifest validateChangelog(
   Object? value, {
@@ -361,56 +508,9 @@ ChangelogManifest validateChangelog(
     final root = _objectMap(value, source);
     _schemaVersion(root, source);
     final platforms = _objectMap(root['platforms'], 'platforms');
-    final ios = _objectMap(platforms['ios'], 'platforms.ios');
-    final releases = _objectMap(ios['releases'], 'platforms.ios.releases');
-    final parsed = <String, ChangelogRelease>{};
-    for (final entry in releases.entries) {
-      final release = _objectMap(
-        entry.value,
-        'platforms.ios.releases.${entry.key}',
-      );
-      final version = _stableVersion(
-        release['version'],
-        'platforms.ios.releases.${entry.key}.version',
-      );
-      if (version != entry.key) {
-        _fail(
-          'platforms.ios.releases.${entry.key}.version must match its '
-          'release key ${entry.key}',
-        );
-      }
-      final changesValue = release['changes'];
-      if (changesValue is! List<Object?> || changesValue.isEmpty) {
-        _fail(
-          'platforms.ios.releases.${entry.key}.changes must contain at least '
-          'one change',
-        );
-      }
-      final changes = <ConventionalChange>[
-        for (var index = 0; index < changesValue.length; index++)
-          _parseChange(
-            changesValue[index],
-            'platforms.ios.releases.${entry.key}.changes.$index',
-          ),
-      ];
-      parsed[entry.key] = ChangelogRelease(
-        version: version,
-        preparedAt: _dateTime(
-          release['preparedAt'],
-          'platforms.ios.releases.${entry.key}.preparedAt',
-        ),
-        baseSha: _gitSha(
-          release['baseSha'],
-          'platforms.ios.releases.${entry.key}.baseSha',
-        ),
-        headSha: _gitSha(
-          release['headSha'],
-          'platforms.ios.releases.${entry.key}.headSha',
-        ),
-        changes: changes,
-      );
-    }
-    return ChangelogManifest(iosReleases: parsed);
+    final ios = _parsePlatformReleases(platforms, Platform.ios);
+    final android = _parsePlatformReleases(platforms, Platform.android);
+    return ChangelogManifest(iosReleases: ios, androidReleases: android);
   } on SmfError {
     rethrow;
   } on FormatException catch (error) {
@@ -420,6 +520,66 @@ ChangelogManifest validateChangelog(
       cause: error,
     );
   }
+}
+
+Map<String, ChangelogRelease> _parsePlatformReleases(
+  Map<String, Object?> platforms,
+  Platform platform,
+) {
+  if (platforms[platform.value] == null) {
+    return <String, ChangelogRelease>{};
+  }
+  final prefix = 'platforms.${platform.value}';
+  final value = _objectMap(platforms[platform.value], prefix);
+  final releases = _objectMap(value['releases'], '$prefix.releases');
+  final parsed = <String, ChangelogRelease>{};
+  for (final entry in releases.entries) {
+    final release = _objectMap(
+      entry.value,
+      '$prefix.releases.${entry.key}',
+    );
+    final version = _stableVersion(
+      release['version'],
+      '$prefix.releases.${entry.key}.version',
+    );
+    if (version != entry.key) {
+      _fail(
+        '$prefix.releases.${entry.key}.version must match its release key '
+        '${entry.key}',
+      );
+    }
+    final changesValue = release['changes'];
+    if (changesValue is! List<Object?> || changesValue.isEmpty) {
+      _fail(
+        '$prefix.releases.${entry.key}.changes must contain at least one '
+        'change',
+      );
+    }
+    final changes = <ConventionalChange>[
+      for (var index = 0; index < changesValue.length; index++)
+        _parseChange(
+          changesValue[index],
+          '$prefix.releases.${entry.key}.changes.$index',
+        ),
+    ];
+    parsed[entry.key] = ChangelogRelease(
+      version: version,
+      preparedAt: _dateTime(
+        release['preparedAt'],
+        '$prefix.releases.${entry.key}.preparedAt',
+      ),
+      baseSha: _gitSha(
+        release['baseSha'],
+        '$prefix.releases.${entry.key}.baseSha',
+      ),
+      headSha: _gitSha(
+        release['headSha'],
+        '$prefix.releases.${entry.key}.headSha',
+      ),
+      changes: changes,
+    );
+  }
+  return parsed;
 }
 
 StoreReleaseNotes validateStoreReleaseNotes(

@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ChangelogManifest {
 
- Map<String, ChangelogRelease> get iosReleases; int get schemaVersion;
+ Map<String, ChangelogRelease> get iosReleases; Map<String, ChangelogRelease> get androidReleases; int get schemaVersion;
 /// Create a copy of ChangelogManifest
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $ChangelogManifestCopyWith<ChangelogManifest> get copyWith => _$ChangelogManifes
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChangelogManifest&&const DeepCollectionEquality().equals(other.iosReleases, iosReleases)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChangelogManifest&&const DeepCollectionEquality().equals(other.iosReleases, iosReleases)&&const DeepCollectionEquality().equals(other.androidReleases, androidReleases)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(iosReleases),schemaVersion);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(iosReleases),const DeepCollectionEquality().hash(androidReleases),schemaVersion);
 
 @override
 String toString() {
-  return 'ChangelogManifest(iosReleases: $iosReleases, schemaVersion: $schemaVersion)';
+  return 'ChangelogManifest(iosReleases: $iosReleases, androidReleases: $androidReleases, schemaVersion: $schemaVersion)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $ChangelogManifestCopyWith<$Res>  {
   factory $ChangelogManifestCopyWith(ChangelogManifest value, $Res Function(ChangelogManifest) _then) = _$ChangelogManifestCopyWithImpl;
 @useResult
 $Res call({
- Map<String, ChangelogRelease> iosReleases, int schemaVersion
+ Map<String, ChangelogRelease> iosReleases, Map<String, ChangelogRelease> androidReleases, int schemaVersion
 });
 
 
@@ -62,9 +62,10 @@ class _$ChangelogManifestCopyWithImpl<$Res>
 
 /// Create a copy of ChangelogManifest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? iosReleases = null,Object? schemaVersion = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? iosReleases = null,Object? androidReleases = null,Object? schemaVersion = null,}) {
   return _then(_self.copyWith(
 iosReleases: null == iosReleases ? _self.iosReleases : iosReleases // ignore: cast_nullable_to_non_nullable
+as Map<String, ChangelogRelease>,androidReleases: null == androidReleases ? _self.androidReleases : androidReleases // ignore: cast_nullable_to_non_nullable
 as Map<String, ChangelogRelease>,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,
   ));
@@ -151,10 +152,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Map<String, ChangelogRelease> iosReleases,  int schemaVersion)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Map<String, ChangelogRelease> iosReleases,  Map<String, ChangelogRelease> androidReleases,  int schemaVersion)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChangelogManifest() when $default != null:
-return $default(_that.iosReleases,_that.schemaVersion);case _:
+return $default(_that.iosReleases,_that.androidReleases,_that.schemaVersion);case _:
   return orElse();
 
 }
@@ -172,10 +173,10 @@ return $default(_that.iosReleases,_that.schemaVersion);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Map<String, ChangelogRelease> iosReleases,  int schemaVersion)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Map<String, ChangelogRelease> iosReleases,  Map<String, ChangelogRelease> androidReleases,  int schemaVersion)  $default,) {final _that = this;
 switch (_that) {
 case _ChangelogManifest():
-return $default(_that.iosReleases,_that.schemaVersion);case _:
+return $default(_that.iosReleases,_that.androidReleases,_that.schemaVersion);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -192,10 +193,10 @@ return $default(_that.iosReleases,_that.schemaVersion);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Map<String, ChangelogRelease> iosReleases,  int schemaVersion)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Map<String, ChangelogRelease> iosReleases,  Map<String, ChangelogRelease> androidReleases,  int schemaVersion)?  $default,) {final _that = this;
 switch (_that) {
 case _ChangelogManifest() when $default != null:
-return $default(_that.iosReleases,_that.schemaVersion);case _:
+return $default(_that.iosReleases,_that.androidReleases,_that.schemaVersion);case _:
   return null;
 
 }
@@ -207,7 +208,7 @@ return $default(_that.iosReleases,_that.schemaVersion);case _:
 
 
 class _ChangelogManifest extends ChangelogManifest {
-  const _ChangelogManifest({required final  Map<String, ChangelogRelease> iosReleases, this.schemaVersion = 1}): _iosReleases = iosReleases,super._();
+  const _ChangelogManifest({required final  Map<String, ChangelogRelease> iosReleases, final  Map<String, ChangelogRelease> androidReleases = const <String, ChangelogRelease>{}, this.schemaVersion = 1}): _iosReleases = iosReleases,_androidReleases = androidReleases,super._();
   
 
  final  Map<String, ChangelogRelease> _iosReleases;
@@ -215,6 +216,13 @@ class _ChangelogManifest extends ChangelogManifest {
   if (_iosReleases is EqualUnmodifiableMapView) return _iosReleases;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableMapView(_iosReleases);
+}
+
+ final  Map<String, ChangelogRelease> _androidReleases;
+@override@JsonKey() Map<String, ChangelogRelease> get androidReleases {
+  if (_androidReleases is EqualUnmodifiableMapView) return _androidReleases;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_androidReleases);
 }
 
 @override@JsonKey() final  int schemaVersion;
@@ -229,16 +237,16 @@ _$ChangelogManifestCopyWith<_ChangelogManifest> get copyWith => __$ChangelogMani
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChangelogManifest&&const DeepCollectionEquality().equals(other._iosReleases, _iosReleases)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChangelogManifest&&const DeepCollectionEquality().equals(other._iosReleases, _iosReleases)&&const DeepCollectionEquality().equals(other._androidReleases, _androidReleases)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_iosReleases),schemaVersion);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_iosReleases),const DeepCollectionEquality().hash(_androidReleases),schemaVersion);
 
 @override
 String toString() {
-  return 'ChangelogManifest(iosReleases: $iosReleases, schemaVersion: $schemaVersion)';
+  return 'ChangelogManifest(iosReleases: $iosReleases, androidReleases: $androidReleases, schemaVersion: $schemaVersion)';
 }
 
 
@@ -249,7 +257,7 @@ abstract mixin class _$ChangelogManifestCopyWith<$Res> implements $ChangelogMani
   factory _$ChangelogManifestCopyWith(_ChangelogManifest value, $Res Function(_ChangelogManifest) _then) = __$ChangelogManifestCopyWithImpl;
 @override @useResult
 $Res call({
- Map<String, ChangelogRelease> iosReleases, int schemaVersion
+ Map<String, ChangelogRelease> iosReleases, Map<String, ChangelogRelease> androidReleases, int schemaVersion
 });
 
 
@@ -266,9 +274,10 @@ class __$ChangelogManifestCopyWithImpl<$Res>
 
 /// Create a copy of ChangelogManifest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? iosReleases = null,Object? schemaVersion = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? iosReleases = null,Object? androidReleases = null,Object? schemaVersion = null,}) {
   return _then(_ChangelogManifest(
 iosReleases: null == iosReleases ? _self._iosReleases : iosReleases // ignore: cast_nullable_to_non_nullable
+as Map<String, ChangelogRelease>,androidReleases: null == androidReleases ? _self._androidReleases : androidReleases // ignore: cast_nullable_to_non_nullable
 as Map<String, ChangelogRelease>,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,
   ));

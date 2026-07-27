@@ -13,6 +13,7 @@ final class InitOptions {
     required this.appRoot,
     this.currentVersion,
     this.bundleId,
+    this.packageName,
     this.force = false,
     this.workflowOnly = false,
   });
@@ -20,6 +21,7 @@ final class InitOptions {
   final String appRoot;
   final String? currentVersion;
   final String? bundleId;
+  final String? packageName;
   final bool force;
   final bool workflowOnly;
 }
@@ -69,9 +71,10 @@ Future<void> initialize(InitOptions options) async {
     invariant(
       !options.force &&
           options.currentVersion == null &&
-          options.bundleId == null,
+          options.bundleId == null &&
+          options.packageName == null,
       '--workflow-only cannot be combined with --force, --current-version, '
-          'or --bundle-id.',
+          '--bundle-id, or --package-name.',
       'INVALID_INIT_OPTIONS',
     );
     invariant(
@@ -110,13 +113,23 @@ Future<void> initialize(InitOptions options) async {
     '$version must be a stable major.minor.patch version',
     'SEMVER',
   );
+  final enableIos = await Directory(p.join(appRoot, 'ios')).exists();
+  final enableAndroid = await Directory(p.join(appRoot, 'android')).exists();
+  invariant(
+    enableIos || enableAndroid,
+    'The Flutter app must contain an ios or android platform directory.',
+    'SUPPORTED_PLATFORM_NOT_FOUND',
+  );
 
   await File(paths.config).parent.create(recursive: true);
   final writes = <Future<void>>[
     File(paths.config).writeAsString(
       generatedConfigYaml(
         initialVersion: parsedVersion.toString(),
+        enableIos: enableIos,
+        enableAndroid: enableAndroid,
         bundleId: options.bundleId,
+        packageName: options.packageName,
       ),
     ),
   ];

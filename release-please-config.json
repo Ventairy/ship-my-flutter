@@ -16,6 +16,9 @@
     "packages/smf_apple": {
       "component": "smf_apple"
     },
+    "packages/smf_android": {
+      "component": "smf_android"
+    },
     "packages/smf_cli": {
       "component": "smf_cli"
     }

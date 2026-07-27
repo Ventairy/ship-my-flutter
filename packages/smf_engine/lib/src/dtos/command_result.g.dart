@@ -10,11 +10,12 @@ _CommandResult _$CommandResultFromJson(Map<String, dynamic> json) =>
     $checkedCreate('_CommandResult', json, ($checkedConvert) {
       final val = _CommandResult(
         phase: $checkedConvert('phase', (v) => v as String),
-        platform: $checkedConvert(
-          'platform',
-          (v) => $enumDecodeNullable(_$PlatformEnumMap, v),
+        releases: $checkedConvert(
+          'releases',
+          (v) => (v as List<dynamic>?)
+              ?.map((e) => ReleaseTarget.fromJson(e as Map<String, dynamic>))
+              .toList(),
         ),
-        version: $checkedConvert('version', (v) => v as String?),
         branch: $checkedConvert('branch', (v) => v as String?),
         pullRequestNumber: $checkedConvert(
           'pullRequestNumber',
@@ -27,10 +28,7 @@ _CommandResult _$CommandResultFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$CommandResultToJson(_CommandResult instance) =>
     <String, dynamic>{
       'phase': instance.phase,
-      'platform': ?_$PlatformEnumMap[instance.platform],
-      'version': ?instance.version,
+      'releases': ?instance.releases?.map((e) => e.toJson()).toList(),
       'branch': ?instance.branch,
       'pullRequestNumber': ?instance.pullRequestNumber,
     };
-
-const _$PlatformEnumMap = {Platform.ios: 'ios'};

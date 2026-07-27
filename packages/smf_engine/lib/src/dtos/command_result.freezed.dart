@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CommandResult {
 
- String get phase; Platform? get platform; String? get version; String? get branch; int? get pullRequestNumber;
+ String get phase; List<ReleaseTarget>? get releases; String? get branch; int? get pullRequestNumber;
 /// Create a copy of CommandResult
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $CommandResultCopyWith<CommandResult> get copyWith => _$CommandResultCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommandResult&&(identical(other.phase, phase) || other.phase == phase)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.branch, branch) || other.branch == branch)&&(identical(other.pullRequestNumber, pullRequestNumber) || other.pullRequestNumber == pullRequestNumber));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommandResult&&(identical(other.phase, phase) || other.phase == phase)&&const DeepCollectionEquality().equals(other.releases, releases)&&(identical(other.branch, branch) || other.branch == branch)&&(identical(other.pullRequestNumber, pullRequestNumber) || other.pullRequestNumber == pullRequestNumber));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,phase,platform,version,branch,pullRequestNumber);
+int get hashCode => Object.hash(runtimeType,phase,const DeepCollectionEquality().hash(releases),branch,pullRequestNumber);
 
 @override
 String toString() {
-  return 'CommandResult(phase: $phase, platform: $platform, version: $version, branch: $branch, pullRequestNumber: $pullRequestNumber)';
+  return 'CommandResult(phase: $phase, releases: $releases, branch: $branch, pullRequestNumber: $pullRequestNumber)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $CommandResultCopyWith<$Res>  {
   factory $CommandResultCopyWith(CommandResult value, $Res Function(CommandResult) _then) = _$CommandResultCopyWithImpl;
 @useResult
 $Res call({
- String phase, Platform? platform, String? version, String? branch, int? pullRequestNumber
+ String phase, List<ReleaseTarget>? releases, String? branch, int? pullRequestNumber
 });
 
 
@@ -65,12 +65,11 @@ class _$CommandResultCopyWithImpl<$Res>
 
 /// Create a copy of CommandResult
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? phase = null,Object? platform = freezed,Object? version = freezed,Object? branch = freezed,Object? pullRequestNumber = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? phase = null,Object? releases = freezed,Object? branch = freezed,Object? pullRequestNumber = freezed,}) {
   return _then(_self.copyWith(
 phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
-as String,platform: freezed == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as Platform?,version: freezed == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
-as String?,branch: freezed == branch ? _self.branch : branch // ignore: cast_nullable_to_non_nullable
+as String,releases: freezed == releases ? _self.releases : releases // ignore: cast_nullable_to_non_nullable
+as List<ReleaseTarget>?,branch: freezed == branch ? _self.branch : branch // ignore: cast_nullable_to_non_nullable
 as String?,pullRequestNumber: freezed == pullRequestNumber ? _self.pullRequestNumber : pullRequestNumber // ignore: cast_nullable_to_non_nullable
 as int?,
   ));
@@ -157,10 +156,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String phase,  Platform? platform,  String? version,  String? branch,  int? pullRequestNumber)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String phase,  List<ReleaseTarget>? releases,  String? branch,  int? pullRequestNumber)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CommandResult() when $default != null:
-return $default(_that.phase,_that.platform,_that.version,_that.branch,_that.pullRequestNumber);case _:
+return $default(_that.phase,_that.releases,_that.branch,_that.pullRequestNumber);case _:
   return orElse();
 
 }
@@ -178,10 +177,10 @@ return $default(_that.phase,_that.platform,_that.version,_that.branch,_that.pull
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String phase,  Platform? platform,  String? version,  String? branch,  int? pullRequestNumber)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String phase,  List<ReleaseTarget>? releases,  String? branch,  int? pullRequestNumber)  $default,) {final _that = this;
 switch (_that) {
 case _CommandResult():
-return $default(_that.phase,_that.platform,_that.version,_that.branch,_that.pullRequestNumber);case _:
+return $default(_that.phase,_that.releases,_that.branch,_that.pullRequestNumber);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +197,10 @@ return $default(_that.phase,_that.platform,_that.version,_that.branch,_that.pull
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String phase,  Platform? platform,  String? version,  String? branch,  int? pullRequestNumber)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String phase,  List<ReleaseTarget>? releases,  String? branch,  int? pullRequestNumber)?  $default,) {final _that = this;
 switch (_that) {
 case _CommandResult() when $default != null:
-return $default(_that.phase,_that.platform,_that.version,_that.branch,_that.pullRequestNumber);case _:
+return $default(_that.phase,_that.releases,_that.branch,_that.pullRequestNumber);case _:
   return null;
 
 }
@@ -211,14 +210,21 @@ return $default(_that.phase,_that.platform,_that.version,_that.branch,_that.pull
 
 /// @nodoc
 
-@JsonSerializable(checked: true, includeIfNull: false)
+@JsonSerializable(checked: true, includeIfNull: false, explicitToJson: true)
 class _CommandResult implements CommandResult {
-  const _CommandResult({required this.phase, this.platform, this.version, this.branch, this.pullRequestNumber});
+  const _CommandResult({required this.phase, final  List<ReleaseTarget>? releases, this.branch, this.pullRequestNumber}): _releases = releases;
   factory _CommandResult.fromJson(Map<String, dynamic> json) => _$CommandResultFromJson(json);
 
 @override final  String phase;
-@override final  Platform? platform;
-@override final  String? version;
+ final  List<ReleaseTarget>? _releases;
+@override List<ReleaseTarget>? get releases {
+  final value = _releases;
+  if (value == null) return null;
+  if (_releases is EqualUnmodifiableListView) return _releases;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
 @override final  String? branch;
 @override final  int? pullRequestNumber;
 
@@ -235,16 +241,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CommandResult&&(identical(other.phase, phase) || other.phase == phase)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.branch, branch) || other.branch == branch)&&(identical(other.pullRequestNumber, pullRequestNumber) || other.pullRequestNumber == pullRequestNumber));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CommandResult&&(identical(other.phase, phase) || other.phase == phase)&&const DeepCollectionEquality().equals(other._releases, _releases)&&(identical(other.branch, branch) || other.branch == branch)&&(identical(other.pullRequestNumber, pullRequestNumber) || other.pullRequestNumber == pullRequestNumber));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,phase,platform,version,branch,pullRequestNumber);
+int get hashCode => Object.hash(runtimeType,phase,const DeepCollectionEquality().hash(_releases),branch,pullRequestNumber);
 
 @override
 String toString() {
-  return 'CommandResult(phase: $phase, platform: $platform, version: $version, branch: $branch, pullRequestNumber: $pullRequestNumber)';
+  return 'CommandResult(phase: $phase, releases: $releases, branch: $branch, pullRequestNumber: $pullRequestNumber)';
 }
 
 
@@ -255,7 +261,7 @@ abstract mixin class _$CommandResultCopyWith<$Res> implements $CommandResultCopy
   factory _$CommandResultCopyWith(_CommandResult value, $Res Function(_CommandResult) _then) = __$CommandResultCopyWithImpl;
 @override @useResult
 $Res call({
- String phase, Platform? platform, String? version, String? branch, int? pullRequestNumber
+ String phase, List<ReleaseTarget>? releases, String? branch, int? pullRequestNumber
 });
 
 
@@ -272,12 +278,11 @@ class __$CommandResultCopyWithImpl<$Res>
 
 /// Create a copy of CommandResult
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? phase = null,Object? platform = freezed,Object? version = freezed,Object? branch = freezed,Object? pullRequestNumber = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? phase = null,Object? releases = freezed,Object? branch = freezed,Object? pullRequestNumber = freezed,}) {
   return _then(_CommandResult(
 phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
-as String,platform: freezed == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as Platform?,version: freezed == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
-as String?,branch: freezed == branch ? _self.branch : branch // ignore: cast_nullable_to_non_nullable
+as String,releases: freezed == releases ? _self._releases : releases // ignore: cast_nullable_to_non_nullable
+as List<ReleaseTarget>?,branch: freezed == branch ? _self.branch : branch // ignore: cast_nullable_to_non_nullable
 as String?,pullRequestNumber: freezed == pullRequestNumber ? _self.pullRequestNumber : pullRequestNumber // ignore: cast_nullable_to_non_nullable
 as int?,
   ));

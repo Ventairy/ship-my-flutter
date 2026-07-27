@@ -1,304 +1,275 @@
 # Getting started
 
-This guide installs SMF in one Flutter repository and prepares its first safe
-iOS release. The standard path uses the generated GitHub Actions workflow.
+This is the complete setup path for a standard Flutter repository using the
+generated GitHub Actions workflow.
 
-Before starting, you need:
+The safe first run uploads candidates only:
 
-- a Flutter app with a committed `ios/` project;
-- a committed `pubspec.lock` at the Flutter app or Dart workspace root;
+- iOS goes to TestFlight without App Review submission.
+- Android goes to the configured testing track without changing production.
+
+## 1. Confirm the repository is ready
+
+You need:
+
 - a Git repository hosted on GitHub;
-- Dart 3.10 or newer on the setup machine;
-- permission to change the repository's Actions settings and secrets; and
-- access to the app's Apple Developer Program team.
+- one Flutter app with `ios/`, `android/`, or both;
+- a stable target branch such as `main`;
+- a committed `pubspec.yaml` and lockfile;
+- a local build that succeeds for every enabled platform; and
+- permission to add workflows, Actions secrets, and repository settings.
 
-If the app does not have its Apple account, identifiers, signing assets, or App
-Store Connect record yet, that is expected. The [Apple setup
-guide](apple-bootstrap.md) creates them step by step.
+One Git repository currently supports one independently released SMF app. A
+nested Flutter app is supported; multiple independently released apps should
+use separate repositories until app-scoped branch/tag namespaces exist.
 
-> [!WARNING]
-> During SMF's pre-release period, stop unless the
-> [project status](../README.md#smf) confirms that `smf_cli` and
-> `Ventairy/smf-action@v1` are published. The public test fixture is not a
-> substitute for live Apple delivery.
+## 2. Choose the current platform versions
 
-## 1. Install the CLI
+`initial_version` is the latest version already represented by each platform’s
+release history, not the version you want SMF to create next.
 
-Install `smf_cli` globally:
+- Existing iOS app: latest shipped App Store marketing version.
+- Existing Android app: latest shipped Google Play marketing version.
+- New platform: normally `0.0.0`, then put
+  `Release-As-ios: 1.0.0` or `Release-As-android: 1.0.0` in the first
+  release-worthy commit.
+
+If iOS and Android currently have different versions, initialize with one value
+and then edit each `initial_version` before committing.
+
+## 3. Install the CLI
 
 ```bash
 dart install smf_cli
-```
-
-Verify the executable is available:
-
-```bash
 smf --help
 ```
 
-If your shell cannot find `smf`, follow Dart's message to add the global
-executable directory to `PATH`, restart the terminal, and retry.
+The Flutter app does not add `smf_cli` or another SMF package to
+`dev_dependencies`.
 
-## 2. Choose the current iOS version
+## 4. Initialize from the Flutter app
 
-SMF needs the stable iOS version it should treat as **already released**:
-
-- for an app already on the App Store, use the latest shipped marketing
-  version, such as `2.4.1`;
-- for an app that has never shipped, use `0.0.0`.
-
-This value is not necessarily the next version. Conventional Commits determine
-the next bump. A never-released app can explicitly make its first release
-`1.0.0` later with `Release-As-ios: 1.0.0`.
-
-## 3. Initialize from the Flutter app
-
-Start from the configured target branch—`main` by default—and a clean,
-up-to-date worktree, then create a non-release setup branch:
-
-```bash
-git status --short
-git switch main
-git pull --ff-only
-git switch -c chore/configure-smf
-```
-
-Replace `main` when the repository releases from another branch. If
-`git status --short` shows intentional work, commit it on the correct branch or
-stash it before continuing. The setup branch works with protected target
-branches and keeps configuration review separate from release-worthy work.
-
-Ensure dependencies resolve, then make the lockfile visible for review:
-
-```bash
-flutter pub get
-git add --intent-to-add pubspec.lock
-git diff -- pubspec.lock
-```
-
-Use `fvm flutter pub get` when the repository uses FVM. In a Dart workspace,
-use the workspace-root `pubspec.lock` path instead. An already committed,
-unchanged lockfile produces no diff. If the diff changes dependency
-resolution, confirm that change is intentional before continuing; otherwise
-reconcile it with the project's normal dependency workflow.
-
-After approval, stage and review the exact lockfile content:
-
-```bash
-git add pubspec.lock
-git diff --cached -- pubspec.lock
-```
-
-For reproducible candidate builds, commit the Flutter version used by the app
-in `.fvmrc`. Without FVM, the generated workflow installs the current stable
-Flutter SDK. Before initialization, verify that the project's selected SDK can
-build the iOS project on macOS:
-
-```bash
-flutter pub get
-flutter build ios --release --no-codesign
-```
-
-Use the matching `fvm flutter` commands when the repository uses FVM.
-
-Now run SMF from the directory containing the Flutter app's `pubspec.yaml` and
-`ios/` directory:
+For a two-platform app:
 
 ```bash
 smf init \
-  --current-version 0.0.0 \
-  --bundle-id com.example.myapp
+  --current-version 1.0.0 \
+  --bundle-id com.example.myapp \
+  --package-name com.example.myapp
 ```
 
-Replace:
+For iOS only, omit `--package-name`. For Android only, omit `--bundle-id`.
+SMF enables the platform directories that actually exist.
 
-- `0.0.0` with the current version chosen above; and
-- `com.example.myapp` with the production bundle ID shown in Xcode under
-  **Runner → Signing & Capabilities → Bundle Identifier**.
-
-In a monorepo, change into the nested Flutter app first:
+In a monorepo:
 
 ```bash
 cd apps/mobile
 smf init \
-  --current-version 0.0.0 \
-  --bundle-id com.example.myapp
+  --current-version 1.0.0 \
+  --bundle-id com.example.myapp \
+  --package-name com.example.myapp
 ```
 
-SMF creates:
+This creates:
 
 ```text
 <flutter-app>/smf/config.yaml
 <repository>/.github/workflows/smf.yml
 ```
 
-It does not create or store credentials.
+The workflow records the exact relative `smf/` path. After an SMF upgrade,
+refresh only the generated workflow with:
 
-## 4. Keep the first-run safety settings
-
-Open `<flutter-app>/smf/config.yaml` and confirm:
-
-```yaml
-platforms:
-  ios:
-    enabled: true
-    bundle_id: com.example.myapp
-    testflight:
-      groups: []
-      wait_timeout_minutes: 45
-    app_store:
-      mode: upload
+```bash
+smf init --workflow-only
 ```
 
-For the first run:
+Always review that diff.
 
-- keep `app_store.mode: upload`; and
-- keep `groups: []`, or later add only the internal TestFlight group created by
-  the Apple setup guide.
+## 5. Review the generated configuration
 
-`upload` cannot publish the app. It uploads and records the exact build without
-submitting App Review.
+Open `<flutter-app>/smf/config.yaml`.
 
-## 5. Complete Apple setup
+For iOS:
 
-Follow [Set up Apple delivery](apple-bootstrap.md). It covers:
+- confirm `enabled`;
+- confirm `initial_version`;
+- set the exact production `bundle_id`;
+- leave `testflight.groups: []` until the group exists; and
+- keep `app_store.mode: upload`.
 
-- finding every app and extension bundle ID in Xcode;
-- the required Apple roles;
-- App IDs and the App Store Connect app record;
-- export compliance;
-- the App Store Connect API key;
-- the Apple Distribution `.p12`;
-- one provisioning profile per signed target;
-- an optional internal TestFlight group; and
-- the six GitHub Actions secrets.
+For Android:
 
-For the complete acceptance run in this guide, create an internal TestFlight
-group and add its exact name to `testflight.groups`. Leaving `groups: []` is
-valid for an upload-only infrastructure check, but no tester can install the
-build until a person assigns it to a group.
+- confirm `enabled`;
+- confirm `initial_version`;
+- set the exact production `package_name`, especially for flavors;
+- keep `testing_track: internal`;
+- keep `production_track: production`; and
+- keep `google_play.mode: upload`.
 
-Apple setup ends by returning here. Continue only after all six secret names
-appear under **GitHub repository → Settings → Secrets and variables →
-Actions**.
+If the app uses a Flutter flavor, set the one global `flavor`. See
+[Configuration](configuration.md) before adding custom build commands.
 
-## 6. Allow the workflow to open release PRs
+Run:
 
-In the GitHub repository:
+```bash
+smf validate
+```
+
+Commit initialization with a non-release message:
+
+```bash
+git add smf/config.yaml .github/workflows/smf.yml
+git commit -m "chore: configure smf"
+git push
+```
+
+Commit this before merging release-worthy work. It establishes the baseline so
+SMF does not treat old repository history as a new release.
+
+## 6. Complete each enabled store setup
+
+For iOS, follow [Set up Apple delivery](apple-bootstrap.md). It creates/verifies
+the App IDs, App Store Connect app, API key, distribution certificate,
+provisioning profiles, optional internal TestFlight group, and six GitHub
+secrets.
+
+For Android, follow
+[Set up Android and Google Play delivery](android-bootstrap.md). It
+creates/verifies the Play app, Play App Signing, upload key, internal tester
+list, service account, permissions, and five GitHub secrets.
+
+Return here only after each enabled platform’s final checklist passes.
+
+## 7. Allow Actions to create the release PR
+
+In the Flutter repository:
 
 1. Open **Settings → Actions → General**.
 2. Find **Workflow permissions**.
 3. Enable **Allow GitHub Actions to create and approve pull requests**.
 4. Save.
 
-If organization policy locks the option, ask an organization owner to enable
-it. Repositories that cannot use the default `GITHUB_TOKEN` can use the
-alternate GitHub App or fine-grained token described in the [security
-guide](security.md#github-permissions).
+Organization policy can lock this setting. Ask an organization owner if it is
+disabled.
 
-## 7. Validate and commit the setup
+The default `GITHUB_TOKEN` can run SMF. If your normal `pull_request` checks
+must trigger on the generated PR, use a GitHub App installation token
+(preferred) or a narrowly scoped fine-grained token as explained in
+[GitHub permissions](security.md#github-permissions).
 
-From the Flutter app directory:
+## 8. Add an optional preparation hook
 
-```bash
-smf validate
-```
+Skip this section unless the build requires generated, tracked inputs or
+release notes immediately before planning/building.
 
-Success prints one JSON value. Fix every reported error before continuing.
-
-Return to the Git root and inspect the generated files:
+Add `smf_hooks`:
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"
-git status --short
-git add --intent-to-add smf/config.yaml .github/workflows/smf.yml
-git diff -- smf/config.yaml .github/workflows/smf.yml
+dart pub add --dev smf_hooks
 ```
 
-For a nested app, replace `smf/config.yaml` with its path from the Git root,
-such as `apps/mobile/smf/config.yaml`, in both `git add --intent-to-add` and
-`git diff`. Intent-to-add makes a new file's contents visible in the diff; it
-does not stage those contents.
-
-Confirm that no `.p8`, `.p12`, `.mobileprovision`, password, or other secret is
-present. Then commit and push the setup branch:
-
-```bash
-git add smf/config.yaml .github/workflows/smf.yml
-git commit -m "chore: configure smf"
-git push -u origin chore/configure-smf
-```
-
-Use the nested config path in `git add` when applicable. Commit this setup
-before new release-worthy work so older repository history is not included in
-the first release plan.
-
-Open a pull request into the configured target branch with the non-release
-title `chore: configure smf`, complete the repository's normal review and
-checks, and merge it. Then update the local target branch:
-
-```bash
-git switch main
-git pull --ff-only
-```
-
-Replace `main` when necessary. Do not place a `fix`, `feat`, breaking-change,
-or `Release-As-ios` marker in the setup PR title or commit.
-
-## 8. Trigger the first release PR
-
-After setup is on the target branch, push a genuine release-worthy
-Conventional Commit. Examples:
+Create:
 
 ```text
-fix(ios): correct sign-in callback
-feat(ios): add offline mode
+<flutter-app>/smf/hooks/before_create_pr.dart
+<flutter-app>/smf/hooks/before_build.dart
 ```
 
-For a never-released app whose first version should be `1.0.0`:
+Use [Configuration: hooks](configuration.md#hooks). Hooks execute trusted
+repository code in a credential-aware release workflow and require release
+owner review.
+
+## 9. Create a harmless release-worthy commit
+
+Use the real change’s Conventional Commit message. Examples:
 
 ```text
-feat(ios): prepare first release
-
-Release-As-ios: 1.0.0
+fix: prevent startup crash
+fix(ios): repair camera permission
+fix(android): repair back navigation
+feat(auth): add passkeys
 ```
 
-The GitHub workflow should:
+For a first `1.0.0` release from `0.0.0`, include the platform footer:
 
-1. open or update the iOS release PR;
-2. build and upload its exact candidate on macOS;
-3. wait for App Store Connect processing;
-4. optionally assign the configured internal TestFlight group; and
-5. commit the candidate receipt at
-   `<flutter-app>/smf/candidates/ios-<version>.json` to the release PR.
+```text
+feat(android): prepare first Android release
 
-Do not merge yet. Follow [Release operations and
-recovery](operations.md#before-merging) to verify and test the exact candidate.
-
-## Setup success checklist
-
-Setup is complete when:
-
-- `smf validate` succeeds;
-- `<flutter-app>/smf/config.yaml`, the applicable `pubspec.lock`, and
-  `.github/workflows/smf.yml` are committed;
-- all six GitHub secret names exist;
-- the release PR opens;
-- its candidate job succeeds;
-- the matching build is valid in TestFlight; and
-- the configured internal group can install it; and
-- an authorized tester has approved that exact build.
-
-## Upgrading SMF later
-
-After installing a newer CLI, refresh only the generated workflow:
-
-```bash
-smf init --workflow-only
+Release-As-android: 1.0.0
 ```
 
-Review and commit the workflow diff before the next release. This preserves
-configuration, manifests, changelogs, store notes, and candidate receipts.
+Push to the configured target branch.
 
-Never use `smf init --force` as a routine upgrade command; it replaces the
-generated configuration and workflow.
+## 10. Review the shared release PR
+
+The workflow opens or updates branch `smf/release`.
+
+The PR can contain iOS, Android, or both. Verify:
+
+- each planned platform and version is expected;
+- the changelog matches the qualifying commits;
+- store notes are accurate;
+- only intended platforms are included; and
+- the `release-candidate (<platform>)` jobs succeed.
+
+Do not merge yet.
+
+## 11. Test every exact candidate
+
+For iOS:
+
+1. Open App Store Connect → TestFlight.
+2. Match the receipt’s `version`, `buildNumber`, and `artifactId`.
+3. Install that build through TestFlight.
+
+For Android:
+
+1. Open Play Console → Internal testing.
+2. Match the receipt’s `version`, `buildNumber`, and `artifactId`
+   (`artifactId` is the Play `versionCode`).
+3. Install from the internal-test opt-in link.
+
+For both:
+
+- complete the team’s release test;
+- verify localized notes;
+- verify the candidate receipt is committed under `smf/candidates/`; and
+- obtain release-owner approval.
+
+The receipt is machine-owned. Never edit it.
+
+## 12. Merge safely
+
+With both platform modes still set to `upload`, merging verifies the candidate
+and creates the platform tag/GitHub Release, but does not submit iOS for App
+Review or move Android to production.
+
+After the upload-only cycle succeeds, choose the desired behavior:
+
+- iOS: `upload`, `review`, or `auto`.
+- Android: `upload`, `review`, or `auto`.
+
+Android `review` requires Play Console Managed Publishing to be enabled; see
+[Android setup](android-bootstrap.md#10-decide-how-production-will-work-later).
+
+Changing delivery settings updates the release PR. Recheck the candidate
+before merging.
+
+## 13. Confirm completion
+
+After merge, watch the `ship (<platform>)` jobs.
+
+Expected tags:
+
+```text
+ios-vX.Y.Z
+android-vX.Y.Z
+```
+
+Then confirm the exact recorded artifacts have the intended store status. A
+green GitHub job does not replace checking App Store Connect or Play Console.
+
+For failures, keep the release branch and receipt intact and use
+[Release operations and recovery](operations.md).

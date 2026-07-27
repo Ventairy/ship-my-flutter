@@ -98,7 +98,7 @@ void main() {
         () {
           final config = validConfig();
           final platforms = config['platforms']! as Map<String, Object?>;
-          platforms['android'] = <String, Object?>{};
+          platforms['web'] = <String, Object?>{};
           return config;
         },
         () {

@@ -9,6 +9,8 @@ Requirements:
 - Dart 3.10 or newer
 - Git
 - macOS with Xcode only for real iOS signing/build integration
+- Flutter plus a JDK (`keytool` and `jarsigner`) for real Android
+  signing/build integration
 
 The workspace includes `very_good_analysis` 10.1.0 exactly. That is the newest
 stable preset compatible with the Dart 3.10 floor and keeps every CI SDK on the
@@ -36,8 +38,8 @@ dependency bounds. The companion Action owns its committed deployment
 lockfile.
 
 The test suites use disposable Git repositories, synthetic signing assets, and
-mocked GitHub and Apple endpoints. They must not contact a production Apple
-account.
+mocked GitHub, Apple, and Google Play endpoints. They must not contact a
+production store account.
 
 Use Conventional Commits. A change limited to one delivery platform should use
 that platform scope, for example `fix(ios): handle expired profiles`.
@@ -47,6 +49,8 @@ that platform scope, for example `fix(ios): handle expired profiles`.
 - `smf_hooks` owns the stable, lightweight repository hook SDK.
 - `smf_engine` owns platform-neutral planning, state, and GitHub orchestration.
 - `smf_apple` owns signing, upload, TestFlight, and App Store operations.
+- `smf_android` owns upload-key signing, AAB validation, and Google Play
+  operations.
 - `smf_cli` owns terminal parsing and composes core with adapters.
 
 Dependencies flow from `smf_cli` to core/adapters, from adapters to core, and
@@ -64,10 +68,24 @@ repository tokens. Changes to App Store Connect requests should cite the
 current Apple contract in the pull request. Changes to signing should describe
 cleanup behavior and be tested on a disposable app/team before release.
 
+## Android integration changes
+
+Never add real service-account JSON, upload keystores, aliases, passwords, or
+repository tokens. Google Play API changes should cite the current official
+contract. Signing changes must pass the opt-in real Flutter AAB integration
+test:
+
+```bash
+SMF_RUN_ANDROID_SIGNING_INTEGRATION=true \
+  dart test packages/smf_android/test/android_signing_integration_test.dart
+```
+
+Live Google Play acceptance remains a separate credentialed gate.
+
 ## Pull requests
 
 - Keep unrelated changes separate.
 - Add or update tests for behavioral changes.
 - Update schemas and documentation with configuration changes.
 - Run every command in the development gate.
-- Explain anything that could not be validated against a live Apple account.
+- Explain anything that could not be validated against a live store account.

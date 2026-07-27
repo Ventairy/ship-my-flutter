@@ -27,8 +27,6 @@ enum SmfHookPhase {
 sealed class SmfHookContext {
   const SmfHookContext({
     required this.phase,
-    required this.platform,
-    required this.platformVersion,
     required this.repositoryRoot,
     required this.appRoot,
     required this.smfDirectory,
@@ -40,12 +38,6 @@ sealed class SmfHookContext {
 
   /// Hook phase being executed.
   final SmfHookPhase phase;
-
-  /// Platform being released.
-  final Platform platform;
-
-  /// Planned platform marketing version.
-  final Version platformVersion;
 
   /// Git repository containing the app.
   final io.Directory repositoryRoot;
@@ -72,8 +64,6 @@ sealed class SmfHookContext {
 /// Context supplied before SMF creates or updates a release pull request.
 final class SmfBeforeCreatePrContext extends SmfHookContext {
   const SmfBeforeCreatePrContext({
-    required super.platform,
-    required super.platformVersion,
     required super.repositoryRoot,
     required super.appRoot,
     required super.smfDirectory,
@@ -81,22 +71,16 @@ final class SmfBeforeCreatePrContext extends SmfHookContext {
     required super.changelogFile,
     required super.storeReleaseNotesFile,
     required super.flavor,
-    required this.currentPlatformVersion,
-    required this.releasePlan,
+    required this.releasePlans,
   }) : super(phase: SmfHookPhase.beforeCreatePr);
 
-  /// Platform version before the planned bump.
-  final Version currentPlatformVersion;
-
-  /// Complete version and changelog plan about to enter the pull request.
-  final ReleasePlan releasePlan;
+  /// Complete platform plans about to enter the shared release pull request.
+  final List<ReleasePlan> releasePlans;
 }
 
-/// Context supplied before SMF fingerprints and builds an iOS candidate.
+/// Context supplied before SMF fingerprints and builds a platform candidate.
 final class SmfBeforeBuildContext extends SmfHookContext {
   const SmfBeforeBuildContext({
-    required super.platform,
-    required super.platformVersion,
     required super.repositoryRoot,
     required super.appRoot,
     required super.smfDirectory,
@@ -104,8 +88,16 @@ final class SmfBeforeBuildContext extends SmfHookContext {
     required super.changelogFile,
     required super.storeReleaseNotesFile,
     required super.flavor,
+    required this.platform,
+    required this.platformVersion,
     required this.release,
   }) : super(phase: SmfHookPhase.beforeBuild);
+
+  /// Platform being built.
+  final Platform platform;
+
+  /// Planned platform marketing version.
+  final Version platformVersion;
 
   /// Changelog release that the candidate implements.
   final ChangelogRelease release;
@@ -131,7 +123,7 @@ abstract class SmfHook {
 /// Loads the private hook protocol, runs [hook], and reports its result.
 ///
 /// Hook entrypoints normally call this without [environment]. SMF supplies the
-/// protocol paths and strips Apple and GitHub credentials before execution.
+/// protocol paths and strips store and GitHub credentials before execution.
 Future<void> runSmfHook(
   SmfHook hook, {
   Map<String, String>? environment,
@@ -158,11 +150,7 @@ Future<SmfHookContext> _readContext(String path) async {
       );
     }
     final phase = SmfHookPhase.parse(_string(json, 'phase'));
-    final platform = Platform.parse(_string(json, 'platform'));
-    final platformVersion = Version.parse(_string(json, 'platformVersion'));
     final common = (
-      platform: platform,
-      platformVersion: platformVersion,
       repositoryRoot: io.Directory(_string(json, 'repositoryRoot')),
       appRoot: io.Directory(_string(json, 'appRoot')),
       smfDirectory: io.Directory(_string(json, 'smfDirectory')),
@@ -173,8 +161,6 @@ Future<SmfHookContext> _readContext(String path) async {
     );
     return switch (phase) {
       SmfHookPhase.beforeCreatePr => SmfBeforeCreatePrContext(
-        platform: common.platform,
-        platformVersion: common.platformVersion,
         repositoryRoot: common.repositoryRoot,
         appRoot: common.appRoot,
         smfDirectory: common.smfDirectory,
@@ -182,16 +168,14 @@ Future<SmfHookContext> _readContext(String path) async {
         changelogFile: common.changelogFile,
         storeReleaseNotesFile: common.storeReleaseNotesFile,
         flavor: common.flavor,
-        currentPlatformVersion: Version.parse(
-          _string(json, 'currentPlatformVersion'),
-        ),
-        releasePlan: ReleasePlan.fromJson(
-          _object(json['releasePlan'], 'releasePlan'),
-        ),
+        releasePlans: _list(json, 'releasePlans')
+            .map(
+              (value) =>
+                  ReleasePlan.fromJson(_object(value, 'releasePlans item')),
+            )
+            .toList(growable: false),
       ),
       SmfHookPhase.beforeBuild => SmfBeforeBuildContext(
-        platform: common.platform,
-        platformVersion: common.platformVersion,
         repositoryRoot: common.repositoryRoot,
         appRoot: common.appRoot,
         smfDirectory: common.smfDirectory,
@@ -199,6 +183,8 @@ Future<SmfHookContext> _readContext(String path) async {
         changelogFile: common.changelogFile,
         storeReleaseNotesFile: common.storeReleaseNotesFile,
         flavor: common.flavor,
+        platform: Platform.parse(_string(json, 'platform')),
+        platformVersion: Version.parse(_string(json, 'platformVersion')),
         release: ChangelogRelease.fromJson(_object(json['release'], 'release')),
       ),
     };
@@ -248,6 +234,14 @@ String? _optionalString(Map<String, Object?> json, String name) {
   if (value == null) return null;
   if (value is! String || value.trim().isEmpty) {
     throw FormatException('$name must be a non-empty string when provided.');
+  }
+  return value;
+}
+
+List<Object?> _list(Map<String, Object?> json, String name) {
+  final value = json[name];
+  if (value is! List<Object?>) {
+    throw FormatException('$name must be a list.');
   }
   return value;
 }

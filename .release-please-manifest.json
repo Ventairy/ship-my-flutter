@@ -2,5 +2,6 @@
   "packages/smf_hooks": "0.1.0",
   "packages/smf_engine": "0.1.0",
   "packages/smf_apple": "0.1.0",
+  "packages/smf_android": "0.1.0",
   "packages/smf_cli": "0.1.0"
 }

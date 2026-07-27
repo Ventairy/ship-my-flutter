@@ -57,7 +57,7 @@ void main() {
       ]);
       await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
       await git(root.path, const <String>['push', '-u', 'origin', 'main']);
-      await git(root.path, const <String>['checkout', '-b', 'smf/ios']);
+      await git(root.path, const <String>['checkout', '-b', 'smf/release']);
       final baselineSha = await currentSha(root.path);
       final manifest = SmfManifest(
         ios: PlatformManifest(
@@ -104,16 +104,17 @@ void main() {
       final sourceSha = await currentSha(root.path);
       final fingerprint = await sourceFingerprint(root.path);
       final receipt = CandidateReceipt(
+        platform: Platform.ios,
         version: '1.1.0',
         buildNumber: '7',
-        buildId: 'build-7',
-        appId: 'app-1',
-        bundleId: 'dev.example.app',
+        artifactId: 'build-7',
+        applicationId: 'dev.example.app',
+        storeApplicationId: 'app-1',
         sourceSha: sourceSha,
         sourceFingerprint: fingerprint,
-        ipaSha256: List<String>.filled(64, 'a').join(),
+        artifactSha256: List<String>.filled(64, 'a').join(),
         uploadedAt: DateTime.utc(2026, 7, 26),
-        testflightGroups: const <String>[],
+        testingDestinations: const <String>[],
       );
       await writeObject(
         candidatePath(root.path, Platform.ios, '1.1.0'),
@@ -125,7 +126,10 @@ void main() {
         '-m',
         'chore(ios): record fixture candidate',
       ]);
-      await git(root.path, const <String>['push', '-u', 'origin', 'smf/ios']);
+      await git(
+        root.path,
+        const <String>['push', '-u', 'origin', 'smf/release'],
+      );
       final client = FakeAppStoreConnectApi(
         directBuild: const ApiResource<BuildAttributes>(
           type: 'builds',
@@ -150,7 +154,7 @@ void main() {
           ),
           client: client,
           dependencies: CandidateDependencies(
-            runBeforeBuild: (_, _, _) async {
+            runBeforeBuild: (_, _, _, _) async {
               candidateHookRan = true;
               await writeObject(paths.storeReleaseNotes, <String, Object?>{
                 'ios': <String, Object?>{
@@ -175,7 +179,7 @@ void main() {
       expect(
         await git(origin.path, const <String>[
           'show',
-          'smf/ios:smf/store-release-notes.json',
+          'smf/release:smf/store-release-notes.json',
         ]),
         contains('Generated immediately before the build.'),
       );
@@ -200,7 +204,7 @@ void main() {
             ),
             client: client,
             dependencies: CandidateDependencies(
-              runBeforeBuild: (_, _, _) async {
+              runBeforeBuild: (_, _, _, _) async {
                 await writeObject(paths.storeReleaseNotes, <String, Object?>{
                   'ios': <String, Object?>{},
                 });
@@ -244,7 +248,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.message,
             'message',
-            contains('only runs on smf/ios'),
+            contains('only runs on smf/release'),
           ),
         ),
       );

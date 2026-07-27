@@ -24,8 +24,6 @@ void main() {
       jsonEncode(<String, Object?>{
         'schemaVersion': 1,
         'phase': 'before_create_pr',
-        'platform': 'ios',
-        'platformVersion': '1.1.0',
         'repositoryRoot': root.path,
         'appRoot': root.path,
         'smfDirectory': p.join(root.path, 'smf'),
@@ -33,16 +31,26 @@ void main() {
         'changelogFile': p.join(root.path, 'smf', 'changelog.json'),
         'storeReleaseNotesFile': p.join(root.path, 'smf', 'notes.json'),
         'flavor': null,
-        'currentPlatformVersion': '1.0.0',
-        'releasePlan': <String, Object?>{
-          'platform': 'ios',
-          'currentVersion': '1.0.0',
-          'nextVersion': '1.1.0',
-          'bump': 'minor',
-          'baseSha': 'base',
-          'headSha': 'head',
-          'changes': <Object?>[],
-        },
+        'releasePlans': <Object?>[
+          <String, Object?>{
+            'platform': 'ios',
+            'currentVersion': '1.0.0',
+            'nextVersion': '1.1.0',
+            'bump': 'minor',
+            'baseSha': 'base',
+            'headSha': 'head',
+            'changes': <Object?>[],
+          },
+          <String, Object?>{
+            'platform': 'android',
+            'currentVersion': '2.0.0',
+            'nextVersion': '2.0.1',
+            'bump': 'patch',
+            'baseSha': 'base',
+            'headSha': 'head',
+            'changes': <Object?>[],
+          },
+        ],
       }),
     );
     final hook = _Hook();
@@ -55,7 +63,11 @@ void main() {
       },
     );
 
-    expect(hook.received!.releasePlan.nextVersion, '1.1.0');
+    expect(
+      hook.received!.releasePlans.map((plan) => plan.platform),
+      <Platform>[Platform.ios, Platform.android],
+    );
+    expect(hook.received!.releasePlans.first.nextVersion, '1.1.0');
     expect(jsonDecode(await File(resultPath).readAsString()), <String, Object?>{
       'schemaVersion': 1,
       'commitChanges': true,

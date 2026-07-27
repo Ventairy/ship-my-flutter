@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:smf_engine/src/models/release_enums.dart';
+import 'package:smf_engine/src/dtos/release_target.dart';
 
 part 'command_result.freezed.dart';
 part 'command_result.g.dart';
@@ -9,11 +9,14 @@ part 'command_result.g.dart';
 @freezed
 abstract class CommandResult with _$CommandResult {
   /// Creates a command result.
-  @JsonSerializable(checked: true, includeIfNull: false)
+  @JsonSerializable(
+    checked: true,
+    includeIfNull: false,
+    explicitToJson: true,
+  )
   const factory CommandResult({
     required String phase,
-    Platform? platform,
-    String? version,
+    List<ReleaseTarget>? releases,
     String? branch,
     int? pullRequestNumber,
   }) = _CommandResult;

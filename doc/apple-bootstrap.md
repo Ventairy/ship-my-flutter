@@ -609,7 +609,7 @@ Apple setup is complete when:
 - all six GitHub secret names appear in repository settings.
 
 Continue at [Allow the workflow to open release
-PRs](getting-started.md#6-allow-the-workflow-to-open-release-prs). Getting
+PRs](getting-started.md#7-allow-actions-to-create-the-release-pr). Getting
 Started owns validation, committing the generated files, triggering the first
 candidate, and routing approval through the operations checklist. Do not
 trigger or merge a release from this Apple setup page.

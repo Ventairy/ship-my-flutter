@@ -15,85 +15,11 @@ Future<CandidateReceipt?> _reusableCandidate(
   if (!(await fileExists(receiptPath))) return null;
   final receipt = await loadCandidateReceipt(receiptPath);
   if (receipt.sourceFingerprint != fingerprint) return null;
-  final build = await client.getBuild(receipt.buildId);
+  final build = await client.getBuild(receipt.artifactId);
   return build.attributes.processingState == 'VALID' &&
           build.attributes.version == receipt.buildNumber
       ? receipt
       : null;
-}
-
-Future<void> _commitCandidateReceipt(
-  String root,
-  String receiptPath,
-  String version,
-  GitHubContext? github,
-) async {
-  await configureBotIdentity(root);
-  await git(root, <String>['add', receiptPath]);
-  final staged = await git(root, const <String>[
-    'diff',
-    '--cached',
-    '--name-only',
-  ]);
-  if (staged.isEmpty) return;
-  await git(root, <String>[
-    'commit',
-    '-m',
-    'chore(ios): record TestFlight candidate $version',
-  ]);
-  final branch = await currentBranch(root);
-  invariant(
-    branch.isNotEmpty,
-    'Candidate checkout must be on a branch.',
-    'DETACHED_HEAD',
-  );
-  if (github == null) {
-    await git(root, <String>['push', 'origin', branch]);
-  } else {
-    await authenticatedGit(root, <String>[
-      'push',
-      'origin',
-      branch,
-    ], github.token);
-  }
-}
-
-Future<void> _commitBeforeBuildChanges(
-  String root,
-  String version,
-  String startingSha,
-  GitHubContext? github,
-) async {
-  await configureBotIdentity(root);
-  await git(root, const <String>['add', '.']);
-  final staged = await git(root, const <String>[
-    'diff',
-    '--cached',
-    '--name-only',
-  ]);
-  if (staged.isNotEmpty) {
-    await git(root, <String>[
-      'commit',
-      '-m',
-      'chore(ios): apply before_build hook for $version',
-    ]);
-  }
-  if (await currentSha(root) == startingSha) return;
-  final branch = await currentBranch(root);
-  invariant(
-    branch.isNotEmpty,
-    'Candidate checkout must be on a branch.',
-    'DETACHED_HEAD',
-  );
-  if (github == null) {
-    await git(root, <String>['push', 'origin', branch]);
-  } else {
-    await authenticatedGit(root, <String>[
-      'push',
-      'origin',
-      branch,
-    ], github.token);
-  }
 }
 
 Future<void> _applyTestflightMetadata({
@@ -124,7 +50,13 @@ Future<void> _recordCandidateReceipt({
   await writeJson(receiptPath, receipt.toJson());
   if (!commitReceipt) return;
   try {
-    await _commitCandidateReceipt(root, receiptPath, receipt.version, github);
+    await commitCandidateReceipt(
+      root,
+      receiptPath,
+      Platform.ios,
+      receipt.version,
+      github,
+    );
   } on Exception catch (error) {
     final description = refreshed
         ? 'refreshed candidate receipt'
@@ -153,7 +85,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     'IOS_DISABLED',
   );
   final branch = await currentBranch(repositoryRoot);
-  final releaseBranch = releaseBranchName(Platform.ios);
+  const releaseBranch = releaseBranchName;
   invariant(
     branch == releaseBranch,
     'Release-candidate creation only runs on $releaseBranch.',
@@ -174,11 +106,13 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   final commitHookChanges = await options.dependencies.runBeforeBuild(
     paths.directory,
     config,
+    Platform.ios,
     state.version,
   );
   if (commitHookChanges ?? false) {
-    await _commitBeforeBuildChanges(
+    await commitBeforeBuildChanges(
       repositoryRoot,
+      Platform.ios,
       state.version,
       hookStartingSha,
       options.github,
@@ -212,12 +146,12 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
       root: paths.directory,
       version: state.version,
       appId: app.id,
-      buildId: reusable.buildId,
+      buildId: reusable.artifactId,
       config: config.ios.testflight,
       client: client,
     );
     final refreshed = reusable.copyWith(
-      testflightGroups: config.ios.testflight.groups,
+      testingDestinations: config.ios.testflight.groups,
     );
     await _recordCandidateReceipt(
       root: repositoryRoot,
@@ -281,16 +215,17 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
     client: client,
   );
   final receipt = CandidateReceipt(
+    platform: Platform.ios,
     version: state.version,
     buildNumber: buildNumber,
-    buildId: build.id,
-    appId: app.id,
-    bundleId: bundleId,
+    artifactId: build.id,
+    applicationId: bundleId,
+    storeApplicationId: app.id,
     sourceSha: sourceSha,
     sourceFingerprint: fingerprint,
-    ipaSha256: await fileSha256(ipaPath),
+    artifactSha256: await fileSha256(ipaPath),
     uploadedAt: options.dependencies.currentTime().toUtc(),
-    testflightGroups: config.ios.testflight.groups,
+    testingDestinations: config.ios.testflight.groups,
   );
   await _recordCandidateReceipt(
     root: repositoryRoot,

@@ -4,23 +4,24 @@ import 'package:smf_engine/src/models/release_enums.dart';
 
 part 'candidate_receipt.freezed.dart';
 
-/// Evidence identifying an exact tested App Store build and source tree.
+/// Evidence identifying an exact tested store artifact and source tree.
 @freezed
 abstract class CandidateReceipt with _$CandidateReceipt {
   /// Creates candidate evidence.
   const factory CandidateReceipt({
+    required Platform platform,
     required String version,
     required String buildNumber,
-    required String buildId,
-    required String appId,
-    required String bundleId,
+    required String artifactId,
+    required String applicationId,
+    required String storeApplicationId,
     required String sourceSha,
     required String sourceFingerprint,
-    required String ipaSha256,
+    required String artifactSha256,
     required DateTime uploadedAt,
-    required List<String> testflightGroups,
-    @Default(1) int schemaVersion,
-    @Default(Platform.ios) Platform platform,
+    required List<String> testingDestinations,
+    @Default('VALID') String processingState,
+    @Default(2) int schemaVersion,
   }) = _CandidateReceipt;
 
   const CandidateReceipt._();
@@ -31,14 +32,14 @@ abstract class CandidateReceipt with _$CandidateReceipt {
     'platform': platform.value,
     'version': version,
     'buildNumber': buildNumber,
-    'buildId': buildId,
-    'appId': appId,
-    'bundleId': bundleId,
+    'artifactId': artifactId,
+    'applicationId': applicationId,
+    'storeApplicationId': storeApplicationId,
     'sourceSha': sourceSha,
     'sourceFingerprint': sourceFingerprint,
-    'ipaSha256': ipaSha256,
+    'artifactSha256': artifactSha256,
     'uploadedAt': uploadedAt.toUtc().toIso8601String(),
-    'processingState': 'VALID',
-    'testflightGroups': testflightGroups,
+    'processingState': processingState,
+    'testingDestinations': testingDestinations,
   };
 }

@@ -42,7 +42,7 @@ Map<String, dynamic> _$ReleasePlanToJson(_ReleasePlan instance) =>
       'changes': instance.changes.map((e) => e.toJson()).toList(),
     };
 
-const _$PlatformEnumMap = {Platform.ios: 'ios'};
+const _$PlatformEnumMap = {Platform.ios: 'ios', Platform.android: 'android'};
 
 const _$BumpEnumMap = {
   Bump.patch: 'patch',

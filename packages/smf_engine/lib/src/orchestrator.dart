@@ -24,53 +24,63 @@ final class ReleaseOrchestrator {
       loadConfig(paths.directory),
       loadManifest(paths.directory),
     ).wait;
-    if (!config.ios.enabled) return const CommandResult(phase: 'noop');
+    if (config.enabledPlatforms.isEmpty) {
+      return const CommandResult(phase: 'noop');
+    }
     final branch = await currentBranch(repositoryRoot);
-    final releaseBranch = releaseBranchName(Platform.ios);
+    const releaseBranch = releaseBranchName;
     if (branch != releaseBranch && branch != config.targetBranch) {
       return const CommandResult(phase: 'noop');
     }
     await validateRepository(paths.directory);
+    final pending = <ReleaseTarget>[];
+    for (final platform in config.enabledPlatforms) {
+      final state = manifest.forPlatform(platform);
+      if (state.pendingRelease &&
+          await releaseNeedsPromotion(repositoryRoot, manifest, platform)) {
+        pending.add(
+          ReleaseTarget(platform: platform, version: state.version),
+        );
+      }
+    }
     if (branch == releaseBranch) {
-      final state = manifest.ios;
-      return state.pendingRelease &&
-              await releaseNeedsPromotion(
-                repositoryRoot,
-                manifest,
-                Platform.ios,
-              )
+      return pending.isNotEmpty
           ? CommandResult(
               phase: 'release-candidate',
-              platform: Platform.ios,
-              version: state.version,
+              releases: pending,
               branch: releaseBranch,
             )
           : const CommandResult(phase: 'noop');
     }
-    if (await releaseNeedsPromotion(repositoryRoot, manifest, Platform.ios)) {
-      return CommandResult(
-        phase: 'ship',
-        platform: Platform.ios,
-        version: manifest.ios.version,
-      );
+    if (pending.isNotEmpty) {
+      return CommandResult(phase: 'ship', releases: pending);
     }
-    final plan = await createReleasePlan(
-      repositoryRoot,
-      manifest,
-      Platform.ios,
-    );
-    if (plan == null) return const CommandResult(phase: 'noop');
+    final plans = <ReleasePlan>[];
+    for (final platform in config.enabledPlatforms) {
+      final plan = await createReleasePlan(
+        repositoryRoot,
+        manifest,
+        platform,
+      );
+      if (plan != null) plans.add(plan);
+    }
+    if (plans.isEmpty) return const CommandResult(phase: 'noop');
     final pull = await createOrUpdateReleasePullRequest(
       paths.directory,
       config,
-      plan,
+      plans,
       github,
       githubApi: githubApi,
     );
     return CommandResult(
       phase: 'release-candidate',
-      platform: Platform.ios,
-      version: plan.nextVersion,
+      releases: <ReleaseTarget>[
+        for (final plan in plans)
+          ReleaseTarget(
+            platform: plan.platform,
+            version: plan.nextVersion,
+          ),
+      ],
       branch: pull.branch,
       pullRequestNumber: pull.pullRequestNumber,
     );

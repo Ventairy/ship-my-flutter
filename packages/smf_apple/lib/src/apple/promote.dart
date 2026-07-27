@@ -60,21 +60,21 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     flavor: config.flavor,
   );
   invariant(
-    receipt.bundleId == bundleId,
+    receipt.applicationId == bundleId,
     'The candidate receipt bundle identifier does not match the current iOS '
         'configuration.',
     'CANDIDATE_BUNDLE_MISMATCH',
   );
   final app = await client.findApp(bundleId);
   invariant(
-    receipt.appId == app.id,
+    receipt.storeApplicationId == app.id,
     'The candidate receipt App Store app does not match the configured bundle '
         'identifier.',
     'CANDIDATE_APP_MISMATCH',
   );
   final versionBuilds = await client.buildsForVersion(app.id, state.version);
   final build = versionBuilds
-      .where((item) => item.id == receipt.buildId)
+      .where((item) => item.id == receipt.artifactId)
       .firstOrNull;
   invariant(
     build?.attributes.processingState == 'VALID' &&
@@ -94,7 +94,10 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     );
     appStoreVersionId = appStoreVersion.id;
     if (appStoreVersion.attributes.appStoreState == 'PREPARE_FOR_SUBMISSION') {
-      await client.attachBuildToVersion(appStoreVersion.id, receipt.buildId);
+      await client.attachBuildToVersion(
+        appStoreVersion.id,
+        receipt.artifactId,
+      );
       final notes = await loadStoreReleaseNotes(paths.directory);
       for (final entry
           in (notes[Platform.ios]?[state.version] ?? const <String, String>{})
@@ -108,7 +111,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
     }
     invariant(
       await client.appStoreVersionBuildId(appStoreVersion.id) ==
-          receipt.buildId,
+          receipt.artifactId,
       'The App Store version is not attached to the exact tested candidate '
           'build.',
       'APP_STORE_BUILD_MISMATCH',
@@ -140,7 +143,8 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
   return PromotionResult(
     version: state.version,
     tag: tag,
-    buildId: receipt.buildId,
+    artifactId: receipt.artifactId,
+    buildNumber: receipt.buildNumber,
     appStoreVersionId: appStoreVersionId,
     reviewSubmissionId: reviewSubmissionId,
     githubReleaseUrl: githubRelease.htmlUrl,

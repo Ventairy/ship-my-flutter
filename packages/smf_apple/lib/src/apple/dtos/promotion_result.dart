@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:smf_engine/smf_engine.dart';
 
 part 'promotion_result.freezed.dart';
 part 'promotion_result.g.dart';
@@ -11,8 +12,10 @@ abstract class PromotionResult with _$PromotionResult {
   const factory PromotionResult({
     required String version,
     required String tag,
-    required String buildId,
+    required String artifactId,
+    required String buildNumber,
     required String githubReleaseUrl,
+    @Default(Platform.ios) Platform platform,
     String? appStoreVersionId,
     String? reviewSubmissionId,
   }) = _PromotionResult;

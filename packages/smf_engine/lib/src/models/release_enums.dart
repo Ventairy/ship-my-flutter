@@ -4,7 +4,11 @@ import 'package:json_annotation/json_annotation.dart';
 enum Platform {
   /// Apple's iOS platform.
   @JsonValue('ios')
-  ios;
+  ios,
+
+  /// Google's Android platform.
+  @JsonValue('android')
+  android;
 
   /// The stable serialized platform name.
   String get value => name;
@@ -12,7 +16,14 @@ enum Platform {
   /// Parses a supported serialized platform name.
   static Platform parse(String value) => switch (value) {
     'ios' => Platform.ios,
+    'android' => Platform.android,
     _ => throw FormatException('Unsupported platform "$value".'),
+  };
+
+  /// Human-readable platform name used in release notes.
+  String get displayName => switch (this) {
+    Platform.ios => 'iOS',
+    Platform.android => 'Android',
   };
 }
 
@@ -45,13 +56,13 @@ enum Bump {
 
 /// Determines how the tested build is delivered after promotion.
 enum ReleaseMode {
-  /// Submits for review and releases automatically after Apple approval.
+  /// Submits for review and releases automatically after store approval.
   automatic('auto'),
 
-  /// Submits for review and waits for a manual release after Apple approval.
+  /// Submits for review and waits for an explicit store release.
   review('review'),
 
-  /// Leaves the tested build uploaded without submitting it for review.
+  /// Leaves the tested build on its testing track without production review.
   upload('upload');
 
   const ReleaseMode(this.value);

@@ -27,10 +27,9 @@ Future<void> _commitAllChanges(String root, String message) async {
 Future<String> _ensureReleaseBranch(
   String root,
   SmfConfig config,
-  Platform platform,
   String token,
 ) async {
-  final branch = releaseBranchName(platform);
+  const branch = releaseBranchName;
   await authenticatedGit(root, <String>[
     'fetch',
     'origin',
@@ -69,11 +68,16 @@ Future<String> _ensureReleaseBranch(
 Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
   String workingDirectory,
   SmfConfig config,
-  ReleasePlan plan,
+  List<ReleasePlan> plans,
   GitHubContext context, {
   GitHubApi? githubApi,
   ProcessRunner hookProcessRunner = const SystemProcessRunner(),
 }) async {
+  invariant(
+    plans.isNotEmpty,
+    'At least one platform release plan is required.',
+    'RELEASE_PLANS_EMPTY',
+  );
   final paths = resolveSmfPaths(workingDirectory);
   final repositoryRoot = paths.repositoryRoot;
   if (!(await isClean(repositoryRoot))) {
@@ -90,25 +94,28 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
     branch = await _ensureReleaseBranch(
       repositoryRoot,
       config,
-      plan.platform,
       context.token,
     );
-    await applyReleasePlan(paths.directory, plan);
+    for (final plan in plans) {
+      await applyReleasePlan(paths.directory, plan);
+    }
+    final releaseSummary = plans
+        .map((plan) => '${plan.platform.displayName} ${plan.nextVersion}')
+        .join(', ');
     await _commitAllChanges(
       repositoryRoot,
-      'chore(${plan.platform.value}): release ${plan.nextVersion}',
+      'chore(release): prepare $releaseSummary',
     );
     final commitHookChanges = await runBeforeCreatePrHook(
       paths.directory,
       config,
-      plan,
+      plans,
       processRunner: hookProcessRunner,
     );
     if (commitHookChanges ?? false) {
       await _commitAllChanges(
         repositoryRoot,
-        'chore(${plan.platform.value}): apply before_create_pr hook for '
-        '${plan.nextVersion}',
+        'chore(release): apply before_create_pr hook',
       );
     } else {
       invariant(
@@ -126,13 +133,17 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
     ], context.token);
 
     final changelog = await loadChangelog(paths.directory);
-    final release = changelog.releasesFor(plan.platform)[plan.nextVersion];
-    if (release == null) {
-      throw SmfError(
-        'Missing changelog entry for ${plan.platform.value} '
-            '${plan.nextVersion}',
-        'MISSING_CHANGELOG',
-      );
+    final releases = <Platform, ChangelogRelease>{};
+    for (final plan in plans) {
+      final release = changelog.releasesFor(plan.platform)[plan.nextVersion];
+      if (release == null) {
+        throw SmfError(
+          'Missing changelog entry for ${plan.platform.value} '
+              '${plan.nextVersion}',
+          'MISSING_CHANGELOG',
+        );
+      }
+      releases[plan.platform] = release;
     }
     final existing = await api.listPullRequests(
       state: 'open',
@@ -140,8 +151,8 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
       base: config.targetBranch,
       perPage: 1,
     );
-    final title = 'chore(${plan.platform.value}): release ${plan.nextVersion}';
-    final body = releasePullRequestBody(plan.platform, release);
+    final title = 'chore(release): $releaseSummary';
+    final body = combinedReleasePullRequestBody(releases);
     final pull = existing.isEmpty
         ? await api.createPullRequest(
             head: branch,
@@ -180,14 +191,13 @@ Future<ReleasePullRequestResult> createOrUpdateReleasePullRequest(
 
 Future<int?> findReleasePullRequest(
   GitHubContext context,
-  SmfConfig config,
-  Platform platform, {
+  SmfConfig config, {
   GitHubApi? githubApi,
 }) async {
   final pulls = await (githubApi ?? GitHubRestApi(context: context))
       .listPullRequests(
         state: 'all',
-        head: '${context.owner}:${releaseBranchName(platform)}',
+        head: '${context.owner}:$releaseBranchName',
         base: config.targetBranch,
         perPage: 10,
       );

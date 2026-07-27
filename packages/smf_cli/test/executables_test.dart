@@ -90,8 +90,9 @@ void main() {
       'feat(ios): project executable',
     ]);
     expect(await runPlanExecutable(const <String>[], io: io), 0);
+    final plans = jsonDecode(output.removeLast()! as String) as List<Object?>;
     expect(
-      jsonDecode(output.removeLast()! as String),
+      plans.single,
       containsPair('nextVersion', '1.1.0'),
     );
     expect(errors, isEmpty);

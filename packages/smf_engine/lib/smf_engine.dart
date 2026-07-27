@@ -1,10 +1,16 @@
 /// Flutter release automation with platform-scoped release planning.
 library;
 
+export 'src/candidate_git.dart'
+    show commitBeforeBuildChanges, commitCandidateReceipt;
 export 'src/candidate_receipt.dart'
     show loadCandidateReceipt, validateCandidateReceipt;
 export 'src/changelog.dart'
-    show formatChange, releaseNotesMarkdown, releasePullRequestBody;
+    show
+        combinedReleasePullRequestBody,
+        formatChange,
+        releaseNotesMarkdown,
+        releasePullRequestBody;
 export 'src/config.dart'
     show
         loadChangelog,
@@ -15,7 +21,11 @@ export 'src/config.dart'
         validateConfig,
         validateManifest,
         validateStoreReleaseNotes;
-export 'src/conventional_commit.dart' show highestBump, parseConventionalCommit;
+export 'src/conventional_commit.dart'
+    show
+        highestBump,
+        parseConventionalCommit,
+        parseConventionalCommitForPlatform;
 export 'src/error.dart' show SmfError, invariant;
 export 'src/fingerprint.dart' show fileSha256, sourceFingerprint;
 export 'src/git.dart'

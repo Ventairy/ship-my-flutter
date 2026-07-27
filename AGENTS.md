@@ -19,10 +19,11 @@ This is a Dart workspace managed with Melos:
 
 ```text
 packages/
-  smf_hooks/   Lightweight typed hook SDK
-  smf_engine/    Platform-neutral planning, state, and orchestration
-  smf_apple/   Apple signing and delivery adapter
-  smf_cli/     Globally installed `smf` command
+  smf_hooks/    Lightweight typed hook SDK
+  smf_engine/   Platform-neutral planning, state, and orchestration
+  smf_apple/    Apple signing and delivery adapter
+  smf_android/  Android signing and Google Play delivery adapter
+  smf_cli/      Globally installed `smf` command
 doc/           Consumer guides
 ```
 
@@ -31,6 +32,7 @@ Required dependency direction:
 ```text
 smf_cli -> smf_engine -> smf_hooks
 smf_cli -> smf_apple -> smf_engine
+smf_cli -> smf_android -> smf_engine
 ```
 
 - Core never imports a platform adapter.
@@ -44,14 +46,14 @@ smf_cli -> smf_apple -> smf_engine
 
 ## Product contracts
 
-- Platforms own separate versions, changelogs, branches, tags, candidates, and
-  store notes. Never introduce one global app version.
-- Platform branches are `smf/<platform>` and app release tags are
+- Platforms own separate versions, changelogs, tags, candidates, and store
+  notes. Never introduce one global app version.
+- Every platform shares the `smf/release` branch/PR. App release tags are
   `<platform>-v<version>`.
 - Candidate promotion verifies the exact recorded build, source fingerprint,
   bundle/app identity, version, and processing state. It never rebuilds.
 - Identity or fingerprint mismatch is a hard failure.
-- App Store `upload` is the safe initializer default.
+- Store `upload` is the safe initializer default.
 - Configuration and release state live under the Flutter app's `smf/`
   directory. Secrets never do.
 - CLI success writes exactly one JSON value to stdout; diagnostics go to
@@ -99,7 +101,9 @@ models and DTOs; never generate value diagnostics for credentials or tokens.
 
 - `packages/smf_hooks/lib/smf_hooks.dart`,
   `packages/smf_engine/lib/smf_engine.dart`, and
-  `packages/smf_apple/lib/smf_apple.dart` are deliberate export boundaries.
+  `packages/smf_apple/lib/smf_apple.dart`, and
+  `packages/smf_android/lib/smf_android.dart` are deliberate export
+  boundaries.
 - New exports need consumer-first Dartdoc.
 - Do not expose implementation solely for tests.
 - Breaking exports, hook protocol, CLI output, error codes, or persisted schema
@@ -128,19 +132,20 @@ Generated templates are product code and require tests.
 - Pass calculated values through typed contexts or environment variables.
   Never interpolate secret or remote values into shell source.
 - Repository hooks and configured build commands are trusted consumer code;
-  strip Apple and GitHub credentials before invoking them.
+  strip store and GitHub credentials before invoking them.
 
-Never commit or log real Apple keys, certificates, profiles, passwords, API
-IDs, or repository tokens. Tests use synthetic assets and mocked APIs.
+Never commit or log real Apple/Google keys, service-account JSON, keystores,
+certificates, profiles, passwords, API IDs, or repository tokens. Tests use
+synthetic assets and mocked APIs.
 Temporary signing assets require restrictive permissions and `finally`
 cleanup. Preserve pre-existing assets and delete only what SMF created.
 
 ## Testing and documentation
 
 Every behavior change needs an observable test. Bug fixes need regression
-coverage. Git tests use disposable local repositories; GitHub and Apple tests
-use fakes or mocked HTTP; filesystem/security tests cover escape, symlink,
-permissions, cleanup, and dirty-tree failures.
+coverage. Git tests use disposable local repositories; GitHub, Apple, and
+Google Play tests use fakes or mocked HTTP; filesystem/security tests cover
+escape, symlink, permissions, cleanup, and dirty-tree failures.
 
 The entire `doc/` directory is the consumer product manual. It must contain
 only information that helps someone install, configure, use, secure,
@@ -168,6 +173,7 @@ Keep these user surfaces synchronized:
 - `README.md`: concise product overview and route into `doc/README.md`;
 - `doc/getting-started.md`: shortest safe setup path;
 - `doc/apple-bootstrap.md`: beginner Apple and App Store Connect setup;
+- `doc/android-bootstrap.md`: beginner Android and Google Play setup;
 - `doc/configuration.md`: configuration and typed hooks;
 - `doc/how-it-works.md`: user-visible release lifecycle and state;
 - `doc/operations.md`: review, delivery, retry, and recovery;

@@ -44,8 +44,6 @@ void main() {
     await _writeJson(contextPath, <String, Object?>{
       'schemaVersion': 1,
       'phase': 'before_create_pr',
-      'platform': 'ios',
-      'platformVersion': '1.1.0',
       'repositoryRoot': root.path,
       'appRoot': p.join(root.path, 'app'),
       'smfDirectory': p.join(root.path, 'app', 'smf'),
@@ -58,8 +56,7 @@ void main() {
         'store-release-notes.json',
       ),
       'flavor': 'production',
-      'currentPlatformVersion': '1.0.0',
-      'releasePlan': plan.toJson(),
+      'releasePlans': <Object?>[plan.toJson()],
     });
     final hook = _BeforeCreateHook();
 
@@ -72,10 +69,11 @@ void main() {
     );
 
     expect(hook.received, isNotNull);
-    expect(hook.received!.platform, hooks.Platform.ios);
-    expect(hook.received!.platformVersion.toString(), '1.1.0');
-    expect(hook.received!.currentPlatformVersion.toString(), '1.0.0');
-    expect(hook.received!.releasePlan.nextVersion, plan.nextVersion);
+    expect(hook.received!.releasePlans.single.platform, hooks.Platform.ios);
+    expect(
+      hook.received!.releasePlans.single.nextVersion,
+      plan.nextVersion,
+    );
     expect(hook.received!.flavor, 'production');
     expect(jsonDecode(await File(resultPath).readAsString()), <String, Object?>{
       'schemaVersion': 1,
@@ -130,7 +128,7 @@ void main() {
     final commit = await runBeforeCreatePrHook(
       repository.path,
       await loadConfig(paths.directory),
-      plan,
+      <ReleasePlan>[plan],
       processRunner: runner,
     );
 
@@ -141,7 +139,7 @@ void main() {
     expect(invocation.options.workingDirectory, app.path);
     expect(
       invocation.options.environment,
-      containsPair('SMF_PLATFORM_VERSION', '1.1.0'),
+      isNot(contains('SMF_PLATFORM_VERSION')),
     );
     expect(
       invocation.options.environment,
@@ -164,15 +162,17 @@ void main() {
       await runBeforeCreatePrHook(
         paths.directory,
         await loadConfig(paths.directory),
-        const ReleasePlan(
-          platform: Platform.ios,
-          currentVersion: '0.0.0',
-          nextVersion: '0.0.1',
-          bump: Bump.patch,
-          baseSha: 'base',
-          headSha: 'head',
-          changes: <ConventionalChange>[],
-        ),
+        const <ReleasePlan>[
+          ReleasePlan(
+            platform: Platform.ios,
+            currentVersion: '0.0.0',
+            nextVersion: '0.0.1',
+            bump: Bump.patch,
+            baseSha: 'base',
+            headSha: 'head',
+            changes: <ConventionalChange>[],
+          ),
+        ],
       ),
       isNull,
     );

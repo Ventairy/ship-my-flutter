@@ -46,7 +46,7 @@ void main() {
     test('accepts the complete immutable receipt contract', () {
       final parsed = validateCandidateReceipt(receipt());
       expect(parsed.version, '1.2.3');
-      expect(parsed.buildId, 'build-7');
+      expect(parsed.artifactId, 'build-7');
     });
 
     test('rejects malformed identity and digest fields', () {

@@ -1,154 +1,195 @@
 # How releases work
 
-SMF separates “prepare and test a release” from “deliver the approved build.”
-The release pull request is the boundary between those decisions.
-
-## The release flow
+SMF uses one reviewable lifecycle for iOS and Android:
 
 ```text
-qualifying commit
-      |
-      v
-release PR updated
-      |
-      v
-exact IPA built and uploaded
-      |
-      v
-candidate recorded and tested
-      |
-      v
-human merges release PR
-      |
-      v
-same App Store Connect build verified and delivered
+qualifying commits on target branch
+                |
+                v
+shared smf/release pull request
+                |
+        +-------+-------+
+        |               |
+        v               v
+ iOS candidate     Android candidate
+   TestFlight      Play testing track
+        |               |
+        +-------+-------+
+                |
+     people test exact artifacts
+                |
+                v
+       merge release pull request
+                |
+        +-------+-------+
+        |               |
+        v               v
+ same Apple build   same versionCode
+ verified/shipped   verified/shipped
 ```
 
-## 1. Commits decide whether iOS changes
+## 1. Commits create platform plans
 
-SMF reads Conventional Commits on the configured target branch:
+SMF reads Conventional Commits since each platform’s own baseline.
 
-| Commit | iOS result |
-| --- | --- |
-| `fix(ios): repair sign in` | Patch release |
-| `feat(ios): add offline mode` | Minor release |
-| `feat(ios)!: replace local storage` | Major release |
-| `feat(auth): add passkeys` | Minor release because `auth` is a feature scope |
-| `fix: prevent crash` | Patch release |
-| `fix(android): repair back button` | No iOS release |
+Unscoped and feature-scoped changes apply to all enabled platforms:
 
-`Release-As-ios: X.Y.Z` in a commit body explicitly chooses the next stable iOS
-version.
+```text
+fix: prevent startup crash
+feat(auth): add passkeys
+```
 
-## 2. SMF maintains one iOS release PR
+Platform scopes apply selectively:
 
-When iOS has a release-worthy change, SMF creates or updates:
+```text
+fix(ios): repair entitlement
+fix(android): repair back navigation
+```
 
-- branch `smf/ios`;
-- one release PR into the configured target branch;
-- the planned iOS version and changelog; and
-- optional user-owned store notes.
+Each platform calculates its own next version. One may release while the other
+remains unchanged.
 
-New target-branch commits keep the same PR current. Review the version,
-changelog, store notes, machine-owned state, and linked application commits
-like any other release. The application commits have already landed on the
-target branch, so they are not necessarily repeated in the release PR diff.
+## 2. One PR contains every pending platform
 
-## 3. The release PR produces the candidate
+SMF creates or updates:
 
-The macOS candidate job:
+- branch `smf/release`;
+- one pull request into the configured target branch;
+- a separate version/changelog plan for each pending platform; and
+- optional localized store notes.
 
-1. runs the optional project preparation hook;
-2. installs the supplied signing assets temporarily;
-3. builds the IPA with the planned marketing version and next Apple build
-   number;
-4. records the tracked build inputs;
-5. uploads the IPA to App Store Connect;
-6. waits for Apple to mark it valid;
-7. applies user-provided beta notes and configured TestFlight groups; and
-8. commits `<flutter-app>/smf/candidates/ios-<version>.json` to the release PR.
+When both platforms need release, both plans appear in this PR. Their versions
+do not need to match.
 
-The candidate receipt connects the source in the PR to the exact App Store
-Connect build. Do not edit it manually.
+New target-branch commits refresh the same PR. Review versions, changelogs,
+store notes, and platform selection like any other production change.
 
-## 4. A person approves the exact build
+## 3. Candidate jobs run per platform
 
-Before merging:
+The workflow uses one matrix entry for every platform in the PR. Candidate jobs
+are serialized because each commits its receipt to the same branch.
 
-- confirm the candidate job succeeded;
-- compare the release PR version/build with App Store Connect;
-- install that exact TestFlight build;
-- test it;
+### iOS candidate
+
+SMF:
+
+1. runs the optional `before_build` hook;
+2. temporarily installs Apple signing assets;
+3. builds the IPA with the planned version and next Apple build number;
+4. uploads to App Store Connect;
+5. waits for a valid processed build;
+6. applies TestFlight notes/groups; and
+7. commits `smf/candidates/ios-<version>.json`.
+
+### Android candidate
+
+SMF:
+
+1. runs the optional `before_build` hook;
+2. chooses the next available Google Play `versionCode`;
+3. builds an AAB with the planned version and that build number;
+4. signs the AAB with the configured upload key and verifies its certificate;
+5. uploads through a Google Play edit;
+6. assigns the exact `versionCode` to the configured testing track;
+7. validates and commits the edit; and
+8. commits `smf/candidates/android-<version>.json`.
+
+The Android candidate uses a testing track, not Internal App Sharing, because
+the track artifact can be promoted without rebuilding.
+
+## 4. Receipts bind source to store artifacts
+
+Both receipt types record:
+
+- platform and marketing version;
+- store build number/artifact ID;
+- application identity;
+- source commit and tracked-input fingerprint;
+- artifact SHA-256;
+- upload time and processing state; and
+- testing destination.
+
+For iOS, `artifactId` is the App Store Connect build ID. For Android, it is the
+Google Play `versionCode`.
+
+Receipts are machine-owned. Editing one destroys the evidence and does not make
+an untested artifact safe.
+
+## 5. People approve exact candidates
+
+Before merge, a release owner must:
+
+- confirm every candidate job succeeded;
+- match the receipt to the store;
+- install from TestFlight or the Play testing opt-in link;
+- complete the release test;
 - review localized notes; and
-- obtain the team's release approval.
+- approve each platform included in the PR.
 
-The PR being mergeable is not enough. The processed build and candidate
-receipt are the release gate.
+A green PR is not enough. The exact processed store artifact is the release
+gate.
 
-## 5. Merge delivers the same build
+## 6. Merge ships without rebuilding
 
-After the release PR merges, SMF:
+After merge, each platform ship job:
 
-1. reloads the committed candidate receipt;
-2. verifies the current app identity and tracked build inputs;
-3. confirms that the recorded Apple build is still valid;
-4. applies the configured App Store behavior; and
-5. creates the `ios-vX.Y.Z` GitHub tag and Release.
+1. loads its committed receipt;
+2. verifies the merged tracked inputs still match;
+3. verifies application identity;
+4. confirms the exact store artifact still exists in the testing destination;
+5. applies the configured delivery mode; and
+6. creates the platform tag and GitHub Release.
 
-SMF does not rebuild after approval.
+Tags are independent:
 
-The App Store behavior is:
+```text
+ios-vX.Y.Z
+android-vX.Y.Z
+```
 
-- `upload`: leave the tested build uploaded without submitting App Review;
-- `review`: submit the tested build and wait for manual release after approval;
-- `auto`: submit the tested build and release automatically after Apple
-  approval.
+SMF never rebuilds after approval.
 
-The initializer uses `upload` so the first successful flow cannot publish the
-app.
+## Delivery modes
 
-## Files in the app repository
+### iOS
 
-All release files live under the Flutter app's `smf/` directory:
+- `upload`: leave the tested build uploaded.
+- `review`: submit for App Review with manual release.
+- `auto`: submit for App Review with automatic release after approval.
 
-| File | Owner | What to do |
-| --- | --- | --- |
-| `config.yaml` | User | Review and edit supported settings |
-| `store-release-notes.json` | User or hook | Optionally provide localized notes |
-| `manifest.json` | SMF | Review in the PR; do not edit manually |
-| `changelog.json` | SMF | Review in the PR; do not edit manually |
-| `candidates/ios-<version>.json` | SMF | Verify it exists; do not edit manually |
+### Android
 
-Secrets never belong in these files.
+- `upload`: leave the tested `versionCode` on the testing track.
+- `review`: update production with the same `versionCode`; Managed Publishing
+  must hold the approved change for manual publication.
+- `auto`: update production with the same `versionCode` and allow normal
+  publication after review.
 
-## Why some changes rebuild the candidate
+The initializer uses `upload` for both platforms.
 
-The fingerprint includes:
+## What changes invalidate a candidate
 
-- every Git-tracked file except SMF configuration, changelog, store notes, and
-  candidate receipts; and
-- the build-affecting configuration values `flavor`, `bundle_id`,
-  `build_command`, and `ipa_output_path`.
+The fingerprint includes Git-tracked app/build inputs and binary-affecting
+configuration such as flavor, app identity, build command, and artifact path.
 
-Any change inside that boundary after candidate creation can change the
-binary. SMF invalidates the old receipt and builds a new candidate. A tracked
-symbolic link must resolve to another tracked file inside the repository.
+A tracked source or build-input change requires a new candidate. Ignored or
+untracked build outputs are outside the fingerprint and must not be required
+source inputs.
 
-Changing only delivery policy, TestFlight groups, wait timeout, or release
-notes does not change the binary. SMF can revalidate and reuse the existing
-build when its identity still matches. Ignored and untracked files are outside
-the fingerprint and must never be required build inputs.
+Delivery-only changes—such as TestFlight groups, Play tracks/mode, processing
+timeout, or release notes—can reuse a candidate after SMF revalidates it.
 
-This is why release copy can be corrected without producing a needless IPA,
-while source changes always require another tested candidate.
+Tracked symbolic links must resolve to tracked files inside the repository.
 
-## Retries are safe
+## Retries and concurrency
 
-SMF reuses existing release branches, valid matching candidates, App Store
-versions, localizations, and GitHub Releases when safe. A rerun should not
-create a different delivery merely because the previous attempt stopped
-halfway.
+- The shared branch is reused.
+- Candidate jobs commit receipts serially to avoid overwriting one another.
+- Ship jobs can verify/promote platforms independently.
+- Existing valid store artifacts and GitHub Releases are reused when their
+  identity matches.
+- Google Play edits are isolated and abandoned edits expire automatically.
+- SMF refuses to replace a production track containing an unfinished release.
 
-Never bypass an identity or fingerprint error. Follow the
-[recovery guide](operations.md#retry-and-recovery) and produce a new candidate
-when build inputs changed.
+Never bypass an identity/fingerprint error. Follow
+[Release operations and recovery](operations.md#retry-and-recovery).

@@ -50,4 +50,4 @@ const _$BumpEnumMap = {
   Bump.major: 'major',
 };
 
-const _$PlatformEnumMap = {Platform.ios: 'ios'};
+const _$PlatformEnumMap = {Platform.ios: 'ios', Platform.android: 'android'};

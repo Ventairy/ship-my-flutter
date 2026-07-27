@@ -33,6 +33,7 @@ typedef RunBuildHook =
     Future<bool?> Function(
       String workingDirectory,
       SmfConfig config,
+      Platform platform,
       String version,
     );
 

@@ -1,7 +1,10 @@
 /// A release platform exposed to repository hooks.
 enum Platform {
   /// Apple's iOS platform.
-  ios;
+  ios,
+
+  /// Google's Android platform.
+  android;
 
   /// The stable serialized platform name.
   String get value => name;
@@ -9,6 +12,7 @@ enum Platform {
   /// Parses a serialized platform name.
   static Platform parse(String value) => switch (value) {
     'ios' => Platform.ios,
+    'android' => Platform.android,
     _ => throw FormatException('Unsupported platform "$value".'),
   };
 }

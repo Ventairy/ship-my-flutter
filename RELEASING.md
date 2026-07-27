@@ -1,7 +1,7 @@
 # Releasing SMF packages
 
-The Dart workspace contains four independently versioned pub.dev packages:
-`smf_hooks`, `smf_engine`, `smf_apple`, and `smf_cli`.
+The Dart workspace contains five independently versioned pub.dev packages:
+`smf_hooks`, `smf_engine`, `smf_apple`, `smf_android`, and `smf_cli`.
 
 Release Please owns their package versions, package changelogs, immutable
 component tags, and GitHub Releases. It opens one combined manifest release PR
@@ -12,6 +12,7 @@ but releases only the packages with relevant Conventional Commits.
 | `smf_hooks` | `smf_hooks-vX.Y.Z` |
 | `smf_engine` | `smf_engine-vX.Y.Z` |
 | `smf_apple` | `smf_apple-vX.Y.Z` |
+| `smf_android` | `smf_android-vX.Y.Z` |
 | `smf_cli` | `smf_cli-vX.Y.Z` |
 
 ## Release PR
@@ -26,7 +27,7 @@ The release PR updates the affected package `pubspec.yaml`, its
 `CHANGELOG.md`, and `.release-please-manifest.json`. Release Please has no Dart
 workspace dependency-cascade plugin, so review internal constraints explicitly:
 
-- a new `smf_hooks` API may require compatible `smf_engine`, `smf_apple`, and
+- a new `smf_hooks` API may require compatible `smf_engine`, adapters, and
   `smf_cli` releases;
 - a new `smf_engine` API may require compatible adapter and CLI releases;
 - a new adapter API may require a compatible CLI release.
@@ -69,20 +70,22 @@ package working directory. Publication stays separate from Release Please so a
 pub.dev failure cannot rewrite release history.
 
 When a release raises an internal package's minimum version, publish in
-dependency order: `smf_hooks`, `smf_engine`, `smf_apple`, then `smf_cli`.
+dependency order: `smf_hooks`, `smf_engine`, `smf_apple`/`smf_android`, then
+`smf_cli`.
 Component-tag workflows are independently retryable, so retry a dependent
 package only after its new dependency is visible on pub.dev.
 
 ## Companion GitHub Action
 
-1. Run the workspace gate and `pnpm run vendor-core` in the adjacent Action
+1. Run the workspace gate and `pnpm run vendor-smf` in the adjacent Action
    checkout.
 2. Run `pnpm install --frozen-lockfile` and `pnpm run check` in `smf-action`.
 3. Confirm `vendor/smf/SMF_COMMIT` names the reviewed workspace commit.
 4. Regenerate `dist`, then verify a second build leaves no diff.
 5. Test plan, candidate dispatch, and merged-release dispatch against a
    disposable Flutter repository.
-6. Complete the separately tracked live Apple acceptance gate.
+6. Complete the separately tracked live Apple and Google Play acceptance
+   gates.
 7. Follow the Action repository's Release Please procedure; never create or
    move its tags manually.
 

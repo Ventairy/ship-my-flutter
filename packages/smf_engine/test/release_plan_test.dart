@@ -65,6 +65,45 @@ void main() {
       );
     });
 
+    test('plans iOS and Android independently from the same history', () async {
+      final (directory, baselineSha) = await repository();
+      await commit(directory.path, 'feat: shared capability', 'shared\n');
+      await commit(directory.path, 'fix(android): Android repair', 'android\n');
+      final state = SmfManifest(
+        ios: PlatformManifest(
+          version: '2.0.0',
+          baselineSha: baselineSha,
+          pendingRelease: false,
+        ),
+        android: PlatformManifest(
+          version: '1.4.2',
+          baselineSha: baselineSha,
+          pendingRelease: false,
+        ),
+      );
+
+      final ios = await createReleasePlan(
+        directory.path,
+        state,
+        Platform.ios,
+      );
+      final android = await createReleasePlan(
+        directory.path,
+        state,
+        Platform.android,
+      );
+
+      expect(ios?.nextVersion, '2.1.0');
+      expect(ios?.changes.map((change) => change.description), <String>[
+        'shared capability',
+      ]);
+      expect(android?.nextVersion, '1.5.0');
+      expect(android?.changes.map((change) => change.description), <String>[
+        'shared capability',
+        'Android repair',
+      ]);
+    });
+
     test('uses the platform tag as the next release baseline', () async {
       final (directory, baselineSha) = await repository();
       await commit(directory.path, 'feat: already released', 'released\n');

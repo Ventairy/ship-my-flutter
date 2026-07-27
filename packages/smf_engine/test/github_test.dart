@@ -152,42 +152,42 @@ void main() {
     final result = await createOrUpdateReleasePullRequest(
       root.path,
       config,
-      plan!,
+      <ReleasePlan>[plan!],
       context,
       githubApi: api,
       hookProcessRunner: hookRunner,
     );
 
-    expect(result.branch, 'smf/ios');
+    expect(result.branch, 'smf/release');
     expect(result.pullRequestNumber, 42);
-    expect(api.creates.single.head, 'smf/ios');
+    expect(api.creates.single.head, 'smf/release');
     expect(api.creates.single.base, 'main');
-    expect(api.creates.single.title, 'chore(ios): release 1.1.0');
+    expect(api.creates.single.title, 'chore(release): iOS 1.1.0');
     expect(
       await git(origin.path, const <String>[
         'show',
-        'smf/ios:smf/manifest.json',
+        'smf/release:smf/manifest.json',
       ]),
       contains('"pendingRelease": true'),
     );
     expect(
       await git(origin.path, const <String>[
         'show',
-        'smf/ios:smf/changelog.json',
+        'smf/release:smf/changelog.json',
       ]),
       contains('"1.1.0"'),
     );
     expect(
       await git(origin.path, const <String>[
         'show',
-        'smf/ios:smf/store-release-notes.json',
+        'smf/release:smf/store-release-notes.json',
       ], allowFailure: true),
       isEmpty,
     );
     expect(
       await git(origin.path, const <String>[
         'show',
-        'smf/ios:generated-release-notes.txt',
+        'smf/release:generated-release-notes.txt',
       ]),
       'generated',
     );
@@ -211,13 +211,13 @@ void main() {
     await createOrUpdateReleasePullRequest(
       root.path,
       config,
-      refreshedPlan!,
+      <ReleasePlan>[refreshedPlan!],
       context,
       githubApi: api,
       hookProcessRunner: hookRunner,
     );
     expect(api.updates.single.number, 42);
-    expect(api.updates.single.title, 'chore(ios): release 1.1.0');
+    expect(api.updates.single.title, 'chore(release): iOS 1.1.0');
     expect(
       await git(root.path, const <String>['config', 'user.name']),
       'smf[bot]',
@@ -238,7 +238,7 @@ void main() {
       createOrUpdateReleasePullRequest(
         root.path,
         config,
-        refreshedPlan,
+        <ReleasePlan>[refreshedPlan],
         context,
         githubApi: api,
         hookProcessRunner: noCommitRunner,
@@ -283,11 +283,14 @@ void main() {
       await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
       await git(root.path, const <String>['push', '-u', 'origin', 'main']);
 
-      await git(root.path, const <String>['checkout', '-b', 'smf/ios']);
+      await git(root.path, const <String>['checkout', '-b', 'smf/release']);
       await File(sourcePath).writeAsString('release branch\n');
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>['commit', '-m', 'chore: release']);
-      await git(root.path, const <String>['push', '-u', 'origin', 'smf/ios']);
+      await git(
+        root.path,
+        const <String>['push', '-u', 'origin', 'smf/release'],
+      );
 
       await git(root.path, const <String>['checkout', 'main']);
       await File(sourcePath).writeAsString('target branch\n');
@@ -315,7 +318,7 @@ void main() {
         createOrUpdateReleasePullRequest(
           root.path,
           config,
-          plan,
+          const <ReleasePlan>[plan],
           context,
           githubApi: FakeGitHubApi(),
         ),

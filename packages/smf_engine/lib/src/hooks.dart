@@ -13,9 +13,14 @@ import 'package:smf_hooks/smf_hooks.dart' show SmfHookPhase;
 Future<bool?> runBeforeCreatePrHook(
   String workingDirectory,
   SmfConfig config,
-  ReleasePlan plan, {
+  List<ReleasePlan> plans, {
   ProcessRunner processRunner = const SystemProcessRunner(),
 }) async {
+  invariant(
+    plans.isNotEmpty,
+    'The before_create_pr hook requires at least one release plan.',
+    'CREATE_PR_HOOK_PLANS_EMPTY',
+  );
   final paths = resolveSmfPaths(workingDirectory);
   return _runHook(
     paths: paths,
@@ -23,13 +28,9 @@ Future<bool?> runBeforeCreatePrHook(
     phase: SmfHookPhase.beforeCreatePr,
     config: config,
     payload: <String, Object?>{
-      'currentPlatformVersion': plan.currentVersion,
-      'releasePlan': plan.toJson(),
+      'releasePlans': plans.map((plan) => plan.toJson()).toList(),
     },
-    environment: <String, String>{
-      'SMF_CURRENT_PLATFORM_VERSION': plan.currentVersion,
-      'SMF_PLATFORM_VERSION': plan.nextVersion,
-    },
+    environment: const <String, String>{},
     processRunner: processRunner,
   );
 }
@@ -37,15 +38,17 @@ Future<bool?> runBeforeCreatePrHook(
 Future<bool?> runBeforeBuildHook(
   String workingDirectory,
   SmfConfig config,
+  Platform platform,
   String version, {
   ProcessRunner processRunner = const SystemProcessRunner(),
 }) async {
   final paths = resolveSmfPaths(workingDirectory);
   final changelog = await loadChangelog(paths.directory);
-  final release = changelog.iosReleases[version];
+  final release = changelog.releasesFor(platform)[version];
   if (release == null) {
     throw SmfError(
-      'The before_build hook has no changelog entry for iOS $version.',
+      'The before_build hook has no changelog entry for '
+          '${platform.displayName} $version.',
       'BUILD_HOOK_CHANGELOG_MISSING',
     );
   }
@@ -54,8 +57,13 @@ Future<bool?> runBeforeBuildHook(
     hookPath: paths.beforeBuildHook,
     phase: SmfHookPhase.beforeBuild,
     config: config,
+    platform: platform,
+    platformVersion: version,
     payload: <String, Object?>{'release': release.toJson()},
-    environment: <String, String>{'SMF_PLATFORM_VERSION': version},
+    environment: <String, String>{
+      'SMF_PLATFORM': platform.value,
+      'SMF_PLATFORM_VERSION': version,
+    },
     processRunner: processRunner,
   );
 }
@@ -68,6 +76,8 @@ Future<bool?> _runHook({
   required Map<String, Object?> payload,
   required Map<String, String> environment,
   required ProcessRunner processRunner,
+  Platform? platform,
+  String? platformVersion,
 }) async {
   final type = await FileSystemEntity.type(hookPath, followLinks: false);
   if (type == FileSystemEntityType.notFound) return null;
@@ -95,8 +105,8 @@ Future<bool?> _runHook({
     await writeJson(contextPath, <String, Object?>{
       'schemaVersion': 1,
       'phase': phase.value,
-      'platform': Platform.ios.value,
-      'platformVersion': environment['SMF_PLATFORM_VERSION'],
+      if (platform != null) 'platform': platform.value,
+      'platformVersion': ?platformVersion,
       'repositoryRoot': paths.repositoryRoot,
       'appRoot': paths.appRoot,
       'smfDirectory': paths.directory,
@@ -114,7 +124,7 @@ Future<bool?> _runHook({
         workingDirectory: paths.appRoot,
         environment: <String, String>{
           'SMF_HOOK': phase.value,
-          'SMF_PLATFORM': Platform.ios.value,
+          'SMF_PLATFORM': ?platform?.value,
           'SMF_REPOSITORY_ROOT': paths.repositoryRoot,
           'SMF_APP_ROOT': paths.appRoot,
           'SMF_PATH': paths.directory,

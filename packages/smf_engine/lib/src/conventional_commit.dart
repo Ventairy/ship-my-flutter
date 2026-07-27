@@ -31,7 +31,10 @@ ConventionalChange parseConventionalCommit(String sha, String message) {
       match?.group(3) == '!' || _breakingFooterPattern.hasMatch(message);
   final bodyText = lines.skip(1).join('\n').trim();
   final body = bodyText.isEmpty ? null : bodyText;
-  final releaseAs = _footerVersion(message, Platform.ios);
+  final platforms = List<Platform>.unmodifiable(_platformForScope(scope));
+  final releaseAs = platforms.length == 1
+      ? _footerVersion(message, platforms.single)
+      : _globalFooterVersion(message);
   return ConventionalChange(
     sha: sha,
     type: type,
@@ -40,13 +43,23 @@ ConventionalChange parseConventionalCommit(String sha, String message) {
     body: body,
     breaking: breaking,
     bump: _bumpFor(type, breaking),
-    platforms: List<Platform>.unmodifiable(_platformForScope(scope)),
+    platforms: platforms,
     releaseAs: releaseAs,
   );
 }
 
+/// Parses [message] while resolving a platform-specific `Release-As` footer.
+ConventionalChange parseConventionalCommitForPlatform(
+  String sha,
+  String message,
+  Platform platform,
+) {
+  final change = parseConventionalCommit(sha, message);
+  return change.copyWith(releaseAs: _footerVersion(message, platform));
+}
+
 List<Platform> _platformForScope(String? scope) {
-  if (scope == null) return const <Platform>[Platform.ios];
+  if (scope == null) return Platform.values;
   final scopes = scope
       .toLowerCase()
       .split(RegExp(r'[,/\\|]'))
@@ -55,10 +68,11 @@ List<Platform> _platformForScope(String? scope) {
   final explicit = scopes
       .where((value) => _platformScopes.contains(value))
       .toList();
-  if (explicit.isEmpty || explicit.contains('ios')) {
-    return const <Platform>[Platform.ios];
-  }
-  return const <Platform>[];
+  if (explicit.isEmpty) return Platform.values;
+  return <Platform>[
+    for (final platform in Platform.values)
+      if (explicit.contains(platform.value)) platform,
+  ];
 }
 
 Bump? _bumpFor(String type, bool breaking) {
@@ -76,12 +90,25 @@ String? _footerVersion(String message, Platform platform) {
     caseSensitive: false,
     multiLine: true,
   ).firstMatch(message);
+  final value = platformMatch?.group(1) ?? _globalFooterVersion(message);
+  if (value == null) return null;
+  try {
+    final version = Version.parse(value);
+    return version.isPreRelease || version.build.isNotEmpty
+        ? null
+        : version.toString();
+  } on FormatException {
+    return null;
+  }
+}
+
+String? _globalFooterVersion(String message) {
   final globalMatch = RegExp(
     r'^Release-As:\s*(\S+)\s*$',
     caseSensitive: false,
     multiLine: true,
   ).firstMatch(message);
-  final value = platformMatch?.group(1) ?? globalMatch?.group(1);
+  final value = globalMatch?.group(1);
   if (value == null) return null;
   try {
     final version = Version.parse(value);

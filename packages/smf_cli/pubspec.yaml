@@ -19,6 +19,7 @@ executables:
 dependencies:
   args: ^2.7.0
   path: ^1.9.1
+  smf_android: ^0.1.0
   smf_apple: ^0.1.0
   smf_engine: ^0.1.0
 

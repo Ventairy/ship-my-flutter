@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:smf_engine/src/models/android_config.dart';
 import 'package:smf_engine/src/models/ios_config.dart';
+import 'package:smf_engine/src/models/release_enums.dart';
 
 part 'smf_config.freezed.dart';
 
@@ -9,9 +11,18 @@ part 'smf_config.freezed.dart';
 abstract class SmfConfig with _$SmfConfig {
   /// Creates application configuration.
   const factory SmfConfig({
-    required IosConfig ios,
+    @Default(IosConfig(enabled: false)) IosConfig ios,
+    @Default(AndroidConfig()) AndroidConfig android,
     @Default(1) int schemaVersion,
     String? flavor,
     @Default('main') String targetBranch,
   }) = _SmfConfig;
+
+  const SmfConfig._();
+
+  /// Enabled release platforms in deterministic workflow order.
+  List<Platform> get enabledPlatforms => <Platform>[
+    if (ios.enabled) Platform.ios,
+    if (android.enabled) Platform.android,
+  ];
 }

@@ -3,7 +3,8 @@ import 'dart:io' as dart_io;
 
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
-import 'package:smf_apple/smf_apple.dart';
+import 'package:smf_android/smf_android.dart' as android;
+import 'package:smf_apple/smf_apple.dart' as apple;
 import 'package:smf_engine/smf_engine.dart';
 
 final class ExecutableIo {
@@ -38,10 +39,13 @@ Commands:
   plan         Preview the next release.
   open-pr      Open or update a release pull request.
   release      Alias for open-pr.
-  candidate    Create an Apple release candidate.
-  testflight   Alias for candidate.
-  promote      Promote the tested Apple candidate.
-  app-store    Alias for promote.
+  candidate    Create a tested store candidate for one platform.
+  testflight   Create an iOS TestFlight candidate.
+  internal-testing
+               Create an Android Google Play internal-testing candidate.
+  promote      Promote one exact tested platform candidate.
+  app-store    Promote the iOS candidate.
+  google-play  Promote the Android candidate.
 ''';
 
 Future<int> runSmfExecutable(List<String> arguments, {ExecutableIo? io}) async {
@@ -60,16 +64,33 @@ Future<int> runSmfExecutable(List<String> arguments, {ExecutableIo? io}) async {
     'plan' => runPlanExecutable(options, io: resolvedIo),
     'open-pr' => runOpenPrExecutable(options, io: resolvedIo),
     'release' => runOpenPrExecutable(options, name: 'release', io: resolvedIo),
-    'candidate' => runTestflightExecutable(
+    'candidate' => runCandidateExecutable(
       options,
       name: 'candidate',
       io: resolvedIo,
     ),
-    'testflight' => runTestflightExecutable(options, io: resolvedIo),
+    'testflight' => runCandidateExecutable(
+      options,
+      forcedPlatform: Platform.ios,
+      io: resolvedIo,
+    ),
+    'internal-testing' => runCandidateExecutable(
+      options,
+      name: 'internal_testing',
+      forcedPlatform: Platform.android,
+      io: resolvedIo,
+    ),
     'promote' => runPromoteExecutable(options, io: resolvedIo),
     'app-store' => runPromoteExecutable(
       options,
       name: 'app_store',
+      forcedPlatform: Platform.ios,
+      io: resolvedIo,
+    ),
+    'google-play' => runPromoteExecutable(
+      options,
+      name: 'google_play',
+      forcedPlatform: Platform.android,
       io: resolvedIo,
     ),
     'action' => runActionExecutable(options, io: resolvedIo),
@@ -252,6 +273,7 @@ Future<int> runInitExecutable(List<String> arguments, {ExecutableIo? io}) {
     ..addOption('smf-path')
     ..addOption('current-version')
     ..addOption('bundle-id')
+    ..addOption('package-name')
     ..addFlag('force', negatable: false)
     ..addFlag('workflow-only', negatable: false);
   return _runExecutable(
@@ -268,6 +290,7 @@ Future<int> runInitExecutable(List<String> arguments, {ExecutableIo? io}) {
           appRoot: appRoot,
           currentVersion: arguments.option('current-version'),
           bundleId: arguments.option('bundle-id'),
+          packageName: arguments.option('package-name'),
           force: arguments.flag('force'),
           workflowOnly: workflowOnly,
         ),
@@ -303,7 +326,7 @@ Future<int> runPlanExecutable(List<String> arguments, {ExecutableIo? io}) {
   final parser = _options()..addOption('smf-path');
   return _runExecutable(
     name: 'plan',
-    description: 'Print the next iOS release plan without changing files.',
+    description: 'Print every enabled platform plan without changing files.',
     arguments: arguments,
     parser: parser,
     io: io,
@@ -312,11 +335,18 @@ Future<int> runPlanExecutable(List<String> arguments, {ExecutableIo? io}) {
         _workingDirectory(io),
         smfPath: _smfPath(arguments),
       );
-      return (await createReleasePlan(
-        paths.repositoryRoot,
-        await loadManifest(paths.directory),
-        Platform.ios,
-      ))?.toJson();
+      final config = await loadConfig(paths.directory);
+      final manifest = await loadManifest(paths.directory);
+      return <Object?>[
+        for (final platform in config.enabledPlatforms)
+          if (await createReleasePlan(
+                paths.repositoryRoot,
+                manifest,
+                platform,
+              )
+              case final plan?)
+            plan.toJson(),
+      ];
     },
   );
 }
@@ -329,7 +359,7 @@ Future<int> runOpenPrExecutable(
   final parser = _githubOptions();
   return _runExecutable(
     name: name,
-    description: 'Open or update the iOS release pull request.',
+    description: 'Open or update the shared platform release pull request.',
     arguments: arguments,
     parser: parser,
     io: io,
@@ -341,53 +371,151 @@ Future<int> runOpenPrExecutable(
   );
 }
 
-Future<int> runTestflightExecutable(
+Future<int> runCandidateExecutable(
   List<String> arguments, {
   String name = 'testflight',
+  Platform? forcedPlatform,
   ExecutableIo? io,
 }) {
-  final parser = _githubOptions()..addFlag('commit-receipt', defaultsTo: true);
+  final parser = _githubOptions()
+    ..addOption(
+      'platform',
+      allowed: Platform.values.map((platform) => platform.value),
+      hide: forcedPlatform != null,
+    )
+    ..addFlag('commit-receipt', defaultsTo: true);
   return _runExecutable(
     name: name,
-    description: 'Build, sign, upload, and record the TestFlight candidate.',
+    description: 'Build, sign, upload, and record one store candidate.',
     arguments: arguments,
     parser: parser,
     io: io,
-    operation: (arguments, io) async => (await createIosCandidate(
-      CandidateOptions(
-        workingDirectory: _workingDirectory(io),
-        smfPath: _smfPath(arguments),
-        appleCredentials: await appleCredentialsFromEnvironment(io.environment),
-        signingCredentials: await signingCredentialsFromEnvironment(
-          io.environment,
-        ),
-        github: await _optionalGitHub(arguments, io),
-        commitReceipt: arguments.flag('commit-receipt'),
-      ),
-    )).toJson(),
+    operation: (arguments, io) async {
+      final workingDirectory = _workingDirectory(io);
+      final smfPath = _smfPath(arguments);
+      final platform = await _selectedPlatform(
+        arguments,
+        workingDirectory: workingDirectory,
+        smfPath: smfPath,
+        forcedPlatform: forcedPlatform,
+      );
+      final github = await _optionalGitHub(arguments, io);
+      final commitReceipt = arguments.flag('commit-receipt');
+      return switch (platform) {
+        Platform.ios => (await apple.createIosCandidate(
+          apple.CandidateOptions(
+            workingDirectory: workingDirectory,
+            smfPath: smfPath,
+            appleCredentials: await apple.appleCredentialsFromEnvironment(
+              io.environment,
+            ),
+            signingCredentials: await apple.signingCredentialsFromEnvironment(
+              io.environment,
+            ),
+            github: github,
+            commitReceipt: commitReceipt,
+          ),
+        )).toJson(),
+        Platform.android => (await android.createAndroidCandidate(
+          android.AndroidCandidateOptions(
+            workingDirectory: workingDirectory,
+            smfPath: smfPath,
+            googlePlayCredentials: await android
+                .googlePlayCredentialsFromEnvironment(
+                  io.environment,
+                ),
+            signingCredentials: await android
+                .androidSigningCredentialsFromEnvironment(
+                  io.environment,
+                ),
+            github: github,
+            commitReceipt: commitReceipt,
+          ),
+        )).toJson(),
+      };
+    },
   );
 }
 
 Future<int> runPromoteExecutable(
   List<String> arguments, {
   String name = 'promote',
+  Platform? forcedPlatform,
   ExecutableIo? io,
 }) {
-  final parser = _githubOptions();
+  final parser = _githubOptions()
+    ..addOption(
+      'platform',
+      allowed: Platform.values.map((platform) => platform.value),
+      hide: forcedPlatform != null,
+    );
   return _runExecutable(
     name: name,
     description: 'Promote the exact tested candidate after the release PR.',
     arguments: arguments,
     parser: parser,
     io: io,
-    operation: (arguments, io) async => (await promoteIosRelease(
-      PromotionOptions(
-        workingDirectory: _workingDirectory(io),
-        smfPath: _smfPath(arguments),
-        appleCredentials: await appleCredentialsFromEnvironment(io.environment),
-        github: await _requiredGitHub(arguments, io),
-      ),
-    )).toJson(),
+    operation: (arguments, io) async {
+      final workingDirectory = _workingDirectory(io);
+      final smfPath = _smfPath(arguments);
+      final platform = await _selectedPlatform(
+        arguments,
+        workingDirectory: workingDirectory,
+        smfPath: smfPath,
+        forcedPlatform: forcedPlatform,
+      );
+      final github = await _requiredGitHub(arguments, io);
+      return switch (platform) {
+        Platform.ios => (await apple.promoteIosRelease(
+          apple.PromotionOptions(
+            workingDirectory: workingDirectory,
+            smfPath: smfPath,
+            appleCredentials: await apple.appleCredentialsFromEnvironment(
+              io.environment,
+            ),
+            github: github,
+          ),
+        )).toJson(),
+        Platform.android => (await android.promoteAndroidRelease(
+          android.AndroidPromotionOptions(
+            workingDirectory: workingDirectory,
+            smfPath: smfPath,
+            googlePlayCredentials: await android
+                .googlePlayCredentialsFromEnvironment(
+                  io.environment,
+                ),
+            github: github,
+          ),
+        )).toJson(),
+      };
+    },
+  );
+}
+
+Future<Platform> _selectedPlatform(
+  ArgResults arguments, {
+  required String workingDirectory,
+  required String? smfPath,
+  Platform? forcedPlatform,
+}) async {
+  final explicit = arguments.option('platform');
+  if (forcedPlatform != null) {
+    if (explicit != null && explicit != forcedPlatform.value) {
+      throw SmfError(
+        'This alias always selects ${forcedPlatform.value}.',
+        'INVALID_PLATFORM',
+      );
+    }
+    return forcedPlatform;
+  }
+  if (explicit != null) return Platform.parse(explicit);
+  final paths = resolveSmfPaths(workingDirectory, smfPath: smfPath);
+  final enabled = (await loadConfig(paths.directory)).enabledPlatforms;
+  if (enabled.length == 1) return enabled.single;
+  throw const SmfError(
+    'Select --platform ios or --platform android when multiple platforms are '
+        'enabled.',
+    'PLATFORM_REQUIRED',
   );
 }
 
@@ -397,6 +525,10 @@ Future<int> runActionExecutable(List<String> arguments, {ExecutableIo? io}) {
       'phase',
       allowed: const <String>['pull-request', 'release-candidate', 'ship'],
       mandatory: true,
+    )
+    ..addOption(
+      'platform',
+      allowed: Platform.values.map((platform) => platform.value),
     )
     ..addOption('working-directory', hide: true);
   return _runExecutable(
@@ -420,30 +552,74 @@ Future<int> runActionExecutable(List<String> arguments, {ExecutableIo? io}) {
           )).toJson();
         case 'release-candidate':
           final github = await _requiredGitHub(arguments, io);
-          return (await createIosCandidate(
-            CandidateOptions(
-              workingDirectory: workingDirectory,
-              smfPath: smfPath,
-              appleCredentials: await appleCredentialsFromEnvironment(
-                io.environment,
+          final platform = arguments.option('platform');
+          invariant(
+            platform != null,
+            '--platform is required for release-candidate.',
+            'PLATFORM_REQUIRED',
+          );
+          return switch (Platform.parse(platform!)) {
+            Platform.ios => (await apple.createIosCandidate(
+              apple.CandidateOptions(
+                workingDirectory: workingDirectory,
+                smfPath: smfPath,
+                appleCredentials: await apple.appleCredentialsFromEnvironment(
+                  io.environment,
+                ),
+                signingCredentials: await apple
+                    .signingCredentialsFromEnvironment(
+                      io.environment,
+                    ),
+                github: github,
               ),
-              signingCredentials: await signingCredentialsFromEnvironment(
-                io.environment,
+            )).toJson(),
+            Platform.android => (await android.createAndroidCandidate(
+              android.AndroidCandidateOptions(
+                workingDirectory: workingDirectory,
+                smfPath: smfPath,
+                googlePlayCredentials: await android
+                    .googlePlayCredentialsFromEnvironment(
+                      io.environment,
+                    ),
+                signingCredentials: await android
+                    .androidSigningCredentialsFromEnvironment(
+                      io.environment,
+                    ),
+                github: github,
               ),
-              github: github,
-            ),
-          )).toJson();
+            )).toJson(),
+          };
         case 'ship':
-          return (await promoteIosRelease(
-            PromotionOptions(
-              workingDirectory: workingDirectory,
-              smfPath: smfPath,
-              appleCredentials: await appleCredentialsFromEnvironment(
-                io.environment,
+          final platform = arguments.option('platform');
+          invariant(
+            platform != null,
+            '--platform is required for ship.',
+            'PLATFORM_REQUIRED',
+          );
+          final github = await _requiredGitHub(arguments, io);
+          return switch (Platform.parse(platform!)) {
+            Platform.ios => (await apple.promoteIosRelease(
+              apple.PromotionOptions(
+                workingDirectory: workingDirectory,
+                smfPath: smfPath,
+                appleCredentials: await apple.appleCredentialsFromEnvironment(
+                  io.environment,
+                ),
+                github: github,
               ),
-              github: await _requiredGitHub(arguments, io),
-            ),
-          )).toJson();
+            )).toJson(),
+            Platform.android => (await android.promoteAndroidRelease(
+              android.AndroidPromotionOptions(
+                workingDirectory: workingDirectory,
+                smfPath: smfPath,
+                googlePlayCredentials: await android
+                    .googlePlayCredentialsFromEnvironment(
+                      io.environment,
+                    ),
+                github: github,
+              ),
+            )).toJson(),
+          };
       }
       throw const SmfError('Unsupported action phase.', 'INVALID_PHASE');
     },

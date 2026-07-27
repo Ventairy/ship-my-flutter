@@ -1,215 +1,245 @@
 # Release operations and recovery
 
-Use this guide when an SMF release PR is open, a workflow failed, or a release
+Use this guide whenever `smf/release` is open, a workflow failed, or a release
 must be abandoned.
 
 ## Before merging
 
-Do not merge the release PR until all of these are true:
+For every platform listed in the PR:
 
-1. the `release-candidate` job succeeded;
-2. the PR contains
-   `<flutter-app>/smf/candidates/ios-<version>.json`;
-3. App Store Connect shows the same version and build number as valid;
-4. the exact TestFlight build has been installed and tested;
-5. localized beta/store notes are correct; and
-6. the authorized release owner approved delivery.
+1. `release-candidate (<platform>)` succeeded;
+2. `smf/candidates/<platform>-<version>.json` is committed;
+3. the store shows the same `version`, `buildNumber`, and `artifactId`;
+4. the exact candidate was installed from the store testing destination;
+5. the release test passed;
+6. localized notes are correct; and
+7. the authorized release owner approved it.
 
-The candidate receipt is machine-owned. Never edit it to make a check pass.
+Do not merge if one included platform is unapproved. If it should not be in the
+release, fix the target-branch commit/configuration and let SMF update the PR.
 
-### Find the exact candidate
+## Find the exact candidate
 
 In GitHub:
 
-1. Open the release PR.
-2. Confirm the candidate receipt is present in **Files changed**.
-3. Open the receipt and record `version`, `buildNumber`, and `buildId`.
-4. Open the successful `release-candidate` workflow job and confirm its outputs
-   match.
+1. Open the shared release PR.
+2. Open the platform receipt under `smf/candidates/`.
+3. Record `version`, `buildNumber`, `artifactId`, `artifactSha256`, and
+   `testingDestinations`.
+4. Confirm the successful job outputs match.
 
-In App Store Connect:
+For iOS:
 
-1. Open **Apps → your app → TestFlight**.
-2. Select the version and build number from the receipt.
-3. Confirm processing is valid.
-4. Confirm the configured internal TestFlight group has access, if applicable.
-5. Install that build through TestFlight and complete the app's release test.
+1. Open App Store Connect → Apps → app → TestFlight.
+2. Find the receipt’s version/build number.
+3. Confirm processing is valid and intended groups have access.
+4. Install through TestFlight.
 
-If any identity differs, stop and use the recovery section below.
+For Android:
+
+1. Open Play Console → app → Testing → the configured track.
+2. Find the receipt’s `artifactId` as the Play `versionCode`.
+3. Confirm the release is available to the intended tester list.
+4. Install through the opt-in link.
+
+Any mismatch is a hard stop.
 
 ## Choose what merge will do
 
-Check `platforms.ios.app_store.mode` in `smf/config.yaml`:
+Check each platform mode in `smf/config.yaml`.
 
-- `upload` verifies the build and creates the GitHub Release without submitting
-  App Review;
-- `review` submits the build and waits for a person to release it after Apple
-  approval;
-- `auto` submits the build and can make it public automatically after Apple
-  approval.
+### iOS `platforms.ios.app_store.mode`
 
-The default is `upload`.
+- `upload`: verify only.
+- `review`: submit and wait for manual release after Apple approval.
+- `auto`: submit and release automatically after Apple approval.
 
-To change the mode:
+### Android `platforms.android.google_play.mode`
 
-1. update it on the target branch;
-2. commit and push the change;
-3. wait for the release PR to synchronize;
-4. wait for its candidate job to finish again; and
-5. recheck the receipt and TestFlight build before merging.
+- `upload`: verify only; leave production untouched.
+- `review`: move the exact `versionCode` to production review; requires Managed
+  Publishing for manual final publication.
+- `auto`: move the exact `versionCode` to production and allow normal
+  publication after review.
 
-SMF can reuse the existing candidate when only delivery settings or release
-notes changed. Any tracked app or build-input change requires a new candidate
-and another test.
+Changing a mode on the target branch refreshes the release PR. Wait for the
+candidate jobs and recheck every receipt before merge.
 
 ## While the release PR is open
 
-New target-branch commits update the existing release PR.
+New target-branch commits update the same `smf/release` PR.
 
-- `feat(ios)` and `fix(ios)` change the iOS release.
-- An unscoped commit or a feature scope such as `feat(auth)` also applies to
-  iOS.
-- A recognized different platform scope such as `fix(android)` does not change
-  the iOS version or changelog.
+- Unscoped/feature commits apply to all enabled platforms.
+- `ios` and `android` scopes apply selectively.
+- A change scoped away from one platform can still invalidate its candidate if
+  it modifies a tracked build input used by that platform.
 
-A non-iOS commit can still rebuild the candidate if it changes a tracked input
-used by the iOS build. That is intentional: the tested IPA must match the
-source that will be merged.
+Candidate jobs are serialized when both platforms release so their receipt
+commits do not race.
 
 ## Merge strategy
 
-Conventional Commit messages on the target branch determine the release. When
-squashing a feature PR, use a final title such as:
+Conventional Commit messages on the target branch determine release versions.
+When squashing a feature PR, give the final commit a qualifying title.
 
-```text
-feat(ios): add offline mode
-```
+Merge commit, squash, and rebase are supported if the target branch receives
+all release PR contents, including every candidate receipt. Never discard or
+hand-edit machine-owned files while resolving conflicts.
 
-A non-conventional squash title produces no version bump.
+After merge:
 
-Merge the generated release PR only after the exact candidate is approved.
-Merge commit, squash merge, and rebase merge are supported as long as the
-target branch receives the complete release PR contents, including the
-candidate receipt. Use the repository's normal allowed method; never edit or
-drop machine-owned files while resolving conflicts.
+- watch `ship (ios)` and/or `ship (android)`;
+- confirm `ios-vX.Y.Z` and/or `android-vX.Y.Z`;
+- confirm the store status matches the configured mode.
 
-After merge, watch the `ship` job and verify the expected `ios-vX.Y.Z` GitHub
-Release appears.
+## GitHub checks and branch protection
 
-## GitHub checks on the generated PR
+The default `GITHUB_TOKEN` can update the shared branch and start candidate
+jobs in the same workflow. It may not trigger unrelated `pull_request`
+workflows for the PR it created.
 
-GitHub does not start new workflow runs for events created by the default
-`GITHUB_TOKEN`. SMF's own candidate job still runs in the workflow that created
-the release PR, but separate repository `pull_request` workflows might not.
+Use a GitHub App installation token or narrowly scoped fine-grained token when
+independent PR checks must trigger. See
+[GitHub permissions](security.md#github-permissions).
 
-If those independent checks are required, configure the pull-request phase
-with a GitHub App installation token or narrowly scoped fine-grained personal
-access token. See [GitHub permissions](security.md#github-permissions).
+Protect the target branch with normal reviews/checks. Do not create a ruleset
+that prevents the workflow from updating `smf/release`; the candidate receipt
+must be committed there.
 
-Regardless of branch-protection status, always require the receipt, valid
-TestFlight build, release test, and human approval described above.
+## Test audiences
 
-Use a GitHub ruleset or branch protection on the target branch to require pull
-requests and release-owner review. If GitHub exposes `release-candidate` on the
-release PR as a required status check, require it too. Do not add a rule to
-`smf/ios` that blocks the Action from pushing the candidate receipt. The
-generated workflow cannot prevent an authorized user or ruleset bypass from
-merging early, so the before-merge checklist remains mandatory.
+SMF assigns artifacts to existing destinations; it does not decide who the
+testers are.
 
-## TestFlight groups
-
-Group names in `smf/config.yaml` must already exist under the same app in App
-Store Connect and match exactly.
-
-An empty list uploads and processes the build without assigning a group:
-
-```yaml
-testflight:
-  groups: []
-```
-
-Use an internal group for the first release. External groups require manual
-TestFlight App Review setup; see [Apple setup](apple-bootstrap.md#8-optionally-create-an-internal-testflight-group).
+- TestFlight group names must already exist and match exactly.
+- The Google Play testing track and tester list must already exist/be
+  configured.
+- An empty iOS group list leaves the build unassigned.
+- Google Play `internal` uses the Play testing opt-in URL.
 
 ## Retry and recovery
 
 ### No release PR opened
 
 1. Open the failed `pull-request` job.
-2. Fix the reported configuration, permission, or commit-message problem on the
-   target branch.
-3. Run `smf validate` locally.
-4. Push the fix or rerun the failed workflow.
+2. Fix the reported config, permission, or commit-message issue on the target
+   branch.
+3. Run `smf validate`.
+4. Push or rerun.
 
-If the workflow reports `noop`, verify that the pushed commit qualifies for iOS
-and that the workflow is running on the configured target branch.
+If the result is `noop`, confirm the commit qualifies for at least one enabled
+platform and the workflow ran on the configured target branch.
 
-### Candidate build or upload failed
+### Candidate build failed
 
-Fix the source, Flutter/Xcode toolchain, signing asset, profile, App Store
-record, or Apple permission named by the failure. Commit source/configuration
-fixes to the target branch. The release PR updates and creates a new candidate
-when a tracked build input changes.
+Fix the named source/toolchain/build/signing issue on the target branch. SMF
+updates the PR and generates a new candidate when tracked inputs change.
 
-Do not merge a PR without a valid receipt merely because the IPA uploaded.
+Do not manually invent a receipt.
 
-### Upload succeeded but receipt commit failed
-
-First confirm that the job has `contents: write`, the `smf/ios` branch still
-exists, and repository rules allow the workflow token to update that branch.
-Fix the permission or ruleset exemption, then rerun the `release-candidate`
-job. SMF reuses the valid Apple build when its source and identity still
-match. Do not upload manually and do not invent or edit a receipt.
-
-### TestFlight group was not found
-
-Open **App Store Connect → Apps → your app → TestFlight** and copy the existing
-group name exactly into `testflight.groups`. Confirm the API key has at least
-App Manager access for group assignment, then rerun the candidate job.
-
-### Apple rejected or invalidated the build
-
-Open the build in App Store Connect and read Apple's processing or compliance
-message. Fix the named source, signing, entitlement, metadata, or export
-compliance issue on the target branch. A corrected binary needs a new build
-number and a new candidate.
-
-### Fingerprint or app identity mismatch
-
-Do not bypass the error and do not edit the receipt.
+### Store upload succeeded but receipt commit failed
 
 Confirm:
 
-- the target branch contains the expected app source;
-- the bundle ID still names the same App Store Connect app;
-- the release PR contains the candidate that was actually tested; and
-- no tracked build input changed after candidate creation.
+- the job has `contents: write`;
+- `smf/release` still exists;
+- repository rules allow the workflow identity to update it; and
+- the store artifact still matches the source/identity.
 
-Restore the expected source or produce and test a new candidate.
+Fix the GitHub permission/ruleset and rerun. SMF can reuse a valid matching
+artifact.
 
-### Ship failed after the release PR merged
+### iOS processing or TestFlight failed
 
-Keep the merged receipt and tag state intact. Fix the reported Apple permission,
-metadata, or GitHub permission problem, then rerun the failed `ship` job. SMF
-reuses existing App Store and GitHub resources when their identities match.
+- Copy group names exactly from App Store Connect.
+- Confirm API-key role and app access.
+- Read Apple’s processing/compliance message.
+- Fix certificate, profile, entitlement, metadata, or source issues.
 
-Do not create a manual tag or GitHub Release to hide a failed ship.
+A corrected IPA needs a new build number/candidate.
+
+### Google Play authentication or permission failed
+
+Confirm:
+
+- the Android Publisher API is enabled in the service account’s Cloud project;
+- the JSON is for the invited service account;
+- the service-account email is an active Play Console user for this app;
+- it has **View app information** and **Release apps to testing tracks**; and
+- production permission exists only when `review`/`auto` needs it.
+
+Replace the GitHub secret after creating a new service-account key.
+
+### Google Play rejected the upload key
+
+Do not create a new app or change the package name.
+
+1. Open Play Console → App integrity / Play App Signing.
+2. Compare the registered upload certificate with the keystore used by GitHub.
+3. Restore the correct keystore, alias, and passwords.
+4. If the key is lost/compromised, ask the account owner to follow Google’s
+   upload-key reset process.
+5. Replace secrets and rerun.
+
+### Android versionCode already used
+
+SMF reads all bundles visible to Google Play and chooses the next integer.
+This error usually means another release uploaded concurrently or a stale edit.
+Rerun after the other upload finishes. Never reuse a `versionCode`.
+
+### Android production release already in progress
+
+SMF refuses to replace a production track containing an unfinished release.
+Open Play Console and finish or halt that release, obtain release-owner
+approval, then rerun `ship`.
+
+### Android `review` published automatically
+
+`review` depends on Play Console Managed Publishing. If it was not enabled,
+Google can publish after approval. Stop further releases, verify the current
+store state, enable Managed Publishing if the team requires a manual hold, and
+review [Android setup](android-bootstrap.md#10-decide-how-production-will-work-later).
+
+### Fingerprint or app identity mismatch
+
+Never bypass it and never edit the receipt.
+
+Confirm:
+
+- target branch contains the tested source;
+- bundle/package ID names the same store app;
+- the release PR receipt is the one actually tested; and
+- no tracked build input changed afterward.
+
+Restore the expected source or produce and retest a new candidate.
+
+### Ship failed after merge
+
+Preserve the merged receipt and tag state. Fix the named store/GitHub
+permission or external metadata issue and rerun the failed platform job. SMF
+reuses matching store and GitHub resources.
+
+Do not create a manual tag/Release to hide a failed ship.
 
 ### Abandon a release
 
-Close the release PR and delete its `smf/ios` branch. The next qualifying
-target-branch push creates a fresh release PR from current state.
+1. Close the shared release PR.
+2. Delete branch `smf/release`.
+3. Decide what to do with already uploaded TestFlight/Play testing artifacts.
 
-Closing the PR does not delete an already uploaded TestFlight build. Remove its
-group access or expire it in App Store Connect if the team no longer wants it
-tested.
+The next qualifying target-branch push creates a fresh PR from current state.
+Deleting the branch does not remove store artifacts or tester access.
 
-## What to preserve while investigating
+## Preserve the audit trail
 
-Keep the release branch, workflow logs, candidate receipt, exact commit SHA,
-and App Store Connect version/build number until the incident is understood.
-They are the audit trail connecting source to the uploaded build.
+While investigating, keep:
 
-Never copy API keys, certificate passwords, Base64 credentials, or raw signing
-files into an issue. Follow the [security guide](security.md) after any possible
-exposure.
+- `smf/release`;
+- workflow logs;
+- candidate receipts;
+- exact commit SHAs;
+- Apple build ID/build number; and
+- Google Play `versionCode` and track.
+
+Never paste API private keys, service-account JSON, keystores, passwords,
+Base64 credentials, certificates, or provisioning profiles into an issue.

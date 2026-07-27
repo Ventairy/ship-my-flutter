@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SmfConfig {
 
- IosConfig get ios; int get schemaVersion; String? get flavor; String get targetBranch;
+ IosConfig get ios; AndroidConfig get android; int get schemaVersion; String? get flavor; String get targetBranch;
 /// Create a copy of SmfConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $SmfConfigCopyWith<SmfConfig> get copyWith => _$SmfConfigCopyWithImpl<SmfConfig>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SmfConfig&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SmfConfig&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.android, android) || other.android == android)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ios,schemaVersion,flavor,targetBranch);
+int get hashCode => Object.hash(runtimeType,ios,android,schemaVersion,flavor,targetBranch);
 
 @override
 String toString() {
-  return 'SmfConfig(ios: $ios, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch)';
+  return 'SmfConfig(ios: $ios, android: $android, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch)';
 }
 
 
@@ -45,11 +45,11 @@ abstract mixin class $SmfConfigCopyWith<$Res>  {
   factory $SmfConfigCopyWith(SmfConfig value, $Res Function(SmfConfig) _then) = _$SmfConfigCopyWithImpl;
 @useResult
 $Res call({
- IosConfig ios, int schemaVersion, String? flavor, String targetBranch
+ IosConfig ios, AndroidConfig android, int schemaVersion, String? flavor, String targetBranch
 });
 
 
-$IosConfigCopyWith<$Res> get ios;
+$IosConfigCopyWith<$Res> get ios;$AndroidConfigCopyWith<$Res> get android;
 
 }
 /// @nodoc
@@ -62,10 +62,11 @@ class _$SmfConfigCopyWithImpl<$Res>
 
 /// Create a copy of SmfConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? ios = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? ios = null,Object? android = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,}) {
   return _then(_self.copyWith(
 ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable
-as IosConfig,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
+as IosConfig,android: null == android ? _self.android : android // ignore: cast_nullable_to_non_nullable
+as AndroidConfig,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,flavor: freezed == flavor ? _self.flavor : flavor // ignore: cast_nullable_to_non_nullable
 as String?,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
 as String,
@@ -79,6 +80,15 @@ $IosConfigCopyWith<$Res> get ios {
   
   return $IosConfigCopyWith<$Res>(_self.ios, (value) {
     return _then(_self.copyWith(ios: value));
+  });
+}/// Create a copy of SmfConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AndroidConfigCopyWith<$Res> get android {
+  
+  return $AndroidConfigCopyWith<$Res>(_self.android, (value) {
+    return _then(_self.copyWith(android: value));
   });
 }
 }
@@ -162,10 +172,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( IosConfig ios,  int schemaVersion,  String? flavor,  String targetBranch)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SmfConfig() when $default != null:
-return $default(_that.ios,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
+return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
   return orElse();
 
 }
@@ -183,10 +193,10 @@ return $default(_that.ios,_that.schemaVersion,_that.flavor,_that.targetBranch);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( IosConfig ios,  int schemaVersion,  String? flavor,  String targetBranch)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch)  $default,) {final _that = this;
 switch (_that) {
 case _SmfConfig():
-return $default(_that.ios,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
+return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +213,10 @@ return $default(_that.ios,_that.schemaVersion,_that.flavor,_that.targetBranch);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( IosConfig ios,  int schemaVersion,  String? flavor,  String targetBranch)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch)?  $default,) {final _that = this;
 switch (_that) {
 case _SmfConfig() when $default != null:
-return $default(_that.ios,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
+return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
   return null;
 
 }
@@ -217,11 +227,12 @@ return $default(_that.ios,_that.schemaVersion,_that.flavor,_that.targetBranch);c
 /// @nodoc
 
 
-class _SmfConfig implements SmfConfig {
-  const _SmfConfig({required this.ios, this.schemaVersion = 1, this.flavor, this.targetBranch = 'main'});
+class _SmfConfig extends SmfConfig {
+  const _SmfConfig({this.ios = const IosConfig(enabled: false), this.android = const AndroidConfig(), this.schemaVersion = 1, this.flavor, this.targetBranch = 'main'}): super._();
   
 
-@override final  IosConfig ios;
+@override@JsonKey() final  IosConfig ios;
+@override@JsonKey() final  AndroidConfig android;
 @override@JsonKey() final  int schemaVersion;
 @override final  String? flavor;
 @override@JsonKey() final  String targetBranch;
@@ -236,16 +247,16 @@ _$SmfConfigCopyWith<_SmfConfig> get copyWith => __$SmfConfigCopyWithImpl<_SmfCon
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SmfConfig&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SmfConfig&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.android, android) || other.android == android)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ios,schemaVersion,flavor,targetBranch);
+int get hashCode => Object.hash(runtimeType,ios,android,schemaVersion,flavor,targetBranch);
 
 @override
 String toString() {
-  return 'SmfConfig(ios: $ios, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch)';
+  return 'SmfConfig(ios: $ios, android: $android, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch)';
 }
 
 
@@ -256,11 +267,11 @@ abstract mixin class _$SmfConfigCopyWith<$Res> implements $SmfConfigCopyWith<$Re
   factory _$SmfConfigCopyWith(_SmfConfig value, $Res Function(_SmfConfig) _then) = __$SmfConfigCopyWithImpl;
 @override @useResult
 $Res call({
- IosConfig ios, int schemaVersion, String? flavor, String targetBranch
+ IosConfig ios, AndroidConfig android, int schemaVersion, String? flavor, String targetBranch
 });
 
 
-@override $IosConfigCopyWith<$Res> get ios;
+@override $IosConfigCopyWith<$Res> get ios;@override $AndroidConfigCopyWith<$Res> get android;
 
 }
 /// @nodoc
@@ -273,10 +284,11 @@ class __$SmfConfigCopyWithImpl<$Res>
 
 /// Create a copy of SmfConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? ios = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? ios = null,Object? android = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,}) {
   return _then(_SmfConfig(
 ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable
-as IosConfig,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
+as IosConfig,android: null == android ? _self.android : android // ignore: cast_nullable_to_non_nullable
+as AndroidConfig,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,flavor: freezed == flavor ? _self.flavor : flavor // ignore: cast_nullable_to_non_nullable
 as String?,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
 as String,
@@ -291,6 +303,15 @@ $IosConfigCopyWith<$Res> get ios {
   
   return $IosConfigCopyWith<$Res>(_self.ios, (value) {
     return _then(_self.copyWith(ios: value));
+  });
+}/// Create a copy of SmfConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AndroidConfigCopyWith<$Res> get android {
+  
+  return $AndroidConfigCopyWith<$Res>(_self.android, (value) {
+    return _then(_self.copyWith(android: value));
   });
 }
 }

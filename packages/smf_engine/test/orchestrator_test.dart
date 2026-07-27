@@ -44,7 +44,7 @@ void main() {
       'routes only configured pending release branch to release-candidate',
       () async {
         final root = await repository();
-        await git(root.path, const <String>['checkout', '-b', 'smf/ios']);
+        await git(root.path, const <String>['checkout', '-b', 'smf/release']);
         final paths = resolveSmfPaths(root.path);
         final initial = await loadManifest(root.path);
         final manifest = SmfManifest(
@@ -96,9 +96,10 @@ void main() {
         );
         expect(result.toJson(), <String, Object?>{
           'phase': 'release-candidate',
-          'platform': 'ios',
-          'version': '1.1.0',
-          'branch': 'smf/ios',
+          'releases': <Object?>[
+            <String, Object?>{'platform': 'ios', 'version': '1.1.0'},
+          ],
+          'branch': 'smf/release',
         });
 
         await git(root.path, const <String>['tag', 'ios-v1.1.0']);
@@ -129,7 +130,15 @@ void main() {
       final configFile = File(resolveSmfPaths(root.path).config);
       final config = await configFile.readAsString();
       await configFile.writeAsString(
-        config.replaceFirst('enabled: true', 'enabled: false'),
+        config
+            .replaceFirst(
+              'ios:\n    enabled: true',
+              'ios:\n    enabled: false',
+            )
+            .replaceFirst(
+              'android:\n    enabled: false',
+              'android:\n    enabled: true',
+            ),
       );
       expect(
         (await planGitHubRelease(
