@@ -48,9 +48,10 @@ Unknown scopes such as `auth` are feature scopes, not platform scopes, so they a
 
 ## Quick start
 
-### 1. Initialize the Flutter repository
+### 1. Install and initialize SMF
 
-Run this from the Flutter app directory:
+SMF is a project-local development dependency. Add it and run its CLI from the
+Flutter app directory:
 
 ```bash
 dart pub add --dev smf
@@ -67,11 +68,12 @@ commit if the first release should be 1.0.0. If omitted, the initializer reads
 the stable version from `pubspec.yaml` and otherwise falls back to `0.0.0`;
 passing it explicitly is safer.
 
-In a monorepo, run the same command from the nested Flutter app. SMF places
+In a monorepo, add SMF to the nested Flutter app and run it there. SMF places
 configuration beside that app and the workflow at the Git repository root:
 
 ```bash
 cd apps/mobile
+dart pub add --dev smf
 dart run smf init \
   --current-version <current-ios-version> \
   --bundle-id com.example.myapp
@@ -115,7 +117,8 @@ absent unless a maintainer or hook supplies at least one localized note.
 
 ### CLI and Dart API
 
-The package offers one discoverable CLI with subcommands:
+After adding `smf` to `dev_dependencies`, invoke its project-local CLI through
+`dart run`. The package offers one discoverable command with subcommands:
 
 ```bash
 dart run smf --help
@@ -140,13 +143,6 @@ dart run smf:release
 dart run smf:testflight
 dart run smf:promote
 dart run smf:app_store
-```
-
-For use outside a project, activate the package globally:
-
-```bash
-dart pub global activate smf
-smf validate
 ```
 
 Custom Dart automation imports the same implementation used by the Action:

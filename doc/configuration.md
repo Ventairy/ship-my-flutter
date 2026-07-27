@@ -52,7 +52,7 @@ the working directory, and contain `config.yaml`. Discovery does not follow
 symbolic links and prunes Git metadata, hidden directories, build output,
 dependency caches, FVM caches, and `node_modules`.
 
-`smf init` is run from the Flutter app directory. It writes
+`dart run smf init` is run from the Flutter app directory. It writes
 `<app>/smf/config.yaml` and `<repository>/.github/workflows/smf.yml`; there is
 no configurable app-path field. The generated workflow pins that exact
 repository-relative `smf/` path and supplies it to every Action phase.

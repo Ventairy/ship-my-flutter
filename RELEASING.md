@@ -48,8 +48,8 @@ must be published manually from the exact immutable Release Please tag:
 2. Repeat the complete gate and inspect the package archive.
 3. Run `dart pub publish` and complete pub.dev authentication.
 4. Verify the published version and archive on pub.dev.
-5. Verify both `dart pub add --dev smf` and
-   `dart pub global activate smf` in separate clean consumers.
+5. In a clean Flutter consumer, verify `dart pub add --dev smf` and invoke the
+   installed package with `dart run smf --help`.
 
 Only after the first version exists may maintainers configure pub.dev automated
 publishing for `Ventairy/smf`. Use the tag pattern

@@ -4,11 +4,20 @@ The CLI and GitHub Action call the same Dart implementation. Use the Action for
 the turnkey lifecycle; use these commands when operating locally or composing a
 custom workflow.
 
-Run from the Flutter app or any ancestor that contains exactly one SMF app.
-Every command accepts `--smf-path` to select a specific `app/smf` directory
-when the working tree contains multiple apps. Commands that inspect history
-need a full checkout with tags. Successful commands write one JSON value to
-stdout and diagnostics to stderr.
+Install SMF as a development dependency of the Flutter app:
+
+```bash
+dart pub add --dev smf
+```
+
+Run every command through the app's resolved package graph with
+`dart run smf <command>`. SMF does not use a separate global installation.
+
+Run from the Dart or Flutter package that declares the `smf` development
+dependency. Every command accepts `--smf-path` to select a specific nested
+`app/smf` directory below that package when the working tree contains multiple
+apps. Commands that inspect history need a full checkout with tags. Successful
+commands write one JSON value to stdout and diagnostics to stderr.
 
 | Command | Runner and branch | Credentials | Side effects |
 | --- | --- | --- | --- |
