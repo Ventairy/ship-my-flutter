@@ -65,13 +65,24 @@ void main() {
         p.join(root.path, '.github', 'workflows', 'smf.yml'),
       ).readAsString();
       expect(workflow, await File('templates/smf.yml').readAsString());
+      expect(workflow, contains('SMF_PATH: "smf"'));
+      expect(
+        RegExp(r'smf-path: \$\{\{ env\.SMF_PATH \}\}').allMatches(workflow),
+        hasLength(3),
+      );
       expect(workflow, contains('Ventairy/smf-action@v1'));
       expect(workflow, contains('subosito/flutter-action@'));
       expect(
         workflow,
-        contains("hashFiles('**/.fvmrc', '**/.fvm/fvm_config.json')"),
+        contains("format('{0}/.fvmrc', steps.project.outputs.fvm_root)"),
       );
       expect(workflow, contains('dart pub global activate fvm 4.1.2'));
+      expect(
+        workflow,
+        contains("steps.project.outputs.has_before_create_hook == 'true'"),
+      );
+      expect(workflow, contains("steps.project.outputs.uses_fvm == 'true'"));
+      expect(workflow, isNot(contains('find . -type f')));
       expect(workflow, contains('runs-on: macos-26'));
       expect(workflow, contains('  pull_request:'));
       expect(workflow, contains('  release_candidate:'));
@@ -113,5 +124,31 @@ void main() {
     final paths = resolveSmfPaths(repository.path);
     expect(paths.appRoot, app.path);
     expect(paths.repositoryRoot, repository.path);
+    final workflow = await File(
+      p.join(repository.path, '.github', 'workflows', 'smf.yml'),
+    ).readAsString();
+    expect(workflow, contains('SMF_PATH: "apps/mobile/smf"'));
+  });
+
+  test('rejects a path that could inject a workflow expression', () async {
+    final repository = await Directory.systemTemp.createTemp('smf-init-');
+    addTearDown(() => repository.delete(recursive: true));
+    final app = Directory(p.join(repository.path, r'apps/${{ unsafe }}'));
+    await Directory(p.join(app.path, 'ios')).create(recursive: true);
+    await File(
+      p.join(app.path, 'pubspec.yaml'),
+    ).writeAsString('name: mobile\nversion: 2.0.0+1\n');
+    await git(repository.path, const <String>['init', '-b', 'main']);
+
+    await expectLater(
+      initialize(InitOptions(appRoot: app.path)),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          'INVALID_SMF_PATH',
+        ),
+      ),
+    );
   });
 }

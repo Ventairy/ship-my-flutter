@@ -84,6 +84,25 @@ This creates:
 <repository>/.github/workflows/smf.yml
 ```
 
+The generated workflow records the exact relative `smf/` path and passes it to
+every Action phase. This prevents a later sibling app from changing which
+configuration or FVM toolchain the workflow selects.
+
+One Git repository currently supports one independently released SMF app.
+`--smf-path` and the Action's `smf-path` input select a nested app when
+discovery is ambiguous; they do not create separate release branch and tag
+namespaces. Repositories that must release multiple apps independently should
+use separate Git repositories until app-scoped namespaces are supported.
+
+After upgrading SMF, refresh only the generated workflow without touching
+configuration or release state:
+
+```bash
+dart run smf init --workflow-only
+```
+
+Review and commit the resulting workflow diff before the next release.
+
 Commit both files with a non-release message such as
 `chore: configure smf` before merging new release-worthy work. The
 first plan derives the release baseline from the commit that introduced
@@ -283,10 +302,12 @@ and `flutter build ipa --release` otherwise. It reads the single IPA from
 only for a custom wrapper or build system. Add `ipa_output_path` only when that
 custom command writes the IPA somewhere else.
 
-The generated release-candidate job installs FVM and the declared project SDK when it
-finds `.fvmrc` or legacy `.fvm/fvm_config.json`; otherwise it installs current
-stable Flutter. The Action itself does not install the consumer's Flutter
-toolchain.
+The generated workflow resolves FVM only from the selected app and its
+ancestors. It installs that declared SDK for the release-candidate job, or
+current stable Flutter when the selected app does not use FVM. The
+pull-request job installs the same project toolchain only when
+`before_create_pr.dart` exists. The Action's private Dart runtime remains
+isolated and does not replace the consumer's Flutter toolchain.
 
 ## Store release notes
 
@@ -370,7 +391,7 @@ verification in `smf/hooks/before_build.dart`. Omit `ipa_output_path` unless the
 wrapper moves the IPA away from Flutter's standard `build/ios/ipa` directory.
 
 See [Configuration](doc/configuration.md) for hook context, managed arguments,
-artifact validation, and configuration migration.
+artifact validation, and configuration details.
 
 ## Version overrides
 

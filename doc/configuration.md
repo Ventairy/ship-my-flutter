@@ -54,7 +54,14 @@ dependency caches, FVM caches, and `node_modules`.
 
 `smf init` is run from the Flutter app directory. It writes
 `<app>/smf/config.yaml` and `<repository>/.github/workflows/smf.yml`; there is
-no configurable app-path field.
+no configurable app-path field. The generated workflow pins that exact
+repository-relative `smf/` path and supplies it to every Action phase.
+
+One Git repository currently supports one independently released SMF app.
+Explicit path selection resolves discovery in a repository that contains
+multiple app directories, but it does not namespace the shared `smf/ios`
+release branch or `ios-vX.Y.Z` tags. Keep independently released apps in
+separate repositories until SMF adds app-scoped release namespaces.
 
 ## Global fields
 
@@ -167,6 +174,11 @@ clean worktree. Absent hook files are skipped.
 Hooks also receive non-secret `SMF_*` path and version variables for
 subprocess interoperability. Apple and GitHub credential variables are
 stripped before repository-owned code runs.
+
+The generated workflow installs the selected app's project toolchain before
+running an existing hook. The pull-request job skips that installation when
+`before_create_pr.dart` is absent; the release-candidate job always installs
+the selected app's Flutter/FVM toolchain for the build.
 
 ## Persisted release state
 

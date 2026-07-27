@@ -53,7 +53,8 @@ ArgParser _parser() {
       ..addOption('smf-path')
       ..addOption('current-version')
       ..addOption('bundle-id')
-      ..addFlag('force', negatable: false),
+      ..addFlag('force', negatable: false)
+      ..addFlag('workflow-only', negatable: false),
   );
   parser.addCommand('validate', _commandParser()..addOption('smf-path'));
   parser.addCommand('plan', _commandParser()..addOption('smf-path'));
@@ -236,18 +237,25 @@ Future<Object?> _execute(ArgResults command, CliIo io) async {
   switch (command.name) {
     case 'init':
       final appRoot = _initAppRoot(command, io);
+      final workflowOnly = command.flag('workflow-only');
       await initialize(
         InitOptions(
           appRoot: appRoot,
           currentVersion: command.option('current-version'),
           bundleId: command.option('bundle-id'),
           force: command.flag('force'),
+          workflowOnly: workflowOnly,
         ),
       );
-      return <String, Object?>{
-        'initialized': true,
+      final result = <String, Object?>{
         'smfPath': smfPathsForApp(appRoot).directory,
       };
+      if (workflowOnly) {
+        result['workflowUpdated'] = true;
+      } else {
+        result['initialized'] = true;
+      }
+      return result;
     case 'validate':
       final paths = resolveSmfPaths(workingDirectory, smfPath: smfPath);
       await validateRepository(paths.directory);

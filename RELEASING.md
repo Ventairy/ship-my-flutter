@@ -68,9 +68,9 @@ Release Please job so a publication failure cannot rewrite release history.
 4. Test `plan`, candidate dispatch, and merged-release dispatch against a
    disposable Flutter repository. Do not use production Apple credentials.
 5. Complete the separately tracked live Apple acceptance gate.
-6. Create an immutable release tag such as `v1.0.0`.
-7. Move the floating major tag `v1` only after the immutable release succeeds.
-8. Confirm a clean external repository can use
+6. Follow the Action repository's Release Please procedure; do not create or
+   move its release tags manually.
+7. Confirm a clean external repository can use
    `Ventairy/smf-action@v1`.
 
 Do not tag, publish, or move `v1` from an unvalidated working tree.

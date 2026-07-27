@@ -53,6 +53,24 @@ void main() {
         jsonDecode(output.removeLast()! as String),
         containsPair('initialized', true),
       );
+      final configPath = p.join(root.path, 'smf', 'config.yaml');
+      final config = '${await File(configPath).readAsString()}# preserved\n';
+      await File(configPath).writeAsString(config);
+      final workflowPath = p.join(root.path, '.github', 'workflows', 'smf.yml');
+      await File(workflowPath).writeAsString('stale workflow\n');
+      expect(
+        await runSmfCli(const <String>['init', '--workflow-only'], io: io),
+        0,
+      );
+      expect(
+        jsonDecode(output.removeLast()! as String),
+        containsPair('workflowUpdated', true),
+      );
+      expect(await File(configPath).readAsString(), config);
+      expect(
+        await File(workflowPath).readAsString(),
+        await File('templates/smf.yml').readAsString(),
+      );
       await git(root.path, const <String>['add', '.']);
       await git(root.path, const <String>[
         'commit',
