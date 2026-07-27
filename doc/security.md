@@ -25,7 +25,7 @@ ship-my-flutter handles high-value signing material. Its defaults are intentiona
 - `ipa_output_path` must stay under `app_path`; resolved symlinks are
   checked again after the build.
 
-GitHub should restrict release environments, secret access, and workflow modification to trusted maintainers. Do not run the candidate phase for untrusted fork code with secrets.
+GitHub should restrict release environments, secret access, and workflow modification to trusted maintainers. Do not run the release-candidate phase for untrusted fork code with secrets.
 Prefer a dedicated ephemeral macOS runner when using self-hosted infrastructure.
 
 ## Supply chain
@@ -46,9 +46,9 @@ The consumer references `Ventairy/ship-my-flutter-action@v1` for stable updates.
 
 The generated workflow grants each job only what its phase uses:
 
-- Plan: `contents: write` to maintain the release branch, `pull-requests: write` to open/update the release PR, and `issues: write` to apply its lifecycle label.
-- Candidate: `contents: write` only, to commit the TestFlight receipt.
-- Promote: `contents: write` only, to create the platform tag and GitHub Release.
+- Pull request: `contents: write` to maintain the release branch, `pull-requests: write` to open/update the release PR, and `issues: write` to apply its lifecycle label.
+- Release candidate: `contents: write` only, to commit the TestFlight receipt.
+- Ship: `contents: write` only, to create the platform tag and GitHub Release.
 
 All other permissions default to read or none. No organization-wide token is
 required when the repository or organization allows GitHub Actions to create
@@ -58,18 +58,18 @@ design does not depend on a token-generated push triggering another workflow.
 
 If repository or organization policy disables PR creation for `GITHUB_TOKEN`,
 pass a GitHub App installation token or narrowly scoped personal access token
-to the plan action's `github-token` input. Grant Contents, Pull requests, and
+to the pull-request action's `github-token` input. Grant Contents, Pull requests, and
 Issues read/write access; the alternative token performs both the API
 operations and release-branch push.
 
 GitHub does not create new workflow runs for events produced by the default
 `GITHUB_TOKEN`. ship-my-flutter's candidate still runs because the generated
-workflow dispatches it from the plan job's outputs, but unrelated
+workflow dispatches it from the pull-request job's outputs, but unrelated
 `pull_request` workflows will not run for the generated release PR.
 Repositories that require those independent checks must use a GitHub App
 installation token (preferred) or narrowly scoped personal access token as the
-plan action's `github-token` input. Treat that credential as a release secret
-and grant only the repository permissions used by the plan phase.
+pull-request action's `github-token` input. Treat that credential as a release
+secret and grant only the repository permissions used by the pull-request phase.
 
 ## Promotion integrity
 

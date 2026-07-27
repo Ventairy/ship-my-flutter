@@ -86,7 +86,7 @@ ArgParser _parser() {
     ArgParser()
       ..addOption(
         'phase',
-        allowed: const <String>['plan', 'candidate', 'promote'],
+        allowed: const <String>['pull-request', 'release-candidate', 'ship'],
         mandatory: true,
       )
       ..addOption('root', abbr: 'r')
@@ -271,12 +271,12 @@ Future<Object?> _executeAction(
   String root,
 ) async {
   switch (command.option('phase')) {
-    case 'plan':
+    case 'pull-request':
       return (await planGitHubRelease(
         root: root,
         github: await _requiredGitHub(command, io),
       )).toJson();
-    case 'candidate':
+    case 'release-candidate':
       final github = await _requiredGitHub(command, io);
       return (await createIosCandidate(
         CandidateOptions(
@@ -290,7 +290,7 @@ Future<Object?> _executeAction(
           github: github,
         ),
       )).toJson();
-    case 'promote':
+    case 'ship':
       return (await promoteIosRelease(
         PromotionOptions(
           root: root,

@@ -69,7 +69,7 @@ hooks:
 
 Install every hook dependency before the corresponding Action step. For
 example, a Flutter-dependent `before_create_pr` requires Flutter setup in the
-plan job as well as the candidate job.
+pull-request job as well as the release-candidate job.
 
 The release-PR hook receives:
 

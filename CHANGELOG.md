@@ -31,6 +31,8 @@ The project follows Semantic Versioning and Conventional Commits.
   when needed, while absent store notes no longer create an empty file.
 - Made the `ship-my-flutter/<platform>` release branch convention internal and
   removed the unnecessary `release_branch_prefix` configuration field.
+- Renamed the GitHub Action phases to `pull-request`, `release-candidate`, and
+  `ship` so the workflow contract describes each outcome directly.
 
 ### Added
 

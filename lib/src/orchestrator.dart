@@ -32,7 +32,7 @@ final class ReleaseOrchestrator {
       return state.pendingRelease &&
               await releaseNeedsPromotion(root, manifest, Platform.ios)
           ? CommandResult(
-              phase: 'candidate',
+              phase: 'release-candidate',
               platform: Platform.ios,
               version: state.version,
               branch: releaseBranch,
@@ -41,7 +41,7 @@ final class ReleaseOrchestrator {
     }
     if (await releaseNeedsPromotion(root, manifest, Platform.ios)) {
       return CommandResult(
-        phase: 'promote',
+        phase: 'ship',
         platform: Platform.ios,
         version: manifest.ios.version,
       );
@@ -56,7 +56,7 @@ final class ReleaseOrchestrator {
       githubApi: githubApi,
     );
     return CommandResult(
-      phase: 'candidate',
+      phase: 'release-candidate',
       platform: Platform.ios,
       version: plan.nextVersion,
       branch: pull.branch,

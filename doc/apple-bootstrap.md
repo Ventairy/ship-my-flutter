@@ -81,7 +81,7 @@ acceptance run. Let ship-my-flutter create its normal configured release branch
 in that repository. Verify all of the following before publishing the core
 package or the `v1` Action tag:
 
-1. the macOS candidate job imports the real certificate and every required
+1. the macOS release-candidate job imports the real certificate and every required
    provisioning profile;
 2. Xcode exports an IPA with the expected application and extension bundle
    identifiers;

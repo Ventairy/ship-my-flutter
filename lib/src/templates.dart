@@ -41,7 +41,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  plan:
+  pull_request:
+    name: pull-request
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -59,18 +60,19 @@ jobs:
       - id: ship
         uses: Ventairy/ship-my-flutter-action@v1
         with:
-          phase: plan
+          phase: pull-request
 
-  candidate:
-    needs: plan
-    if: needs.plan.outputs.phase == 'candidate'
+  release_candidate:
+    name: release-candidate
+    needs: pull_request
+    if: needs.pull_request.outputs.phase == 'release-candidate'
     runs-on: macos-26
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ needs.plan.outputs.branch }}
+          ref: ${{ needs.pull_request.outputs.branch }}
           fetch-depth: 0
           persist-credentials: false
       - if: ${{ hashFiles('.fvmrc', '.fvm/fvm_config.json') != '' }}
@@ -94,7 +96,7 @@ jobs:
           pub-cache: true
       - uses: Ventairy/ship-my-flutter-action@v1
         with:
-          phase: candidate
+          phase: release-candidate
           app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           app-store-connect-private-key-base64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
@@ -102,9 +104,9 @@ jobs:
           ios-certificate-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           ios-provisioning-profiles-base64: ${{ secrets.IOS_PROVISIONING_PROFILES_BASE64 }}
 
-  promote:
-    needs: plan
-    if: needs.plan.outputs.phase == 'promote'
+  ship:
+    needs: pull_request
+    if: needs.pull_request.outputs.phase == 'ship'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -115,7 +117,7 @@ jobs:
           persist-credentials: false
       - uses: Ventairy/ship-my-flutter-action@v1
         with:
-          phase: promote
+          phase: ship
           app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           app-store-connect-private-key-base64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}

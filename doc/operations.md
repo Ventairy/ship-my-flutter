@@ -7,14 +7,14 @@ maintainer decision. Use this page for routine operation and recovery.
 
 Do not merge a release PR until:
 
-1. its candidate job has committed
+1. its release-candidate job has committed
    `.ship-my-flutter/candidates/ios-<version>.json`;
 2. the recorded build is visible and valid in TestFlight;
 3. the exact candidate has been tested;
 4. any localized store notes supplied in the PR are correct.
 
 The PR checkboxes are a human review aid; GitHub does not complete them
-automatically. In the generated same-run workflow, the candidate job belongs to
+automatically. In the generated same-run workflow, the release-candidate job belongs to
 the target-branch run and its receipt push advances the release PR head, so it
 cannot currently be a required PR-head branch-protection check. Treat the
 receipt, valid TestFlight build, and human test as an explicit manual merge
@@ -27,7 +27,7 @@ works and App Store metadata is complete, opt in to `review` or `auto` in
 
 To submit the already-tested candidate, change `app_store.mode` on the target
 branch, commit and push it, and wait for the release PR to synchronize and its
-candidate job to finish again. Delivery-only configuration is excluded from the
+release-candidate job to finish again. Delivery-only configuration is excluded from the
 source fingerprint, so the job revalidates and reuses the processed build when
 the build inputs are otherwise unchanged. Recheck the receipt and TestFlight
 build, then merge. Any tracked app-source or build-input change invalidates the
@@ -71,7 +71,7 @@ group access.
   issue on the target branch. The release PR updates and produces a new
   candidate when tracked inputs change.
 - **Upload succeeded but receipt commit failed:** do not merge. Rerun the
-  candidate job; the valid Apple build is reused when the fingerprint matches.
+  release-candidate job; the valid Apple build is reused when the fingerprint matches.
 - **Promotion refused a fingerprint or Apple identity mismatch:** do not bypass
   the check or edit the receipt. Restore the release PR, produce and test a new
   candidate, then merge that exact state.

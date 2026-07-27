@@ -161,7 +161,7 @@ Future<CandidateReceipt> createIosCandidate(CandidateOptions options) async {
   final releaseBranch = releaseBranchName(Platform.ios);
   invariant(
     branch == releaseBranch,
-    'The candidate phase only runs on $releaseBranch.',
+    'Release-candidate creation only runs on $releaseBranch.',
     'CANDIDATE_BRANCH',
   );
   invariant(

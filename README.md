@@ -158,13 +158,13 @@ command's branch, credentials, runner, and side effects.
 In the Flutter repository, open **Settings → Actions → General → Workflow
 permissions** and enable **Allow GitHub Actions to create and approve pull
 requests**. Organization policy can lock this setting; if it does, ask an
-organization owner to enable it or give the plan step a GitHub App installation
+organization owner to enable it or give the pull-request step a GitHub App installation
 token (preferred) or narrowly scoped personal access token:
 
 ```yaml
 - uses: Ventairy/ship-my-flutter-action@v1
   with:
-    phase: plan
+    phase: pull-request
     github-token: ${{ secrets.SHIP_MY_FLUTTER_GITHUB_TOKEN }}
 ```
 
@@ -174,8 +174,8 @@ The same token performs the authenticated release-branch push. Treat the
 alternative token as a release secret.
 
 The default `GITHUB_TOKEN` does not trigger separate workflow runs for events
-it creates. That does not affect ship-my-flutter's candidate job—the generated
-workflow dispatches it from the plan job's outputs—but it can suppress your
+it creates. That does not affect ship-my-flutter's release-candidate job—the generated
+workflow dispatches it from the pull-request job's outputs—but it can suppress your
 repository's normal `pull_request` checks on the generated release PR. Use the
 GitHub App or PAT path when those independent checks must run automatically.
 
@@ -286,7 +286,7 @@ and `flutter build ipa --release` otherwise. It reads the single IPA from
 only for a custom wrapper or build system. Add `ipa_output_path` only when that
 custom command writes the IPA somewhere else.
 
-The generated candidate job installs FVM and the declared project SDK when it
+The generated release-candidate job installs FVM and the declared project SDK when it
 finds `.fvmrc` or legacy `.fvm/fvm_config.json`; otherwise it installs current
 stable Flutter. The Action itself does not install the consumer's Flutter
 toolchain.
@@ -383,7 +383,7 @@ Every platform owns its version. `pubspec.yaml` is not treated as a global relea
 
 The generated workflow uses one repository-wide concurrency lane:
 
-- An Ubuntu job plans or updates `ship-my-flutter/ios`.
+- The Ubuntu `pull-request` job plans or updates `ship-my-flutter/ios`.
 - A macOS 26 job installs the project-selected Flutter toolchain, imports
   temporary signing material, runs the configured IPA build, uploads it, waits
   for `VALID`, writes TestFlight notes, assigns groups, and commits the
@@ -391,13 +391,13 @@ The generated workflow uses one repository-wide concurrency lane:
 - After the release PR merges, an Ubuntu job verifies the receipt, promotes the exact Apple build, and creates `ios-vX.Y.Z`.
 
 GitHub does not create new workflow runs for events produced by the default
-`GITHUB_TOKEN`. The TestFlight candidate job is unaffected because it continues
+`GITHUB_TOKEN`. The TestFlight release-candidate job is unaffected because it continues
 in the workflow that opened the PR. Your repository's separate `pull_request`
 workflows, however, will not run for that generated PR.
 
 If independent PR checks must run, generate a GitHub App installation token
 (preferred) or use a narrowly scoped personal access token and pass it as the
-plan step's `github-token` input. This is optional; do not add a long-lived
+pull-request step's `github-token` input. This is optional; do not add a long-lived
 token merely for ship-my-flutter's own jobs.
 
 Secrets are passed only as action inputs, masked by GitHub, written with restrictive permissions, and removed during cleanup. See [Security model](doc/security.md).

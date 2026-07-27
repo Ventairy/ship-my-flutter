@@ -68,6 +68,15 @@ void main() {
       expect(workflow, contains("hashFiles('.fvmrc', '.fvm/fvm_config.json')"));
       expect(workflow, contains('dart pub global activate fvm 4.1.2'));
       expect(workflow, contains('runs-on: macos-26'));
+      expect(workflow, contains('  pull_request:'));
+      expect(workflow, contains('  release_candidate:'));
+      expect(workflow, contains('  ship:'));
+      expect(workflow, contains('phase: pull-request'));
+      expect(workflow, contains('phase: release-candidate'));
+      expect(workflow, contains('phase: ship'));
+      expect(workflow, isNot(contains('phase: plan')));
+      expect(workflow, isNot(contains('phase: candidate')));
+      expect(workflow, isNot(contains('phase: promote')));
       expect(
         RegExp('persist-credentials: false').allMatches(workflow),
         hasLength(3),

@@ -29,7 +29,7 @@ Future<PromotionResult> promoteIosRelease(PromotionOptions options) async {
   );
   invariant(
     await currentBranch(root) == config.targetBranch,
-    'The promotion phase only runs on ${config.targetBranch}.',
+    'Shipping only runs on ${config.targetBranch}.',
     'PROMOTION_BRANCH',
   );
   invariant(

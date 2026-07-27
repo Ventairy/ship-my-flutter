@@ -40,7 +40,7 @@ placeholder; the file exists only when a maintainer or hook supplies notes.
 
 ## State machine
 
-### 1. Plan
+### 1. Pull request
 
 On a push to the target branch, the planner:
 
@@ -54,9 +54,9 @@ On a push to the target branch, the planner:
 
 The release branch is merged with the latest target branch instead of being recreated, which preserves human edits to store notes.
 
-### 2. Candidate
+### 2. Release candidate
 
-The candidate job:
+The `release-candidate` job:
 
 1. Runs the optional repository-owned `before_build` preparation hook.
 2. By default commits and pushes everything left by the hook; with
@@ -83,9 +83,9 @@ rejects tracked symlinks to external or untracked inputs. Editing release copy
 or promotion policy does not rebuild an identical app; editing an actual build
 input does.
 
-### 3. Promote
+### 3. Ship
 
-When the release PR reaches the target branch, `pendingRelease` is true and the matching platform tag does not yet exist. Promotion:
+When the release PR reaches the target branch, `pendingRelease` is true and the matching platform tag does not yet exist. The `ship` job:
 
 1. Loads the committed receipt.
 2. recomputes the build-input fingerprint.

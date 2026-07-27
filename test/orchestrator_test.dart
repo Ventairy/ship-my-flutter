@@ -42,7 +42,7 @@ const context = GitHubContext(owner: 'example', repo: 'app', token: 'unused');
 void main() {
   group('workflow routing', () {
     test(
-      'routes only configured pending release branch to candidate',
+      'routes only configured pending release branch to release-candidate',
       () async {
         final root = await repository();
         await git(root.path, const <String>[
@@ -100,7 +100,7 @@ void main() {
           github: context,
         );
         expect(result.toJson(), <String, Object?>{
-          'phase': 'candidate',
+          'phase': 'release-candidate',
           'platform': 'ios',
           'version': '1.1.0',
           'branch': 'ship-my-flutter/ios',
