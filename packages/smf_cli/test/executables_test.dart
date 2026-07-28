@@ -919,9 +919,21 @@ platforms:
       expect(output.single, contains('--phase (mandatory)'));
       expect(
         output.single,
-        contains('[pull-request, release-candidate, ship]'),
+        contains(
+          '--phase (mandatory)                             Release workflow '
+          'phase: pull-request, release-candidate, or ship.',
+        ),
+      );
+      expect(
+        output.single,
+        contains(
+          '--platform=<ios|android>                        Optional platform '
+          'filter: ios or android. Omit it to process every eligible platform.',
+        ),
       );
       expect(output.single, contains('--platform=<ios|android>'));
+      expect(output.single, isNot(contains('[pull-request, release-candidate, ship]')));
+      expect(output.single, isNot(contains('[ios, android]')));
       expect(output.single, isNot(contains('--prepare-only')));
       for (final option in <String>[
         '--github-token=<value>',
@@ -966,6 +978,41 @@ platforms:
     );
     expect(errors.last, contains('Usage: smf release [options]'));
     expect(errors.join('\n'), isNot(contains('Unhandled exception')));
+  });
+
+  test('reports unsupported release phase and platform values', () async {
+    for (final testCase in <(List<String>, String)>[
+      (
+        const <String>['release', '--phase', 'deploy'],
+        'smf release: Unsupported phase "deploy". Choose pull-request, '
+            'release-candidate, or ship.',
+      ),
+      (
+        const <String>[
+          'release',
+          '--phase',
+          'pull-request',
+          '--platform',
+          'web',
+        ],
+        'smf release: Unsupported platform "web".',
+      ),
+    ]) {
+      final errors = <Object?>[];
+
+      final exitCode = await SmfExecutable.run(
+        testCase.$1,
+        io: ExecutableIo(
+          environment: const <String, String>{},
+          workingDirectory: Directory.current.path,
+          writeOutput: (_) {},
+          writeError: errors.add,
+        ),
+      );
+
+      expect(exitCode, 64);
+      expect(errors.first, testCase.$2);
+    }
   });
 
   test('documents every visible CLI option in command help', () async {

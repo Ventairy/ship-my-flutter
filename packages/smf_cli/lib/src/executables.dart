@@ -742,21 +742,17 @@ $credentialGuidance
           )
           ..addOption(
             'phase',
-            allowed: const <String>[
-              'pull-request',
-              'release-candidate',
-              'ship',
-            ],
             mandatory: true,
-            help: 'Release workflow phase to execute.',
+            help:
+                'Release workflow phase: pull-request, release-candidate, or '
+                'ship.',
           )
           ..addOption(
             'platform',
             valueHelp: 'ios|android',
-            allowed: Platform.values.map((platform) => platform.value),
             help:
-                'Restrict the phase to one platform. Omit it to process every '
-                'eligible platform.',
+                'Optional platform filter: ios or android. Omit it to process '
+                'every eligible platform.',
           )
           ..addOption('working-directory', hide: true);
     return _runExecutable(
@@ -774,6 +770,15 @@ $credentialGuidance
             'release-candidate, or ship.',
           );
         }
+        final phase = arguments.option('phase')!;
+        if (phase != 'pull-request' && phase != 'release-candidate' && phase != 'ship') {
+          throw FormatException(
+            'Unsupported phase "$phase". Choose pull-request, '
+            'release-candidate, or ship.',
+          );
+        }
+        final selected = arguments.option('platform');
+        final selectedPlatform = selected == null ? null : Platform.parse(selected);
         final workingDirectory = _workingDirectory(
           io,
           arguments.option('working-directory'),
@@ -784,9 +789,7 @@ $credentialGuidance
           io,
           inferRepositoryFromGit: true,
         );
-        final selected = arguments.option('platform');
-        final selectedPlatform = selected == null ? null : Platform.parse(selected);
-        switch (arguments.option('phase')) {
+        switch (phase) {
           case 'pull-request':
             return (await _prepareRelease(
               workingDirectory: workingDirectory,
