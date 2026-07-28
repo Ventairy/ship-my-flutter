@@ -710,22 +710,61 @@ $credentialGuidance
         'smf-path',
         valueHelp: 'path',
         help:
-            'Repository-relative path to the app-owned smf directory. Required '
-            'when the repository contains multiple SMF apps.',
+            'Validate only this repository-relative SMF directory. Omit it to '
+            'discover and validate every SMF app in the repository.',
       );
     return _runExecutable(
       name: 'validate',
-      description: 'Validate configuration and repository safety invariants.',
+      description:
+          'Validate configuration and repository safety invariants for every '
+          'discovered SMF app, or only --smf-path when provided.',
       arguments: arguments,
       parser: parser,
       io: io,
       operation: (arguments, io) async {
-        final paths = SmfPaths.resolve(
-          _workingDirectory(io),
-          smfPath: _smfPath(arguments),
-        );
-        await RepositoryValidator.validate(paths.directory);
-        return const <String, Object?>{'valid': true};
+        final workingDirectory = _workingDirectory(io);
+        final smfPath = _smfPath(arguments);
+        final repositoryRoot =
+            await GitClient(
+              root: workingDirectory,
+            ).run(
+              const <String>['rev-parse', '--show-toplevel'],
+            );
+        final targets = <SmfPaths>[];
+        if (smfPath != null) {
+          targets.add(
+            SmfPaths.resolve(repositoryRoot, smfPath: smfPath),
+          );
+        } else {
+          final directories = SmfPaths.discover(repositoryRoot);
+          SmfError.check(
+            directories.isNotEmpty,
+            'No smf/config.yaml was found in $repositoryRoot. Run `smf init` '
+                'from a Flutter app directory or pass --smf-path.',
+            'SMF_NOT_FOUND',
+          );
+          targets.addAll(
+            directories.map(SmfPaths.resolve),
+          );
+        }
+        final validatedPaths = <String>[];
+        for (final target in targets) {
+          final relativePath = p.relative(target.directory, from: target.repositoryRoot).replaceAll(r'\', '/');
+          try {
+            await RepositoryValidator.validate(target.directory);
+          } on SmfError catch (error) {
+            throw SmfError(
+              'Validation failed for $relativePath: ${error.message}',
+              error.code,
+              cause: error,
+            );
+          }
+          validatedPaths.add(relativePath);
+        }
+        return <String, Object?>{
+          'valid': true,
+          'smfPaths': validatedPaths,
+        };
       },
     );
   }

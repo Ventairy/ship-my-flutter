@@ -263,22 +263,22 @@ matches the corresponding platform-specific option before committing.
 If the app uses a Flutter flavor, set the one global `flavor`. See
 [Configuration](configuration.md) before adding custom build commands.
 
-For one initialized app at the repository root, run:
+Validate every initialized app in the repository:
 
 ```bash
 smf validate
 ```
 
-For multiple initialized apps, select each one:
+To validate only one initialized app, select its repository-relative `smf/`
+directory:
 
 ```bash
 smf validate --smf-path apps/customer/smf
-
-smf validate --smf-path apps/driver/smf
 ```
 
-`smf validate` checks configuration, repository layout, paths, and
-Git-controlled release files. It does not read GitHub Environment secrets,
+The default command discovers every `smf/config.yaml` in the repository and
+fails if any app is invalid. It checks configuration, repository layout, paths,
+and Git-controlled release files. It does not read GitHub Environment secrets,
 contact either store, prove signing credentials, or confirm that configured
 identifiers match store records. Those checks happen in the credentialed
 candidate workflow.

@@ -123,25 +123,27 @@ smf init --app-path apps/mobile --github-actions
 smf validate
 ```
 
-A successful result means the local SMF files are consistent. It does not
-check GitHub secrets, store access, or signing credentials.
+A successful result lists every discovered `smf/` directory and means all of
+their local SMF files are consistent. It does not check GitHub secrets, store
+access, or signing credentials.
 
-## Select an app in a monorepo
+## Validate one app in a monorepo
 
-When the repository contains several initialized apps, select one by its
-`smf/` directory:
+By default, `smf validate` discovers and validates every initialized app in the
+repository. To validate only one app, pass its repository-relative `smf/`
+directory:
 
 ```bash
 smf validate --smf-path apps/customer/smf
 ```
 
-Run this command from the repository root.
+You can run the command from anywhere inside the repository.
 
 `--app-path` and `--smf-path` have different jobs:
 
 - `--app-path` points `smf init` to a Flutter app that is not at the repository
   root.
-- `--smf-path` selects an app that is already initialized.
+- `--smf-path` limits validation to one app that is already initialized.
 
 ## Update repository files after upgrading SMF
 

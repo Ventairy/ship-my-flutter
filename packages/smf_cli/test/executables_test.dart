@@ -8,6 +8,25 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
+Future<void> _initializeValidationApp(
+  String repositoryRoot,
+  String appName,
+) async {
+  final appRoot = p.join(repositoryRoot, 'apps', appName);
+  await Directory(p.join(appRoot, 'ios')).create(recursive: true);
+  await File(p.join(appRoot, 'pubspec.yaml')).writeAsString(
+    'name: $appName\nversion: 1.0.0+1\n',
+  );
+  await RepositoryInitializer.initialize(
+    InitOptions(
+      appRoot: appRoot,
+      appId: appName,
+      iosBundleId: 'dev.example.$appName',
+      githubActions: false,
+    ),
+  );
+}
+
 void main() {
   test('publishes one installed smf entrypoint', () async {
     final pubspec = loadYaml(await File('pubspec.yaml').readAsString()) as YamlMap;
@@ -212,6 +231,7 @@ void main() {
     expect(await SmfExecutable.runValidate(const <String>[], io: io), 0);
     expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
       'valid': true,
+      'smfPaths': <Object?>['apps/mobile/smf'],
     });
 
     expect(errors, isEmpty);
@@ -764,6 +784,119 @@ platforms:
     },
   );
 
+  test(
+    'validate discovers every app and optionally selects one',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'smf-validate-multiple-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final git = GitClient(root: root.path);
+      await git.run(const <String>['init', '-b', 'main']);
+      await git.run(const <String>['config', 'user.name', 'Test']);
+      await git.run(const <String>[
+        'config',
+        'user.email',
+        'test@example.com',
+      ]);
+      await File(p.join(root.path, 'pubspec.lock')).writeAsString('# lock\n');
+      await _initializeValidationApp(root.path, 'customer');
+      await _initializeValidationApp(root.path, 'driver');
+      await git.run(const <String>['add', '.']);
+      await git.run(const <String>[
+        'commit',
+        '-m',
+        'chore: configure apps',
+      ]);
+
+      final output = <Object?>[];
+      final errors = <Object?>[];
+      final io = ExecutableIo(
+        environment: const <String, String>{},
+        workingDirectory: p.join(root.path, 'apps', 'customer'),
+        writeOutput: output.add,
+        writeError: errors.add,
+      );
+
+      expect(await SmfExecutable.runValidate(const <String>[], io: io), 0);
+      expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
+        'valid': true,
+        'smfPaths': <Object?>[
+          'apps/customer/smf',
+          'apps/driver/smf',
+        ],
+      });
+
+      expect(
+        await SmfExecutable.runValidate(
+          const <String>['--smf-path', 'apps/driver/smf'],
+          io: io,
+        ),
+        0,
+      );
+      expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
+        'valid': true,
+        'smfPaths': <Object?>['apps/driver/smf'],
+      });
+      expect(errors, isEmpty);
+
+      final driverConfig = File(
+        p.join(root.path, 'apps', 'driver', 'smf', 'config.yaml'),
+      );
+      await driverConfig.writeAsString(
+        (await driverConfig.readAsString()).replaceFirst(
+          'schema_version: 1',
+          'schema_version: 0',
+        ),
+      );
+
+      expect(await SmfExecutable.runValidate(const <String>[], io: io), 1);
+      expect(errors.join('\n'), contains('[INVALID_CONFIG]'));
+      expect(
+        errors.join('\n'),
+        contains('Validation failed for apps/driver/smf'),
+      );
+      errors.clear();
+      expect(
+        await SmfExecutable.runValidate(
+          const <String>['--smf-path', 'apps/customer/smf'],
+          io: io,
+        ),
+        0,
+      );
+      expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
+        'valid': true,
+        'smfPaths': <Object?>['apps/customer/smf'],
+      });
+      expect(errors, isEmpty);
+    },
+  );
+
+  test('validate reports when the repository has no SMF apps', () async {
+    final root = await Directory.systemTemp.createTemp('smf-validate-empty-');
+    addTearDown(() => root.delete(recursive: true));
+    await GitClient(root: root.path).run(const <String>[
+      'init',
+      '-b',
+      'main',
+    ]);
+    final errors = <Object?>[];
+
+    final exitCode = await SmfExecutable.runValidate(
+      const <String>[],
+      io: ExecutableIo(
+        environment: const <String, String>{},
+        workingDirectory: root.path,
+        writeOutput: (_) {},
+        writeError: errors.add,
+      ),
+    );
+
+    expect(exitCode, 1);
+    expect(errors.join('\n'), contains('[SMF_NOT_FOUND]'));
+    expect(errors.join('\n'), contains('No smf/config.yaml was found'));
+  });
+
   test('reports an outdated config without leaking a parallel error', () async {
     final root = await Directory.systemTemp.createTemp('smf-validate-');
     addTearDown(() => root.delete(recursive: true));
@@ -902,6 +1035,26 @@ platforms:
       expect(output.single, contains('--config'));
       expect(output.single, contains('--github-actions'));
       expect(output.single, contains('--registry'));
+      output.clear();
+
+      expect(
+        await SmfExecutable.runValidate(
+          const <String>['--help'],
+          io: ExecutableIo(
+            environment: const <String, String>{},
+            workingDirectory: Directory.current.path,
+            writeOutput: output.add,
+            writeError: errors.add,
+          ),
+        ),
+        0,
+      );
+      expect(output.single, contains('Usage: smf validate [options]'));
+      expect(
+        output.single,
+        contains('discover and validate every SMF app in the repository'),
+      );
+      expect(output.single, contains('Validate only this repository-relative'));
       output.clear();
 
       expect(
