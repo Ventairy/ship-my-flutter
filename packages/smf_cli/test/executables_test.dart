@@ -950,6 +950,24 @@ platforms:
       ]) {
         expect(output.single, contains(option));
       }
+      for (final environmentName in <String>[
+        'SMF_GITHUB_TOKEN',
+        'SMF_APP_STORE_CONNECT_KEY_ID',
+        'SMF_APP_STORE_CONNECT_ISSUER_ID',
+        'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
+        'SMF_IOS_CERTIFICATE_BASE64',
+        'SMF_IOS_CERTIFICATE_PASSWORD',
+        'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON',
+        'SMF_ANDROID_KEYSTORE_BASE64',
+        'SMF_ANDROID_KEY_ALIAS',
+        'SMF_ANDROID_KEYSTORE_PASSWORD',
+        'SMF_ANDROID_KEY_PASSWORD',
+      ]) {
+        expect(
+          output.single,
+          contains('the $environmentName environment variable'),
+        );
+      }
       expect(output.single, isNot(contains('--github-token-file')));
       expect(errors, isEmpty);
     },

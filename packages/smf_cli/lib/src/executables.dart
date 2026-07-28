@@ -312,29 +312,29 @@ $credentialGuidance
         'app-store-connect-key-id',
         valueHelp: 'value',
         help:
-            'App Store Connect API key ID. Alternatively set '
-            'SMF_APP_STORE_CONNECT_KEY_ID.',
+            'App Store Connect API key ID. Alternatively set the '
+            'SMF_APP_STORE_CONNECT_KEY_ID environment variable.',
       )
       ..addOption(
         'app-store-connect-issuer-id',
         valueHelp: 'value',
         help:
-            'App Store Connect issuer ID. Alternatively set '
-            'SMF_APP_STORE_CONNECT_ISSUER_ID.',
+            'App Store Connect issuer ID. Alternatively set the '
+            'SMF_APP_STORE_CONNECT_ISSUER_ID environment variable.',
       )
       ..addOption(
         'app-store-connect-auth-key-base64',
         valueHelp: 'base64',
         help:
-            'Base64 App Store Connect .p8 key. Alternatively set '
-            'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64.',
+            'Base64 App Store Connect .p8 key. Alternatively set the '
+            'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64 environment variable.',
       )
       ..addOption(
         'google-play-service-account-json',
         valueHelp: 'json',
         help:
-            'Complete Google Play service-account JSON. Alternatively set '
-            'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.',
+            'Complete Google Play service-account JSON. Alternatively set the '
+            'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON environment variable.',
       );
     if (!includeSigning) return parser;
     parser
@@ -342,43 +342,43 @@ $credentialGuidance
         'ios-certificate-base64',
         valueHelp: 'base64',
         help:
-            'Base64 Apple Distribution .p12. Alternatively set '
-            'SMF_IOS_CERTIFICATE_BASE64.',
+            'Base64 Apple Distribution .p12. Alternatively set the '
+            'SMF_IOS_CERTIFICATE_BASE64 environment variable.',
       )
       ..addOption(
         'ios-certificate-password',
         valueHelp: 'value',
         help:
-            'Apple Distribution .p12 password. Alternatively set '
-            'SMF_IOS_CERTIFICATE_PASSWORD.',
+            'Apple Distribution .p12 password. Alternatively set the '
+            'SMF_IOS_CERTIFICATE_PASSWORD environment variable.',
       )
       ..addOption(
         'android-keystore-base64',
         valueHelp: 'base64',
         help:
-            'Base64 Android upload keystore. Alternatively set '
-            'SMF_ANDROID_KEYSTORE_BASE64.',
+            'Base64 Android upload keystore. Alternatively set the '
+            'SMF_ANDROID_KEYSTORE_BASE64 environment variable.',
       )
       ..addOption(
         'android-key-alias',
         valueHelp: 'value',
         help:
-            'Android upload-key alias. Alternatively set '
-            'SMF_ANDROID_KEY_ALIAS.',
+            'Android upload-key alias. Alternatively set the '
+            'SMF_ANDROID_KEY_ALIAS environment variable.',
       )
       ..addOption(
         'android-keystore-password',
         valueHelp: 'value',
         help:
-            'Android upload-keystore password. Alternatively set '
-            'SMF_ANDROID_KEYSTORE_PASSWORD.',
+            'Android upload-keystore password. Alternatively set the '
+            'SMF_ANDROID_KEYSTORE_PASSWORD environment variable.',
       )
       ..addOption(
         'android-key-password',
         valueHelp: 'value',
         help:
-            'Android upload-key password. Alternatively set '
-            'SMF_ANDROID_KEY_PASSWORD.',
+            'Android upload-key password. Alternatively set the '
+            'SMF_ANDROID_KEY_PASSWORD environment variable.',
       );
     return parser;
   }
@@ -503,7 +503,7 @@ $credentialGuidance
       valueHelp: 'value',
       help:
           'GitHub token used for release state and repository writes. '
-          'Alternatively set SMF_GITHUB_TOKEN.',
+          'Alternatively set the SMF_GITHUB_TOKEN environment variable.',
     );
 
   static Future<int> runInit(List<String> arguments, {ExecutableIo? io}) {
