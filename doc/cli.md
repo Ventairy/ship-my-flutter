@@ -257,8 +257,6 @@ $env:SMF_ANDROID_KEYSTORE_PASSWORD = "<keystore-password>"
 $env:SMF_ANDROID_KEY_PASSWORD = "<key-password>"
 
 smf release --phase release-candidate
-
-Remove-Item Env:SMF_GITHUB_TOKEN,Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,Env:SMF_ANDROID_KEYSTORE_BASE64,Env:SMF_ANDROID_KEY_ALIAS,Env:SMF_ANDROID_KEYSTORE_PASSWORD,Env:SMF_ANDROID_KEY_PASSWORD
 ```
 
 For a quick local run, every credential also has a direct option:
