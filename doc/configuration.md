@@ -13,7 +13,7 @@ Run `smf validate` after every change.
 ## Complete example
 
 ```yaml
-schema_version: 1
+schema_version: 3
 app_id: my_app
 target_branch: main
 flavor: production
@@ -51,7 +51,7 @@ iOS and Android versions are intentionally independent.
 
 | Field                   | Required/default        | Meaning                                                                |
 | ----------------------- | ----------------------- | ---------------------------------------------------------------------- |
-| `schema_version`        | required, currently `1` | Configuration format                                                   |
+| `schema_version`        | required, currently `3` | Configuration format                                                   |
 | `app_id`                | required, generated     | Stable identity for this app's release resources                       |
 | `target_branch`         | required                | Branch containing normal application work                              |
 | `flavor`                | optional                | One Flutter flavor passed to enabled platform builds                   |

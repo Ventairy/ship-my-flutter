@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:smf_engine/src/models/smf_config.dart';
+
 /// Renders the configuration and GitHub workflow files owned by SMF.
 final class SmfTemplates {
   const SmfTemplates._();
@@ -49,7 +51,7 @@ final class SmfTemplates {
     return '''
 # yaml-language-server: \$schema=$configSchemaUrl
 
-schema_version: 3
+schema_version: ${SmfConfig.currentSchemaVersion}
 app_id: ${jsonEncode(appId)}
 target_branch: main
 ${releaseTriggerPaths.isEmpty ? '' : 'release_trigger_paths:\n${releaseTriggerPaths.map((path) => '  - ${jsonEncode(path)}').join('\n')}\n'}platforms:

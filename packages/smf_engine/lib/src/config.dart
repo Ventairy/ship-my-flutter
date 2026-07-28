@@ -867,8 +867,11 @@ final class _SmfStateFiles {
   }
 
   static void _configSchemaVersion(Map<String, Object?> value, String source) {
-    if (value['schema_version'] != 3) {
-      _fail('$source.schema_version must be 3; run smf migrate');
+    if (value['schema_version'] != SmfConfig.currentSchemaVersion) {
+      _fail(
+        '$source.schema_version must be '
+        '${SmfConfig.currentSchemaVersion}; run smf migrate',
+      );
     }
   }
 

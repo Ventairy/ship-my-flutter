@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
+
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
@@ -32,6 +36,27 @@ Map<String, Object?> iosConfig(Map<String, Object?> config) {
 
 void main() {
   group('configuration', () {
+    test('keeps the editor schema aligned with the runtime schema', () async {
+      final libraryUri = await Isolate.resolvePackageUri(
+        Uri.parse('package:smf_engine/smf_engine.dart'),
+      );
+      if (libraryUri == null) {
+        fail('Could not resolve the smf_engine package root.');
+      }
+      final packageRoot = File.fromUri(libraryUri).parent.parent;
+      final schemaFile = File.fromUri(
+        packageRoot.uri.resolve('schemas/config.schema.json'),
+      );
+      final schema = jsonDecode(schemaFile.readAsStringSync()) as Map<String, Object?>;
+      final properties = schema['properties']! as Map<String, Object?>;
+      final schemaVersion = properties['schema_version']! as Map<String, Object?>;
+
+      expect(
+        schemaVersion['const'],
+        SmfConfig.currentSchemaVersion,
+      );
+    });
+
     test('accepts the minimal generated configuration', () {
       expect(SmfState.parseConfig(validConfig()).ios.enabled, isTrue);
     });

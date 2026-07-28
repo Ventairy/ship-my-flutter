@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:smf_engine/src/config.dart';
 import 'package:smf_engine/src/dtos/candidate_receipt.dart';
 import 'package:smf_engine/src/error.dart';
+import 'package:smf_engine/src/models/smf_config.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/serialization.dart';
 import 'package:smf_engine/src/templates.dart';
@@ -104,7 +105,6 @@ final class _MigrationWrite {
 final class SmfMigration {
   const SmfMigration._();
 
-  static const int _currentConfigSchemaVersion = 3;
   static final Map<int, String Function(String source, String appId)> _configMigrations =
       <int, String Function(String source, String appId)>{
         1: _migrateConfigV1ToV2,
@@ -159,13 +159,13 @@ final class SmfMigration {
     var source = original;
     var value = _parseConfigMap(source, paths.config);
     var schemaVersion = _configSchemaVersion(value);
-    if (schemaVersion > _currentConfigSchemaVersion) {
+    if (schemaVersion > SmfConfig.currentSchemaVersion) {
       throw const SmfError(
         'smf/config.yaml was created by a newer SMF version.',
         'CONFIG_MIGRATION_NEWER_VERSION',
       );
     }
-    while (schemaVersion < _currentConfigSchemaVersion) {
+    while (schemaVersion < SmfConfig.currentSchemaVersion) {
       final migration = _configMigrations[schemaVersion];
       if (migration == null) {
         throw SmfError(
@@ -222,6 +222,8 @@ final class SmfMigration {
   static String _migrateConfigV2ToV3(String source, String _) {
     final config = _parseConfigMap(source, 'smf/config.yaml');
     final platforms = _migrationMap(config['platforms'], 'platforms');
+    // A historical migration must keep producing its named version when a
+    // later schema is added; the migration loop applies later steps in order.
     final editor = YamlEditor(source)..update(<Object>['schema_version'], 3);
 
     final iosValue = platforms['ios'];
