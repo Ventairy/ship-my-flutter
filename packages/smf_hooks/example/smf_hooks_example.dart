@@ -21,4 +21,4 @@ final class WriteStoreReleaseNotes extends SmfHook {
   }
 }
 
-Future<void> main() => WriteStoreReleaseNotes().execute();
+Future<void> main() => runSmfHook(WriteStoreReleaseNotes());

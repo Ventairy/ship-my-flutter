@@ -5,6 +5,33 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('initializer supports a CLI-only repository without a workflow', () async {
+    final root = await Directory.systemTemp.createTemp('smf-init-manual-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(p.join(root.path, 'ios')).create();
+    await File(
+      p.join(root.path, 'pubspec.yaml'),
+    ).writeAsString('name: manual_app\nversion: 1.0.0+1\n');
+    await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+
+    await RepositoryInitializer.initialize(
+      InitOptions(
+        appRoot: root.path,
+        iosBundleId: 'dev.example.manual',
+        githubActions: false,
+      ),
+    );
+
+    expect(
+      await File(p.join(root.path, 'smf', 'config.yaml')).exists(),
+      isTrue,
+    );
+    expect(
+      await Directory(p.join(root.path, '.github', 'workflows')).exists(),
+      isFalse,
+    );
+  });
+
   test(
     'initializer creates only configuration and the complete workflow',
     () async {

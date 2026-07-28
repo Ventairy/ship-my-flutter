@@ -48,9 +48,10 @@ SMF makes the release pull request that control point:
 - **Scale to monorepos.** Every Flutter app gets isolated release state and can
   observe its own directory plus explicitly selected shared paths.
 
-SMF coordinates Flutter, GitHub Actions, App Store Connect, and Google Play. It
-does not create store accounts, apps, tester lists, signing identities, policy
-answers, or product metadata for you.
+SMF coordinates Flutter, GitHub, App Store Connect, and Google Play through its
+CLI. Its generated GitHub Actions workflow is an optional automation wrapper,
+not a requirement. SMF does not create store accounts, apps, tester lists,
+signing identities, policy answers, or product metadata for you.
 
 ## How it works
 

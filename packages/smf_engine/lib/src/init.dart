@@ -22,6 +22,7 @@ final class InitOptions {
     this.androidPackageName,
     this.force = false,
     this.githubActionsOnly = false,
+    this.githubActions = true,
   });
 
   final String appRoot;
@@ -33,9 +34,12 @@ final class InitOptions {
   final String? androidPackageName;
   final bool force;
   final bool githubActionsOnly;
+
+  /// Whether initialization writes the optional GitHub Actions wrapper.
+  final bool githubActions;
 }
 
-/// Initializes SMF state and the app-scoped GitHub Actions workflow.
+/// Initializes SMF state and its optional app-scoped GitHub Actions wrapper.
 final class RepositoryInitializer {
   const RepositoryInitializer._();
 
@@ -153,7 +157,8 @@ final class RepositoryInitializer {
     );
     if (options.githubActionsOnly) {
       SmfError.check(
-        !options.force &&
+        options.githubActions &&
+            !options.force &&
             options.version == null &&
             options.platformVersions.isEmpty &&
             options.appId == null &&
@@ -235,7 +240,7 @@ final class RepositoryInitializer {
         ),
       ),
     ];
-    if (options.force || !(await SmfFileSystem.exists(workflowPath))) {
+    if (options.githubActions && (options.force || !(await SmfFileSystem.exists(workflowPath)))) {
       await File(workflowPath).parent.create(recursive: true);
       writes.add(
         File(

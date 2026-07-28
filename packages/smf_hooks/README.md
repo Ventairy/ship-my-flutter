@@ -26,7 +26,7 @@ final class CheckPlan extends SmfHook {
   }
 }
 
-Future<void> main() => CheckPlan().execute();
+Future<void> main() => runSmfHook(CheckPlan());
 ```
 
 Applications that only use the standard SMF workflow do not need this package.

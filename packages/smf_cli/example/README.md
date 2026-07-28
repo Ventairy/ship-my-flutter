@@ -7,8 +7,14 @@ dart install smf_cli
 cd path/to/flutter_app
 smf init
 smf validate
+smf create-release
+# Test and merge the generated release PR, then update the target branch.
+smf ship
 ```
+
+Add `--no-github-actions` to `smf init` when the release will be operated only
+through these CLI commands.
 
 Follow the
 [Getting started guide](https://github.com/Ventairy/smf/blob/main/doc/getting-started.md)
-before running a credentialed candidate or shipping command.
+before creating a release or running a shipping command.

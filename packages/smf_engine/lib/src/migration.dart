@@ -59,14 +59,11 @@ final class MigrationOptions {
   /// Whether to migrate the machine-owned release registry.
   final bool registry;
 
-  Set<MigrationTarget> get _targets {
-    final selected = <MigrationTarget>{
-      if (config) MigrationTarget.config,
-      if (githubActions) MigrationTarget.githubActions,
-      if (registry) MigrationTarget.registry,
-    };
-    return selected.isEmpty ? MigrationTarget.values.toSet() : selected;
-  }
+  Set<MigrationTarget> get _explicitTargets => <MigrationTarget>{
+    if (config) MigrationTarget.config,
+    if (githubActions) MigrationTarget.githubActions,
+    if (registry) MigrationTarget.registry,
+  };
 }
 
 /// Observable result of a completed repository migration.
@@ -77,7 +74,7 @@ final class MigrationResult {
     required this.changedFiles,
   });
 
-  /// File groups selected by the user, or every group for the default command.
+  /// File groups selected by the user or discovered for the default command.
   final List<MigrationTarget> targets;
 
   /// Repository-relative files whose contents changed.
@@ -101,7 +98,7 @@ final class _MigrationWrite {
   final String? contents;
 }
 
-/// Migrates configuration, workflows, and machine-owned release state.
+/// Migrates configuration, existing workflows, and machine-owned release state.
 final class SmfMigration {
   const SmfMigration._();
 
@@ -113,16 +110,25 @@ final class SmfMigration {
 
   /// Migrates selected files without changing unrelated contents.
   ///
-  /// With no explicit selector in [options], every migration target is applied.
+  /// With no explicit selector in [options], configuration and registry files
+  /// are migrated, together with a managed workflow when one already exists.
   /// The operation validates all selected files before replacing any contents.
   static Future<MigrationResult> migrate(MigrationOptions options) async {
     final paths = SmfPaths.resolve(
       options.workingDirectory,
       smfPath: options.smfPath,
     );
+    final explicitTargets = options._explicitTargets;
+    final selectedTargets = explicitTargets.isNotEmpty
+        ? explicitTargets
+        : <MigrationTarget>{
+            MigrationTarget.config,
+            MigrationTarget.registry,
+            if (await _managedWorkflowExists(paths, options.appId)) MigrationTarget.githubActions,
+          };
     final targets = <MigrationTarget>[
       for (final target in MigrationTarget.values)
-        if (options._targets.contains(target)) target,
+        if (selectedTargets.contains(target)) target,
     ];
     final writes = <_MigrationWrite>[];
 
@@ -497,6 +503,36 @@ final class SmfMigration {
       writes.add(_MigrationWrite(legacyWorkflowPath, null));
     }
     return writes;
+  }
+
+  static Future<bool> _managedWorkflowExists(
+    SmfPaths paths,
+    String? explicitAppId,
+  ) async {
+    final legacyWorkflowPath = p.join(
+      paths.repositoryRoot,
+      '.github',
+      'workflows',
+      'smf.yml',
+    );
+    if (await SmfFileSystem.exists(legacyWorkflowPath)) return true;
+    final configValue = _parseConfigMap(
+      await File(paths.config).readAsString(),
+      paths.config,
+    );
+    final appId = await _appIdForMigration(
+      paths,
+      explicitAppId,
+      configValue,
+    );
+    return SmfFileSystem.exists(
+      p.join(
+        paths.repositoryRoot,
+        '.github',
+        'workflows',
+        SmfTemplates.workflowFileName(appId),
+      ),
+    );
   }
 
   static Future<List<_MigrationWrite>> _planRegistryMigration(SmfPaths paths) async {

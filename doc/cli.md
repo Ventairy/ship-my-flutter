@@ -1,7 +1,8 @@
 # CLI guide
 
-The SMF command is named `smf`. Most users use it to set up SMF and check their
-work. The generated GitHub Actions workflow handles releases.
+The SMF command is named `smf`. It can run the complete release lifecycle
+locally. The generated GitHub Actions workflow is an optional automated wrapper
+around the same release operations.
 
 For the complete setup process, follow
 [Getting started](getting-started.md).
@@ -64,6 +65,19 @@ Initialization creates:
 
 Review both files before committing them.
 
+For a CLI-only setup, omit the workflow:
+
+```bash
+smf init \
+  --version 1.0.0 \
+  --ios-bundle-id com.acme.app \
+  --android-package-name com.acme.app \
+  --no-github-actions
+```
+
+This creates `smf/config.yaml` without `.github/workflows/`. You can add the
+generated wrapper later with `smf init --github-actions`.
+
 If the configuration still exists but the generated workflow was deleted:
 
 ```bash
@@ -109,8 +123,10 @@ smf migrate
 smf validate
 ```
 
-With no extra option, `smf migrate` updates every SMF-owned file that needs the
-new format. It does not build, upload, or publish the app.
+With no extra option, `smf migrate` updates the configuration and release
+records, plus the generated workflow when that workflow already exists. It
+does not add a workflow to a CLI-only repository, build, upload, or publish the
+app.
 
 In a monorepo:
 
@@ -121,73 +137,82 @@ smf migrate --smf-path apps/mobile/smf
 Use `smf migrate --help` when you need to update only the configuration,
 workflow, or SMF release records.
 
-## Commands normally run by GitHub Actions
+## Run a release from the CLI
 
-The generated workflow normally runs these commands for you:
+The complete manual lifecycle uses two commands:
 
-| Command         | Purpose                                           |
-| --------------- | ------------------------------------------------- |
-| `smf open-pr`   | Open or update the app's release pull request     |
-| `smf candidate` | Build and upload a platform candidate for testing |
-| `smf promote`   | Verify or ship the tested candidate after merge   |
+Use this mode when the generated workflow is absent or disabled. Do not run
+manual candidate creation while the automated wrapper is also active; both
+would react to the same release branch and could upload concurrently.
 
-The CLI also provides platform-specific names such as `smf testflight`,
-`smf internal-testing`, `smf app-store`, and `smf google-play`.
+| Command              | Purpose                                                   |
+| -------------------- | --------------------------------------------------------- |
+| `smf create-release` | Create/update the release PR and create its candidates    |
+| `smf ship`           | Ship the created release to its configured store targets |
 
-Only run these commands manually when building custom automation. Use the
-command's `--help`, then read [How releases work](how-it-works.md) and
-[Release operations and recovery](operations.md) first.
+`smf create-release` detects `owner/name` from `GITHUB_REPOSITORY` or the
+current Git repository's `origin` remote. Use `--repository owner/name` only to
+override that detected repository. The command stops with an explanation when
+it cannot detect one. SMF derives the affected platforms from the release
+changes, creates or updates the release PR, checks out its release branch,
+builds, signs, uploads, and records every candidate, then restores your
+starting branch.
+
+`smf ship` must run after that release PR has been reviewed, tested, and merged.
+It fetches the repository into an isolated temporary checkout, reads the
+committed configuration and release state from the configured remote target
+branch, checks remote release tags, and delivers each exact tested candidate to
+its configured target. Your current branch, uncommitted files, and local tags
+do not affect what ships. You do not select iOS or Android manually.
+
+The manual sequence is:
+
+```bash
+git switch main
+git pull --ff-only origin main
+smf create-release --github-token-file "/secure/github-token"
+```
+
+Install and test every candidate from its configured TestFlight or Google Play
+testing destination. Review and merge the release PR. Then ship from anywhere
+inside the same Git repository:
+
+```bash
+smf ship --github-token-file "/secure/github-token"
+```
+
+`create-release` requires a clean checkout. `ship` does not read or modify the
+caller checkout; it deletes its temporary remote checkout when the command
+finishes. An iOS candidate requires macOS and the local Flutter/iOS toolchain.
+Android candidates can run on a supported Android build machine. On a macOS
+machine configured for both, the default command creates both candidates
+sequentially.
+
+For split machines or a targeted retry, use `--platform ios` or
+`--platform android`. `create-release --prepare-only` prepares the PR without
+building candidates so separate runners can create them afterward. These are
+also useful when building a custom automation wrapper.
+
+Read [How releases work](how-it-works.md) and
+[Release operations and recovery](operations.md) before a live release.
 
 ## Supply environment variables manually
 
-The generated GitHub Actions workflow supplies the required environment
-variables automatically. Follow this section only when running release commands
-yourself or building custom automation.
+Export the store and signing variables described in the platform setup guides
+before running a release command. `create-release` needs store API credentials
+and signing credentials for every selected candidate. `ship` needs the store
+API credentials but does not need signing credentials because it never
+rebuilds.
 
 On macOS or Linux, place variables immediately before the command to make them
 available only to that command:
 
 ```bash
 SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json" \
-smf google-play --github-token-file "/secure/github-token"
+smf ship --platform android --github-token-file "/secure/github-token"
 ```
 
 For several commands in the same terminal session, export the variable once:
-
-```bash
-export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json"
-
-smf google-play --github-token-file "/secure/github-token"
-
-unset SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
-```
-
-In Windows PowerShell:
-
-```powershell
-$env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH = "C:\secure\service-account.json"
-
-smf google-play --github-token-file "C:\secure\github-token"
-
-Remove-Item Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
-```
-
-Prefer a documented `_PATH` variable for secret files. It points SMF to the
-protected file without placing the file's contents in shell history. For
-example:
-
-```text
-SMF_APP_STORE_CONNECT_AUTH_KEY_PATH
-SMF_IOS_CERTIFICATE_PATH
-SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
-SMF_ANDROID_KEYSTORE_PATH
-```
-
-Some values, such as signing passwords, do not have a file-path alternative.
-Enter those without showing or saving the value in shell history.
-
-For example, a manual Android candidate can receive all five Android values
-like this:
 
 ```bash
 export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json"
@@ -202,15 +227,38 @@ read -r -s SMF_ANDROID_KEY_PASSWORD
 export SMF_ANDROID_KEY_PASSWORD
 echo
 
-smf candidate \
-  --platform android \
-  --github-token-file "/secure/github-token"
+smf create-release --github-token-file "/secure/github-token"
 
 unset SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH \
   SMF_ANDROID_KEYSTORE_PATH \
   SMF_ANDROID_KEY_ALIAS \
   SMF_ANDROID_KEYSTORE_PASSWORD \
   SMF_ANDROID_KEY_PASSWORD
+```
+
+In Windows PowerShell:
+
+```powershell
+$env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH = "C:\secure\service-account.json"
+$env:SMF_ANDROID_KEYSTORE_PATH = "C:\secure\upload-keystore.jks"
+$env:SMF_ANDROID_KEY_ALIAS = "upload"
+$env:SMF_ANDROID_KEYSTORE_PASSWORD = Read-Host "Keystore password" -MaskInput
+$env:SMF_ANDROID_KEY_PASSWORD = Read-Host "Key password" -MaskInput
+
+smf create-release --github-token-file "C:\secure\github-token"
+
+Remove-Item Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH,Env:SMF_ANDROID_KEYSTORE_PATH,Env:SMF_ANDROID_KEY_ALIAS,Env:SMF_ANDROID_KEYSTORE_PASSWORD,Env:SMF_ANDROID_KEY_PASSWORD
+```
+
+Prefer a documented `_PATH` variable for secret files. It points SMF to the
+protected file without placing the file's contents in shell history. For
+example:
+
+```text
+SMF_APP_STORE_CONNECT_AUTH_KEY_PATH
+SMF_IOS_CERTIFICATE_PATH
+SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
+SMF_ANDROID_KEYSTORE_PATH
 ```
 
 Run release commands only from the branch and repository state described in

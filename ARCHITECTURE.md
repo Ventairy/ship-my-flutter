@@ -13,7 +13,8 @@ SMF separates generic release planning from platform delivery.
   Publisher edits/tracks, and Google Play delivery.
 - `smf_cli`: the only executable; composes engine and adapters.
 - `Ventairy/smf-action`: vendored deployment adapter over private
-  `smf action` phases.
+  `smf action` phases that delegate to the same prepare, candidate, and ship
+  operations used by the public commands.
 
 Dependency direction:
 
@@ -27,6 +28,8 @@ Core never imports an adapter. Adapters do not import one another.
 
 The Action handles GitHub-native input/output, masking, toolchain isolation, and
 process invocation only. Release decisions and store side effects remain Dart.
+The public CLI composes the same operations sequentially so neither candidate
+creation nor shipping depends on an Action runner.
 
 ## App-owned state
 
@@ -39,8 +42,9 @@ process invocation only. Release decisions and store side effects remain Dart.
 | `candidates/ios-X.Y.Z.json` | Exact Apple candidate evidence |
 | `candidates/android-X.Y.Z.json` | Exact Google Play candidate evidence |
 
-Initialization creates configuration/workflow only. Release state remains lazy.
-No secret is valid in app-owned state.
+Initialization creates configuration and, unless disabled, the optional
+workflow wrapper. Release state remains lazy. No secret is valid in app-owned
+state.
 
 ## Shared release PR
 
@@ -89,7 +93,14 @@ while hashing platform build-affecting configuration.
 
 ## Ship contract
 
-On the target branch, each pending untagged platform:
+Ship treats the remote repository as authoritative. It reads the committed
+configuration from the remote default branch, creates an isolated checkout of
+the configured remote target branch, and queries remote tags directly. The
+caller's checkout, uncommitted files, local branches, and local tags never
+participate in a ship decision.
+
+In that isolated target-branch checkout, each pending remotely untagged
+platform:
 
 1. loads its receipt;
 2. recomputes source/app identity;

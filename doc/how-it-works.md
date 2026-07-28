@@ -73,8 +73,11 @@ store notes, and platform selection like any other production change.
 
 ## 3. Candidate jobs run per platform
 
-The workflow uses one matrix entry for every platform in the PR. Candidate jobs
-are serialized because each commits its receipt to the same branch.
+The optional GitHub Actions wrapper uses one matrix entry for every platform in
+the PR. The CLI can perform the same candidate operations sequentially on a
+local machine, or one platform at a time with `create-release --platform`.
+Candidate jobs are serialized because each commits its receipt to the same
+branch.
 
 ### iOS candidate
 

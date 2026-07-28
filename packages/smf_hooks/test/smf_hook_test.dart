@@ -75,7 +75,8 @@ void main() {
     );
     final hook = _Hook();
 
-    await hook.execute(
+    await runSmfHook(
+      hook,
       environment: <String, String>{
         'SMF_HOOK_CONTEXT_PATH': contextPath,
         'SMF_HOOK_RESULT_PATH': resultPath,
@@ -137,7 +138,8 @@ void main() {
     );
 
     await expectLater(
-      _FailingHook().execute(
+      runSmfHook(
+        _FailingHook(),
         environment: <String, String>{
           'SMF_HOOK_CONTEXT_PATH': contextPath,
           'SMF_HOOK_RESULT_PATH': resultPath,

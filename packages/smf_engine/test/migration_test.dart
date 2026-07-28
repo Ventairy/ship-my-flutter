@@ -61,6 +61,41 @@ Future<void> writeJson(String path, Object? value) async {
 }
 
 void main() {
+  test('default migration preserves a CLI-only repository', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'smf-migrate-manual-',
+    );
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(p.join(root.path, 'ios')).create();
+    await File(
+      p.join(root.path, 'pubspec.yaml'),
+    ).writeAsString('name: manual_app\nversion: 1.0.0+1\n');
+    await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+    await RepositoryInitializer.initialize(
+      InitOptions(
+        appRoot: root.path,
+        iosBundleId: 'dev.example.manual',
+        githubActions: false,
+      ),
+    );
+
+    final result = await SmfMigration.migrate(
+      MigrationOptions(workingDirectory: root.path),
+    );
+
+    expect(
+      result.targets,
+      <MigrationTarget>[
+        MigrationTarget.config,
+        MigrationTarget.registry,
+      ],
+    );
+    expect(
+      await Directory(p.join(root.path, '.github', 'workflows')).exists(),
+      isFalse,
+    );
+  });
+
   test('adds a stable app ID and app-scoped workflow to version 1', () async {
     final (root, paths) = await repository();
     await File(paths.config).writeAsString('''

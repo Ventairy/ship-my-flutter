@@ -5,6 +5,11 @@ normal release path from a qualifying code change to public store delivery.
 It does not repeat account, credential, signing, tester, or store-listing
 setup.
 
+GitHub Actions is an automation wrapper, not a runtime requirement for SMF.
+The generated jobs invoke the CLI's release planning, candidate creation, and
+ship operations with runner-specific platform selection. The equivalent manual
+flow is documented in [Run a release from the CLI](cli.md#run-a-release-from-the-cli).
+
 Use it only after:
 
 - `smf validate` succeeds;
@@ -281,13 +286,16 @@ again. It recognizes the pending merged releases and runs
 
 The ship jobs:
 
-1. load the committed receipt;
-2. revalidate source, identity, and the exact store artifact;
-3. apply the configured production target;
-4. create `<app-id>/<platform>-v<version>`; and
-5. create the platform GitHub Release from the machine-owned changelog.
+1. create an isolated checkout of the remote `target_branch`;
+2. load the committed manifest and receipt from that checkout;
+3. query remote release tags directly;
+4. revalidate source, identity, and the exact store artifact;
+5. apply the configured production target;
+6. create `<app-id>/<platform>-v<version>`; and
+7. create the platform GitHub Release from the machine-owned changelog.
 
-SMF does not rebuild after merge.
+SMF does not rebuild after merge. The workflow checkout and any local branch,
+manifest, receipt, or tag cache do not decide what ships.
 
 ### D. Let the stores complete review
 

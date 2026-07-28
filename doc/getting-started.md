@@ -1,7 +1,8 @@
 # Getting started
 
-This is the complete setup path for a standard Flutter repository using the
-generated GitHub Actions workflow.
+This is the complete setup path for a standard Flutter repository. The
+generated GitHub Actions workflow is the default automation wrapper, but it is
+not required: the CLI can create candidates and ship releases directly.
 
 The safe first run uploads candidates only:
 
@@ -94,6 +95,18 @@ smf/config.yaml
 .github/workflows/smf-<app-id>.yml
 ```
 
+To operate entirely from the CLI, add `--no-github-actions`. Initialization
+then creates `smf/config.yaml` without a workflow:
+
+```bash
+smf init --version 1.0.0 --ios-bundle-id com.acme.myapp --android-package-name com.acme.myapp --no-github-actions
+```
+
+All store, signing, GitHub, and release-safety prerequisites still apply.
+Follow [Run a release from the CLI](cli.md#run-a-release-from-the-cli) for the
+manual commands. You can add the wrapper later with
+`smf init --github-actions`.
+
 The initializer reads the Flutter package name from `pubspec.yaml`, stores it
 as `app_id`, and uses it in the workflow filename. Pass an explicit `--app-id`
 if the package name is generic or is not the permanent release identity you
@@ -135,6 +148,9 @@ This creates:
 apps/mobile/smf/config.yaml
 .github/workflows/smf-<app-id>.yml
 ```
+
+For a CLI-only monorepo app, add `--no-github-actions` to the same command. SMF
+creates `apps/mobile/smf/config.yaml` and no app workflow.
 
 For iOS only, omit `--android-package-name`. For Android only, omit
 `--ios-bundle-id`.

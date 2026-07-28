@@ -147,7 +147,7 @@ final class RepositoryHooks {
       );
       SmfError.check(
         await File(resultPath).exists(),
-        '$relativeHook must call its hook instance execute() method from main().',
+        '$relativeHook must call runSmfHook(...) from main().',
         'HOOK_RESULT_MISSING',
       );
       _validateHookResult(await SmfFileSystem.readJson(resultPath));

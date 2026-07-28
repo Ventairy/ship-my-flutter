@@ -1,7 +1,7 @@
 # Release operations and recovery
 
-Use this guide whenever an app's `smf/<app-id>/release` PR is open, a workflow
-failed, or a release must be abandoned.
+Use this guide whenever an app's `smf/<app-id>/release` PR is open, a CLI or
+workflow operation failed, or a release must be abandoned.
 
 ## Migrate after upgrading SMF
 
@@ -18,9 +18,10 @@ In a monorepo, select the initialized app:
 smf migrate --smf-path apps/mobile/smf
 ```
 
-The default migration updates configuration, the generated GitHub Actions
-workflow, and SMF's machine-owned registry when their formats changed. It does
-not build, upload, promote, tag, publish, or contact a store.
+The default migration updates configuration and SMF's machine-owned registry,
+plus the generated GitHub Actions workflow when one already exists. It does not
+add a workflow to a CLI-only repository, build, upload, promote, tag, publish,
+or contact a store.
 
 Review every changed file before committing. If migration fails, do not
 hand-edit manifests or receipts to bypass it. Keep the reported files intact,
@@ -104,10 +105,17 @@ hand-edit machine-owned files while resolving conflicts.
 
 After merge:
 
-- watch `ship (ios)` and/or `ship (android)`;
+- with automation, watch `ship (ios)` and/or `ship (android)`;
+- without automation, run `smf ship` from anywhere inside the repository;
 - confirm `<app-id>/ios-vX.Y.Z` and/or
   `<app-id>/android-vX.Y.Z`;
 - confirm the store status matches the configured mode.
+
+`smf ship` clones the remote repository into a temporary directory and treats
+the configured remote target branch as the only release source. Local
+manifests, receipts, branches, tags, and uncommitted files cannot change its
+decision. If a release is not committed to the remote target branch, SMF does
+not ship it.
 
 ## GitHub checks and branch protection
 
@@ -138,11 +146,12 @@ testers are.
 
 ### No release PR opened
 
-1. Open the failed `pull-request` job.
+1. Read the failed `smf create-release` output or open the failed
+   `pull-request` job.
 2. Fix the reported config, permission, or commit-message issue on the target
    branch.
 3. Run `smf validate`.
-4. Push or rerun.
+4. Rerun `smf create-release` or the wrapper job.
 
 If the result is `noop`, confirm the commit qualifies for at least one enabled
 platform and the workflow ran on the configured target branch.
@@ -151,6 +160,10 @@ platform and the workflow ran on the configured target branch.
 
 Fix the named source/toolchain/build/signing issue on the target branch. SMF
 updates the PR and generates a new candidate when tracked inputs change.
+
+For a CLI-only retry, run `smf create-release` again. Use
+`--platform ios` or `--platform android` when only one candidate needs its
+platform toolchain.
 
 Do not manually invent a receipt.
 
@@ -235,8 +248,9 @@ Restore the expected source or produce and retest a new candidate.
 ### Ship failed after merge
 
 Preserve the merged receipt and tag state. Fix the named store/GitHub
-permission or external metadata issue and rerun the failed platform job. SMF
-reuses matching store and GitHub resources.
+permission or external metadata issue and rerun `smf ship` or the failed
+platform job. Use `smf ship --platform <platform>` for a targeted manual retry.
+SMF reuses matching store and GitHub resources.
 
 Do not create a manual tag/Release to hide a failed ship.
 

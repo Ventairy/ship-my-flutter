@@ -80,6 +80,53 @@ final class GitClient {
     return result.exitCode == 0;
   }
 
+  /// Returns the default branch advertised by [remote].
+  ///
+  /// This queries the remote directly instead of relying on a possibly stale
+  /// local `origin/HEAD` symbolic reference.
+  Future<String> remoteDefaultBranch(
+    String token, {
+    String remote = 'origin',
+  }) async {
+    final output = await authenticated(
+      <String>['ls-remote', '--symref', remote, 'HEAD'],
+      token,
+    );
+    final match = RegExp(
+      r'^ref: refs/heads/(.+)\s+HEAD$',
+      multiLine: true,
+    ).firstMatch(output);
+    if (match == null || match.group(1)!.trim().isEmpty) {
+      throw SmfError(
+        'Could not determine the default branch advertised by $remote.',
+        'REMOTE_DEFAULT_BRANCH',
+      );
+    }
+    return match.group(1)!.trim();
+  }
+
+  /// Whether [tag] currently exists on [remote].
+  ///
+  /// A direct remote query prevents a stale local tag from influencing an
+  /// irreversible ship decision.
+  Future<bool> remoteTagExists(
+    String tag,
+    String token, {
+    String remote = 'origin',
+  }) async {
+    final output = await authenticated(
+      <String>[
+        'ls-remote',
+        '--tags',
+        '--refs',
+        remote,
+        'refs/tags/$tag',
+      ],
+      token,
+    );
+    return output.isNotEmpty;
+  }
+
   Future<String> tagSha(String tag) => run(<String>['rev-list', '-n', '1', tag]);
 
   Future<List<GitCommit>> commitsBetween(

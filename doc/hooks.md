@@ -82,7 +82,7 @@ final class WriteStoreReleaseNotes extends SmfHook {
   }
 }
 
-Future<void> main() => WriteStoreReleaseNotes().execute();
+Future<void> main() => runSmfHook(WriteStoreReleaseNotes());
 ```
 
 `context.release.ios` and `context.release.android` are nullable because either
@@ -106,7 +106,7 @@ final class PreparePlatformBuild extends SmfHook {
   }
 }
 
-Future<void> main() => PreparePlatformBuild().execute();
+Future<void> main() => runSmfHook(PreparePlatformBuild());
 ```
 
 `runCommand(...)` streams command output to the hook log and throws when the

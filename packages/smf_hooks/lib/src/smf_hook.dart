@@ -49,20 +49,24 @@ final class SmfBeforeBuildContext extends SmfHookContext {
 /// Base class for a typed repository hook.
 ///
 /// Implement [run] in `smf/hooks/before_create_pr.dart` or
-/// `smf/hooks/before_build.dart`, then call [execute] from `main`.
+/// `smf/hooks/before_build.dart`, then call [runSmfHook] from `main`.
 abstract class SmfHook {
   const SmfHook();
 
   /// Executes repository-owned preparation with a phase-specific context.
   Future<void> run(covariant SmfHookContext context);
-
-  /// Loads SMF's private protocol, runs this hook, and confirms completion.
-  ///
-  /// Hook entrypoints omit [environment]. Tests can supply an isolated
-  /// protocol environment.
-  Future<void> execute({Map<String, String>? environment}) =>
-      _SmfHookRunner(environment ?? io.Platform.environment).execute(this);
 }
+
+/// Loads SMF's private protocol, runs [hook], and confirms completion.
+///
+/// Hook entrypoints omit [environment]. Tests can supply an isolated protocol
+/// environment.
+Future<void> runSmfHook(
+  SmfHook hook, {
+  Map<String, String>? environment,
+}) => _SmfHookRunner(
+  environment ?? io.Platform.environment,
+).execute(hook);
 
 final class _SmfHookRunner {
   const _SmfHookRunner(this._environment);
