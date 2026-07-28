@@ -943,6 +943,31 @@ platforms:
     },
   );
 
+  test('reports a user error when the release phase is missing', () async {
+    final output = <Object?>[];
+    final errors = <Object?>[];
+
+    final exitCode = await SmfExecutable.run(
+      const <String>['release'],
+      io: ExecutableIo(
+        environment: const <String, String>{},
+        workingDirectory: Directory.current.path,
+        writeOutput: output.add,
+        writeError: errors.add,
+      ),
+    );
+
+    expect(exitCode, 64);
+    expect(output, isEmpty);
+    expect(
+      errors.first,
+      'smf release: Missing required option "--phase". Choose pull-request, '
+      'release-candidate, or ship.',
+    );
+    expect(errors.last, contains('Usage: smf release [options]'));
+    expect(errors.join('\n'), isNot(contains('Unhandled exception')));
+  });
+
   test('documents every visible CLI option in command help', () async {
     final commands = <String, List<String>>{
       'init': <String>['init', '--help'],

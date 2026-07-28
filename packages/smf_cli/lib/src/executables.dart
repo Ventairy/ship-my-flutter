@@ -768,6 +768,12 @@ $credentialGuidance
       parser: parser,
       io: io,
       operation: (arguments, io) async {
+        if (!arguments.wasParsed('phase')) {
+          throw const FormatException(
+            'Missing required option "--phase". Choose pull-request, '
+            'release-candidate, or ship.',
+          );
+        }
         final workingDirectory = _workingDirectory(
           io,
           arguments.option('working-directory'),
