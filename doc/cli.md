@@ -236,6 +236,7 @@ On macOS or Linux, export the credentials for the release:
 
 ```bash
 export SMF_GITHUB_TOKEN="<token>"
+
 export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
 export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
 export SMF_ANDROID_KEY_ALIAS="upload"
