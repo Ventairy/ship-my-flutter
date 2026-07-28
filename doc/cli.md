@@ -245,13 +245,6 @@ export SMF_ANDROID_KEYSTORE_PASSWORD="<keystore-password>"
 export SMF_ANDROID_KEY_PASSWORD="<key-password>"
 
 smf release --phase release-candidate
-
-unset SMF_GITHUB_TOKEN \
-  SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON \
-  SMF_ANDROID_KEYSTORE_BASE64 \
-  SMF_ANDROID_KEY_ALIAS \
-  SMF_ANDROID_KEYSTORE_PASSWORD \
-  SMF_ANDROID_KEY_PASSWORD
 ```
 
 In Windows PowerShell:
