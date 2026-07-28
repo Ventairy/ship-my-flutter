@@ -7,6 +7,7 @@ import 'package:smf_engine/src/git.dart';
 import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/serialization.dart';
+import 'package:smf_hooks/smf_hooks_protocol.dart';
 import 'package:yaml/yaml.dart';
 
 /// Reads and validates all persisted state for one SMF application.
@@ -979,8 +980,8 @@ final class _SmfStateFiles {
   static String _boundedNote(Object? value, String path, Platform platform) {
     final note = _nonEmptyString(value, path);
     final maximumCharacters = switch (platform) {
-      Platform.android => 500,
-      Platform.ios => 4000,
+      Platform.android => SmfHookProtocol.androidStoreReleaseNotesCharacterLimit,
+      Platform.ios => SmfHookProtocol.iosStoreReleaseNotesCharacterLimit,
     };
     if (note.length > maximumCharacters) {
       _fail('$path must be at most $maximumCharacters characters');

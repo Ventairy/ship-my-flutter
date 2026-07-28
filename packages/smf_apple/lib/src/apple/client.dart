@@ -434,15 +434,22 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
     required String version,
   }) async {
     final builds = await buildsForVersion(appId: appId, version: version);
-    final numeric = builds.map((build) {
-      return int.tryParse(build.attributes.version);
-    }).whereType<int>();
-    final latest = numeric.isEmpty
-        ? 0
-        : numeric.reduce(
-            (first, second) => first > second ? first : second,
-          );
-    return '${latest + 1}';
+    var latestMajor = BigInt.zero;
+    for (final build in builds) {
+      final value = build.attributes.version;
+      final match = RegExp(
+        r'^([0-9]+)(?:\.[0-9]+){0,2}$',
+      ).firstMatch(value);
+      if (match == null) {
+        throw SmfError(
+          'App Store Connect returned unsupported build number "$value".',
+          'APP_STORE_CONNECT_RESPONSE',
+        );
+      }
+      final major = BigInt.parse(match.group(1)!);
+      if (major > latestMajor) latestMajor = major;
+    }
+    return '${latestMajor + BigInt.one}';
   }
 
   @override

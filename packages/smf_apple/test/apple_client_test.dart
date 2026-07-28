@@ -402,7 +402,54 @@ void main() {
       expect(fixture.requests, hasLength(1));
     });
 
-    test('calculates the next integer build number', () async {
+    test(
+      'calculates an integer build number above integer and dotted histories',
+      () async {
+        final fixture = ClientFixture(<http.Response>[
+          response(<String, Object?>{
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'preReleaseVersions',
+                'id': 'pre-1',
+                'attributes': <String, Object?>{
+                  'version': '1.2.0',
+                  'platform': 'IOS',
+                },
+              },
+            ],
+          }),
+          response(<String, Object?>{
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'builds',
+                'id': 'build-1',
+                'attributes': <String, Object?>{
+                  'version': '8',
+                  'processingState': 'VALID',
+                },
+              },
+              <String, Object?>{
+                'type': 'builds',
+                'id': 'build-2',
+                'attributes': <String, Object?>{
+                  'version': '12.42.7',
+                  'processingState': 'VALID',
+                },
+              },
+            ],
+          }),
+        ]);
+        expect(
+          await fixture.client.nextBuildNumber(
+            appId: 'app-1',
+            version: '1.2.0',
+          ),
+          '13',
+        );
+      },
+    );
+
+    test('rejects a malformed build number returned by Apple', () async {
       final fixture = ClientFixture(<http.Response>[
         response(<String, Object?>{
           'data': <Object?>[
@@ -422,27 +469,26 @@ void main() {
               'type': 'builds',
               'id': 'build-1',
               'attributes': <String, Object?>{
-                'version': '8',
-                'processingState': 'VALID',
-              },
-            },
-            <String, Object?>{
-              'type': 'builds',
-              'id': 'build-2',
-              'attributes': <String, Object?>{
-                'version': '12',
+                'version': '12.beta',
                 'processingState': 'VALID',
               },
             },
           ],
         }),
       ]);
-      expect(
-        await fixture.client.nextBuildNumber(
+
+      await expectLater(
+        fixture.client.nextBuildNumber(
           appId: 'app-1',
           version: '1.2.0',
         ),
-        '13',
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'APP_STORE_CONNECT_RESPONSE',
+          ),
+        ),
       );
     });
 

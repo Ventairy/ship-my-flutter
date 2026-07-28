@@ -1,9 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:smf_hooks/smf_hooks_protocol.dart';
+
 enum HookReleasePlatform {
-  ios(characterLimit: 4000),
-  android(characterLimit: 500);
+  ios(
+    characterLimit: SmfHookProtocol.iosStoreReleaseNotesCharacterLimit,
+  ),
+  android(
+    characterLimit: SmfHookProtocol.androidStoreReleaseNotesCharacterLimit,
+  );
 
   const HookReleasePlatform({required this.characterLimit});
 
@@ -46,22 +52,40 @@ final class PlatformRelease {
     required HookReleasePlatform platform,
     required File storeReleaseNotesFile,
   }) => PlatformRelease._(
-    nextVersion: _HookModelDecoder.string(json, 'nextVersion'),
+    nextVersion: _HookModelDecoder.string(
+      json,
+      SmfHookProtocol.nextVersionField,
+    ),
     changes: List<ConventionalChange>.unmodifiable(
-      _HookModelDecoder.list(json, 'changes').map((value) {
+      _HookModelDecoder.list(json, SmfHookProtocol.changesField).map((value) {
         final change = _HookModelDecoder.object(value, 'change');
         return ConventionalChange(
-          type: _HookModelDecoder.string(change, 'type'),
-          scope: _HookModelDecoder.optionalString(change, 'scope'),
-          description: _HookModelDecoder.string(change, 'description'),
-          body: _HookModelDecoder.optionalString(change, 'body'),
+          type: _HookModelDecoder.string(
+            change,
+            SmfHookProtocol.changeTypeField,
+          ),
+          scope: _HookModelDecoder.optionalString(
+            change,
+            SmfHookProtocol.changeScopeField,
+          ),
+          description: _HookModelDecoder.string(
+            change,
+            SmfHookProtocol.changeDescriptionField,
+          ),
+          body: _HookModelDecoder.optionalString(
+            change,
+            SmfHookProtocol.changeBodyField,
+          ),
         );
       }),
     ),
     storeReleaseNotes: StoreReleaseNotes._(
       file: storeReleaseNotesFile,
       platform: platform,
-      version: _HookModelDecoder.string(json, 'nextVersion'),
+      version: _HookModelDecoder.string(
+        json,
+        SmfHookProtocol.nextVersionField,
+      ),
     ),
   );
 

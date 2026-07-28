@@ -1,18 +1,8 @@
 import 'dart:convert';
 import 'dart:io' as io;
 
+import 'package:smf_hooks/smf_hooks_protocol.dart';
 import 'package:smf_hooks/src/models.dart';
-
-enum _SmfHookPhase {
-  beforeCreatePr,
-  beforeBuild;
-
-  static _SmfHookPhase parse(String value) => switch (value) {
-    'before_create_pr' => _SmfHookPhase.beforeCreatePr,
-    'before_build' => _SmfHookPhase.beforeBuild,
-    _ => throw FormatException('Unsupported SMF hook phase "$value".'),
-  };
-}
 
 /// Typed non-secret context shared by every repository hook.
 sealed class SmfHookContext {
@@ -80,49 +70,71 @@ final class _SmfHookRunner {
   final Map<String, String> _environment;
 
   Future<void> execute(SmfHook hook) async {
-    final contextPath = _requiredEnvironment('SMF_HOOK_CONTEXT_PATH');
-    final resultPath = _requiredEnvironment('SMF_HOOK_RESULT_PATH');
+    final contextPath = _requiredEnvironment(
+      SmfHookProtocol.contextPathEnvironment,
+    );
+    final resultPath = _requiredEnvironment(
+      SmfHookProtocol.resultPathEnvironment,
+    );
     final context = await _readContext(contextPath);
     await hook.run(context);
-    await _writeJson(resultPath, <String, Object?>{'schemaVersion': 1});
+    await _writeJson(resultPath, <String, Object?>{
+      SmfHookProtocol.schemaVersionField: SmfHookProtocol.schemaVersion,
+    });
   }
 
   Future<SmfHookContext> _readContext(String path) async {
     try {
       final value = await _readJson(path);
       final json = _object(value, 'hook context');
-      final schemaVersion = json['schemaVersion'];
-      if (schemaVersion != 1) {
+      final schemaVersion = json[SmfHookProtocol.schemaVersionField];
+      if (schemaVersion != SmfHookProtocol.schemaVersion) {
         throw FormatException(
           'Unsupported SMF hook schema version "$schemaVersion".',
         );
       }
-      final phase = _SmfHookPhase.parse(_string(json, 'phase'));
+      final phase = SmfHookProtocolPhase.parse(
+        _string(json, SmfHookProtocol.phaseField),
+      );
       return switch (phase) {
-        _SmfHookPhase.beforeCreatePr => SmfBeforeCreatePrContext._(
+        SmfHookProtocolPhase.beforeCreatePr => SmfBeforeCreatePrContext._(
           release: PlannedReleases(
-            ios: json['iosRelease'] == null
+            ios: json[SmfHookProtocol.iosReleaseField] == null
                 ? null
                 : PlatformRelease.fromJson(
-                    _object(json['iosRelease'], 'iosRelease'),
+                    _object(
+                      json[SmfHookProtocol.iosReleaseField],
+                      SmfHookProtocol.iosReleaseField,
+                    ),
                     platform: HookReleasePlatform.ios,
                     storeReleaseNotesFile: io.File(
-                      _string(json, 'storeReleaseNotesFile'),
+                      _string(
+                        json,
+                        SmfHookProtocol.storeReleaseNotesFileField,
+                      ),
                     ),
                   ),
-            android: json['androidRelease'] == null
+            android: json[SmfHookProtocol.androidReleaseField] == null
                 ? null
                 : PlatformRelease.fromJson(
-                    _object(json['androidRelease'], 'androidRelease'),
+                    _object(
+                      json[SmfHookProtocol.androidReleaseField],
+                      SmfHookProtocol.androidReleaseField,
+                    ),
                     platform: HookReleasePlatform.android,
                     storeReleaseNotesFile: io.File(
-                      _string(json, 'storeReleaseNotesFile'),
+                      _string(
+                        json,
+                        SmfHookProtocol.storeReleaseNotesFileField,
+                      ),
                     ),
                   ),
           ),
         ),
-        _SmfHookPhase.beforeBuild => SmfBeforeBuildContext._(
-          repositoryRoot: io.Directory(_string(json, 'repositoryRoot')),
+        SmfHookProtocolPhase.beforeBuild => SmfBeforeBuildContext._(
+          repositoryRoot: io.Directory(
+            _string(json, SmfHookProtocol.repositoryRootField),
+          ),
         ),
       };
     } on Object catch (error) {

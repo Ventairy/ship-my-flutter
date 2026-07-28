@@ -7,15 +7,7 @@ import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/process_runner.dart';
 import 'package:smf_engine/src/serialization.dart';
-
-enum _HookPhase {
-  beforeCreatePr('before_create_pr'),
-  beforeBuild('before_build');
-
-  const _HookPhase(this.value);
-
-  final String value;
-}
+import 'package:smf_hooks/smf_hooks_protocol.dart';
 
 /// Executes trusted repository-owned release preparation.
 final class RepositoryHooks {
@@ -36,11 +28,17 @@ final class RepositoryHooks {
     return _runHook(
       paths: paths,
       hookPath: paths.beforeCreatePrHook,
-      phase: _HookPhase.beforeCreatePr,
+      phase: SmfHookProtocolPhase.beforeCreatePr,
       payload: <String, Object?>{
-        'storeReleaseNotesFile': paths.storeReleaseNotes,
-        'iosRelease': _platformRelease(plans, Platform.ios),
-        'androidRelease': _platformRelease(plans, Platform.android),
+        SmfHookProtocol.storeReleaseNotesFileField: paths.storeReleaseNotes,
+        SmfHookProtocol.iosReleaseField: _platformRelease(
+          plans,
+          Platform.ios,
+        ),
+        SmfHookProtocol.androidReleaseField: _platformRelease(
+          plans,
+          Platform.android,
+        ),
       },
       processRunner: processRunner,
     );
@@ -55,8 +53,10 @@ final class RepositoryHooks {
     return _runHook(
       paths: paths,
       hookPath: paths.beforeBuildHook,
-      phase: _HookPhase.beforeBuild,
-      payload: <String, Object?>{'repositoryRoot': paths.repositoryRoot},
+      phase: SmfHookProtocolPhase.beforeBuild,
+      payload: <String, Object?>{
+        SmfHookProtocol.repositoryRootField: paths.repositoryRoot,
+      },
       processRunner: processRunner,
     );
   }
@@ -78,14 +78,14 @@ final class RepositoryHooks {
     }
     if (release == null) return null;
     return <String, Object?>{
-      'nextVersion': release.nextVersion,
-      'changes': release.changes
+      SmfHookProtocol.nextVersionField: release.nextVersion,
+      SmfHookProtocol.changesField: release.changes
           .map(
             (change) => <String, Object?>{
-              'type': change.type,
-              'scope': change.scope,
-              'description': change.description,
-              'body': change.body,
+              SmfHookProtocol.changeTypeField: change.type,
+              SmfHookProtocol.changeScopeField: change.scope,
+              SmfHookProtocol.changeDescriptionField: change.description,
+              SmfHookProtocol.changeBodyField: change.body,
             },
           )
           .toList(growable: false),
@@ -95,7 +95,7 @@ final class RepositoryHooks {
   static Future<bool> _runHook({
     required SmfPaths paths,
     required String hookPath,
-    required _HookPhase phase,
+    required SmfHookProtocolPhase phase,
     required Map<String, Object?> payload,
     required ProcessRunner processRunner,
   }) async {
@@ -123,8 +123,8 @@ final class RepositoryHooks {
     final resultPath = p.join(temporaryDirectory.path, 'result.json');
     try {
       await SmfFileSystem.writeJson(contextPath, <String, Object?>{
-        'schemaVersion': 1,
-        'phase': phase.value,
+        SmfHookProtocol.schemaVersionField: SmfHookProtocol.schemaVersion,
+        SmfHookProtocol.phaseField: phase.value,
         ...payload,
       });
       final command = await _hookCommand(paths, hookPath);
@@ -134,8 +134,8 @@ final class RepositoryHooks {
         options: RunOptions(
           workingDirectory: paths.appRoot,
           environment: <String, String>{
-            'SMF_HOOK_CONTEXT_PATH': contextPath,
-            'SMF_HOOK_RESULT_PATH': resultPath,
+            SmfHookProtocol.contextPathEnvironment: contextPath,
+            SmfHookProtocol.resultPathEnvironment: resultPath,
           },
           onStdout: (output) {
             if (output.isNotEmpty) stderr.write(output);
@@ -158,7 +158,9 @@ final class RepositoryHooks {
   }
 
   static void _validateHookResult(Object? value) {
-    if (value is! Map<Object?, Object?> || value.length != 1 || value['schemaVersion'] != 1) {
+    if (value is! Map<Object?, Object?> ||
+        value.length != 1 ||
+        value[SmfHookProtocol.schemaVersionField] != SmfHookProtocol.schemaVersion) {
       throw const SmfError(
         'The SMF hook completion marker is invalid.',
         'INVALID_HOOK_RESULT',
