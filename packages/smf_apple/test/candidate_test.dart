@@ -225,7 +225,7 @@ void main() {
       await File(receiptPath).delete();
       await writeObject(
         intentPath,
-        CandidateIntent(
+        ReleaseCandidateIntent(
           platform: Platform.ios,
           version: '1.1.0',
           buildNumber: '7',

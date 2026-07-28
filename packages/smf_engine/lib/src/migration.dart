@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:smf_engine/src/config.dart';
-import 'package:smf_engine/src/dtos/candidate_intent.dart';
 import 'package:smf_engine/src/dtos/candidate_receipt.dart';
+import 'package:smf_engine/src/dtos/release_candidate_intent.dart';
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/models/smf_config.dart';
 import 'package:smf_engine/src/paths.dart';
@@ -423,7 +423,7 @@ final class SmfMigration {
         }
         final value = await _readRegistryJson(entry.path);
         if (p.basename(entry.path).endsWith('.intent.json')) {
-          CandidateIntent.fromJson(value, source: entry.path);
+          ReleaseCandidateIntent.fromJson(value, source: entry.path);
           continue;
         }
         final receipt = CandidateReceipt.fromJson(value, source: entry.path);

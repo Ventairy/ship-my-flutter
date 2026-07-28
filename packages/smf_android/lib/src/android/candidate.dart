@@ -100,14 +100,14 @@ final class AndroidCandidateOptions {
 final class AndroidCandidate {
   const AndroidCandidate._();
 
-  static Future<CandidateIntent?> _matchingIntent(
+  static Future<ReleaseCandidateIntent?> _matchingIntent(
     String intentPath, {
     required String fingerprint,
     required String packageName,
     required String version,
   }) async {
     if (!(await SmfFileSystem.exists(intentPath))) return null;
-    final intent = await CandidateIntent.read(intentPath);
+    final intent = await ReleaseCandidateIntent.read(intentPath);
     if (intent.platform != Platform.android ||
         intent.version != version ||
         intent.applicationId != packageName ||
@@ -154,7 +154,7 @@ final class AndroidCandidate {
   static Future<void> _recordIntent({
     required String repositoryRoot,
     required String intentPath,
-    required CandidateIntent intent,
+    required ReleaseCandidateIntent intent,
     required bool commitIntent,
     required GitHubContext? github,
   }) async {
@@ -428,7 +428,7 @@ final class AndroidCandidate {
             await signing.cleanup();
           }
           final localSha256 = await FileDigest.sha256(aabPath);
-          uploadIntent = CandidateIntent(
+          uploadIntent = ReleaseCandidateIntent(
             platform: Platform.android,
             version: state.version,
             buildNumber: nextVersionCode.toString(),

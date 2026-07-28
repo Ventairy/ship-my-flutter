@@ -5,22 +5,22 @@ import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/models/release_enums.dart';
 import 'package:smf_engine/src/serialization.dart';
 
-part 'candidate_intent.freezed.dart';
-part 'candidate_intent.g.dart';
+part 'release_candidate_intent.freezed.dart';
+part 'release_candidate_intent.g.dart';
 
-/// Durable evidence written before SMF uploads a candidate to a store.
+/// Durable evidence written before SMF uploads a release candidate to a store.
 ///
 /// The intent lets a fresh runner recover the exact build after an upload or
 /// receipt-push failure without selecting an unrelated store artifact.
 @freezed
-abstract class CandidateIntent with _$CandidateIntent {
-  /// Creates a candidate upload intent.
+abstract class ReleaseCandidateIntent with _$ReleaseCandidateIntent {
+  /// Creates a release candidate upload intent.
   @JsonSerializable(
     checked: true,
     dateTimeUtc: true,
     disallowUnrecognizedKeys: true,
   )
-  const factory CandidateIntent({
+  const factory ReleaseCandidateIntent({
     required Platform platform,
     required String version,
     required String buildNumber,
@@ -31,20 +31,20 @@ abstract class CandidateIntent with _$CandidateIntent {
     required String artifactSha256,
     required DateTime preparedAt,
     @JsonKey(required: true) @Default(1) int schemaVersion,
-  }) = _CandidateIntent;
+  }) = _ReleaseCandidateIntent;
 
-  const CandidateIntent._();
+  const ReleaseCandidateIntent._();
 
   /// Decodes and validates a persisted candidate intent.
-  factory CandidateIntent.fromJson(
+  factory ReleaseCandidateIntent.fromJson(
     Object? value, {
     String source = 'candidate intent',
   }) => _decodeCandidateIntent(value, source);
 
   /// Reads and validates candidate intent JSON from [filePath].
-  static Future<CandidateIntent> read(String filePath) async {
+  static Future<ReleaseCandidateIntent> read(String filePath) async {
     try {
-      return CandidateIntent.fromJson(
+      return ReleaseCandidateIntent.fromJson(
         await SmfFileSystem.readJson(filePath),
         source: filePath,
       );
@@ -100,32 +100,32 @@ abstract class CandidateIntent with _$CandidateIntent {
   }
 }
 
-CandidateIntent _decodeCandidateIntent(Object? value, String source) {
+ReleaseCandidateIntent _decodeCandidateIntent(Object? value, String source) {
   try {
-    final json = CandidateIntent._object(value);
-    CandidateIntent._equal(json['schemaVersion'], 1, 'schemaVersion');
-    final intent = _$CandidateIntentFromJson(json);
-    if (!CandidateIntent._versionPattern.hasMatch(intent.version)) {
-      CandidateIntent._fail('version must be major.minor.patch');
+    final json = ReleaseCandidateIntent._object(value);
+    ReleaseCandidateIntent._equal(json['schemaVersion'], 1, 'schemaVersion');
+    final intent = _$ReleaseCandidateIntentFromJson(json);
+    if (!ReleaseCandidateIntent._versionPattern.hasMatch(intent.version)) {
+      ReleaseCandidateIntent._fail('version must be major.minor.patch');
     }
-    if (!CandidateIntent._buildNumberPattern.hasMatch(intent.buildNumber)) {
-      CandidateIntent._fail('buildNumber must contain only digits');
+    if (!ReleaseCandidateIntent._buildNumberPattern.hasMatch(intent.buildNumber)) {
+      ReleaseCandidateIntent._fail('buildNumber must contain only digits');
     }
-    CandidateIntent._nonEmpty(intent.applicationId, 'applicationId');
-    CandidateIntent._nonEmpty(
+    ReleaseCandidateIntent._nonEmpty(intent.applicationId, 'applicationId');
+    ReleaseCandidateIntent._nonEmpty(
       intent.storeApplicationId,
       'storeApplicationId',
     );
-    if (!CandidateIntent._gitShaPattern.hasMatch(intent.sourceSha)) {
-      CandidateIntent._fail('sourceSha must be a complete Git SHA');
+    if (!ReleaseCandidateIntent._gitShaPattern.hasMatch(intent.sourceSha)) {
+      ReleaseCandidateIntent._fail('sourceSha must be a complete Git SHA');
     }
-    CandidateIntent._digest(
+    ReleaseCandidateIntent._digest(
       intent.sourceFingerprint,
       'sourceFingerprint',
     );
-    CandidateIntent._digest(intent.artifactSha256, 'artifactSha256');
+    ReleaseCandidateIntent._digest(intent.artifactSha256, 'artifactSha256');
     if (!intent.preparedAt.isUtc) {
-      CandidateIntent._fail(
+      ReleaseCandidateIntent._fail(
         'preparedAt must be an ISO-8601 UTC timestamp',
       );
     }

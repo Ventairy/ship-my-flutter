@@ -8,7 +8,7 @@ void main() {
   test(
     'when an intent contains an unknown field, it should reject the persisted contract',
     () {
-      final intent = CandidateIntent(
+      final intent = ReleaseCandidateIntent(
         platform: Platform.ios,
         version: '1.2.3',
         buildNumber: '17',
@@ -21,7 +21,7 @@ void main() {
       );
 
       expect(
-        () => CandidateIntent.fromJson(<String, Object?>{
+        () => ReleaseCandidateIntent.fromJson(<String, Object?>{
           ...intent.toJson(),
           'unexpected': true,
         }),
@@ -39,7 +39,7 @@ void main() {
   test(
     'when an intent has a fractional schema version, it should reject the persisted contract',
     () {
-      final intent = CandidateIntent(
+      final intent = ReleaseCandidateIntent(
         platform: Platform.ios,
         version: '1.2.3',
         buildNumber: '17',
@@ -52,7 +52,7 @@ void main() {
       );
 
       expect(
-        () => CandidateIntent.fromJson(<String, Object?>{
+        () => ReleaseCandidateIntent.fromJson(<String, Object?>{
           ...intent.toJson(),
           'schemaVersion': 1.5,
         }),
@@ -70,7 +70,7 @@ void main() {
   test(
     'when an intent contains a whitespace-only application identifier, it should reject the evidence',
     () {
-      final intent = CandidateIntent(
+      final intent = ReleaseCandidateIntent(
         platform: Platform.ios,
         version: '1.2.3',
         buildNumber: '17',
@@ -83,7 +83,7 @@ void main() {
       );
 
       expect(
-        () => CandidateIntent.fromJson(<String, Object?>{
+        () => ReleaseCandidateIntent.fromJson(<String, Object?>{
           ...intent.toJson(),
           'applicationId': '  ',
         }),
@@ -104,7 +104,7 @@ void main() {
     );
     addTearDown(() => directory.delete(recursive: true));
     final path = p.join(directory.path, 'ios-1.2.3.intent.json');
-    final intent = CandidateIntent(
+    final intent = ReleaseCandidateIntent(
       platform: Platform.ios,
       version: '1.2.3',
       buildNumber: '17',
@@ -118,9 +118,9 @@ void main() {
 
     await SmfFileSystem.writeJson(path, intent.toJson());
 
-    expect(await CandidateIntent.read(path), intent);
+    expect(await ReleaseCandidateIntent.read(path), intent);
     expect(
-      () => CandidateIntent.fromJson(<String, Object?>{
+      () => ReleaseCandidateIntent.fromJson(<String, Object?>{
         ...intent.toJson(),
         'artifactSha256': 'not-a-digest',
       }),

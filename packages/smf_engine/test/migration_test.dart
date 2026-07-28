@@ -240,7 +240,7 @@ schema_version: 1
     expect(receipt['artifactId'], 'build-7');
     expect(receipt, isNot(contains('ipaSha256')));
     expect(
-      CandidateIntent.fromJson(
+      ReleaseCandidateIntent.fromJson(
         await SmfFileSystem.readJson(intentPath),
         source: intentPath,
       ).buildNumber,

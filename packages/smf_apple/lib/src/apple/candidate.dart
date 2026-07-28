@@ -13,7 +13,7 @@ export 'candidate_options.dart';
 final class AppleCandidate {
   const AppleCandidate._();
 
-  static Future<CandidateIntent?> _matchingIntent(
+  static Future<ReleaseCandidateIntent?> _matchingIntent(
     String intentPath, {
     required String fingerprint,
     required String version,
@@ -21,7 +21,7 @@ final class AppleCandidate {
     required String appId,
   }) async {
     if (!(await SmfFileSystem.exists(intentPath))) return null;
-    final intent = await CandidateIntent.read(intentPath);
+    final intent = await ReleaseCandidateIntent.read(intentPath);
     if (intent.platform != Platform.ios ||
         intent.version != version ||
         intent.applicationId != bundleId ||
@@ -128,7 +128,7 @@ final class AppleCandidate {
   static Future<void> _recordIntent({
     required String root,
     required String intentPath,
-    required CandidateIntent intent,
+    required ReleaseCandidateIntent intent,
     required bool commitIntent,
     required GitHubContext? github,
   }) async {
@@ -335,7 +335,7 @@ final class AppleCandidate {
         bundleId,
       );
       late final String ipaPath;
-      late final CandidateIntent uploadIntent;
+      late final ReleaseCandidateIntent uploadIntent;
       try {
         ipaPath = await options.dependencies.buildIpa(
           projectRoot: projectRoot,
@@ -361,7 +361,7 @@ final class AppleCandidate {
           'A tracked build input changed while producing the IPA.',
           'BUILD_INPUT_CHANGED',
         );
-        uploadIntent = CandidateIntent(
+        uploadIntent = ReleaseCandidateIntent(
           platform: Platform.ios,
           version: state.version,
           buildNumber: buildNumber,

@@ -223,7 +223,7 @@ void main() {
       await File(receiptPath).delete();
       await writeObject(
         intentPath,
-        CandidateIntent(
+        ReleaseCandidateIntent(
           platform: Platform.android,
           version: result.version,
           buildNumber: result.buildNumber,

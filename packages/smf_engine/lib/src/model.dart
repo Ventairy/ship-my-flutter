@@ -1,10 +1,10 @@
-export 'dtos/candidate_intent.dart';
 export 'dtos/candidate_receipt.dart';
 export 'dtos/changelog_manifest.dart';
 export 'dtos/changelog_release.dart';
 export 'dtos/command_result.dart';
 export 'dtos/conventional_change.dart';
 export 'dtos/platform_manifest.dart';
+export 'dtos/release_candidate_intent.dart';
 export 'dtos/release_plan.dart';
 export 'dtos/release_target.dart';
 export 'dtos/smf_manifest.dart';
