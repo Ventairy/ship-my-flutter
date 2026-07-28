@@ -40,7 +40,7 @@ final class ReleasePullRequest {
     await gitClient.authenticated(<String>[
       'fetch',
       'origin',
-      config.targetBranch,
+      'refs/heads/${config.targetBranch}:refs/remotes/origin/${config.targetBranch}',
     ], token);
     final remoteBranch = await gitClient.authenticated(<String>[
       'ls-remote',
@@ -49,7 +49,11 @@ final class ReleasePullRequest {
       'refs/heads/$branch',
     ], token);
     if (remoteBranch.isNotEmpty) {
-      await gitClient.authenticated(<String>['fetch', 'origin', branch], token);
+      await gitClient.authenticated(<String>[
+        'fetch',
+        'origin',
+        'refs/heads/$branch:refs/remotes/origin/$branch',
+      ], token);
       await gitClient.run(<String>['checkout', '-B', branch, 'origin/$branch']);
       try {
         await gitClient.run(<String>[

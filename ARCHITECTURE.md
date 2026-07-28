@@ -33,15 +33,15 @@ creation nor shipping depends on an Action runner.
 
 ## App-owned state
 
-| File | Purpose |
-| --- | --- |
-| `config.yaml` | Schema-linked user choices |
-| `manifest.json` | Independent platform version/pending state |
-| `changelog.json` | Independent platform release history |
-| `store-release-notes.json` | Optional user/hook-owned localized copy |
-| `candidates/<platform>-X.Y.Z.intent.json` | Durable pre-upload candidate identity |
-| `candidates/ios-X.Y.Z.json` | Exact Apple candidate evidence |
-| `candidates/android-X.Y.Z.json` | Exact Google Play candidate evidence |
+| File                                      | Purpose                                    |
+| ----------------------------------------- | ------------------------------------------ |
+| `config.yaml`                             | Schema-linked user choices                 |
+| `manifest.json`                           | Independent platform version/pending state |
+| `changelog.json`                          | Independent platform release history       |
+| `store-release-notes.json`                | Optional user/hook-owned localized copy    |
+| `candidates/<platform>-X.Y.Z.intent.json` | Durable pre-upload candidate identity      |
+| `candidates/ios-X.Y.Z.json`               | Exact Apple candidate evidence             |
+| `candidates/android-X.Y.Z.json`           | Exact Google Play candidate evidence       |
 
 Initialization creates configuration and, unless disabled, the optional
 workflow wrapper. Release state remains lazy. No secret is valid in app-owned
@@ -49,7 +49,13 @@ state.
 
 ## Shared release PR
 
-Planning runs for every enabled platform on the target branch:
+Planning treats the configured remote target branch as authoritative. The CLI
+fetches it into an isolated temporary checkout, plans and updates the release
+branch there, and removes the checkout afterward. The caller's branch,
+uncommitted files, unpushed commits, and local release-branch state do not
+participate.
+
+Planning runs for every enabled platform on that remote target branch:
 
 1. Resolve the platform’s latest tag/baseline.
 2. Parse Conventional Commits for that platform.
@@ -67,6 +73,11 @@ workflow uses `max-parallel: 1` because each platform commits a receipt to the
 same branch.
 
 ## Candidate contract
+
+Candidate creation treats the remote app release branch as authoritative. The
+CLI fetches that branch into an isolated temporary checkout, runs the adapter
+there, and removes the checkout afterward. The caller's branch, uncommitted
+files, and local release-branch state do not participate in candidate creation.
 
 Both adapters:
 

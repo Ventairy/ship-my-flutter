@@ -14,6 +14,9 @@ Future<void> _initializeValidationApp(
 ) async {
   final appRoot = p.join(repositoryRoot, 'apps', appName);
   await Directory(p.join(appRoot, 'ios')).create(recursive: true);
+  await File(
+    p.join(appRoot, 'ios', '.gitkeep'),
+  ).writeAsString('');
   await File(p.join(appRoot, 'pubspec.yaml')).writeAsString(
     'name: $appName\nversion: 1.0.0+1\n',
   );
@@ -132,6 +135,7 @@ void main() {
     addTearDown(() => root.delete(recursive: true));
     final appRoot = p.join(root.path, 'apps', 'mobile');
     await Directory(p.join(appRoot, 'ios')).create(recursive: true);
+    await Directory(p.join(appRoot, 'android')).create();
     final iosProject = Directory(
       p.join(appRoot, 'ios', 'Runner.xcodeproj'),
     );
@@ -165,6 +169,8 @@ void main() {
       await SmfExecutable.runInit(const <String>[
         '--app-path',
         'apps/mobile',
+        '--platform',
+        'ios',
         '--ios-bundle-id',
         'dev.example.app',
       ], io: io),
@@ -173,6 +179,16 @@ void main() {
     final initOutput = jsonDecode(output.removeLast()! as String) as Map<String, Object?>;
     expect(initOutput, containsPair('initialized', true));
     expect(initOutput, containsPair('appId', 'example'));
+    final initializedConfig = await SmfState.config(
+      p.join(appRoot, 'smf'),
+    );
+    expect(
+      (
+        iosEnabled: initializedConfig.ios.enabled,
+        androidEnabled: initializedConfig.android.enabled,
+      ),
+      (iosEnabled: true, androidEnabled: false),
+    );
     final configPath = p.join(appRoot, 'smf', 'config.yaml');
     final config = '${await File(configPath).readAsString()}# preserved\n';
     await File(configPath).writeAsString(config);
@@ -237,6 +253,73 @@ void main() {
     expect(errors, isEmpty);
   });
 
+  test(
+    'when migrate runs below the repository root, it should resolve smf-path from the repository root',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'smf-migrate-path-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final git = GitClient(root: root.path);
+      await git.run(const <String>['init', '-b', 'main']);
+      await git.run(const <String>['config', 'user.name', 'Test']);
+      await git.run(
+        const <String>['config', 'user.email', 'test@example.com'],
+      );
+      await File(
+        p.join(root.path, 'pubspec.lock'),
+      ).writeAsString('# fixture\n');
+      await _initializeValidationApp(root.path, 'mobile');
+      final workflow = File(
+        p.join(
+          root.path,
+          '.github',
+          'workflows',
+          'smf-mobile.yml',
+        ),
+      );
+      await workflow.parent.create(recursive: true);
+      await workflow.writeAsString('stale workflow\n');
+      await git.run(const <String>['add', '.']);
+      await git.run(
+        const <String>['commit', '-m', 'chore: configure releases'],
+      );
+      final output = <Object?>[];
+      final errors = <Object?>[];
+
+      final exitCode = await SmfExecutable.runMigrate(
+        const <String>[
+          '--smf-path',
+          'apps/mobile/smf',
+          '--github-actions',
+        ],
+        io: ExecutableIo(
+          environment: const <String, String>{},
+          workingDirectory: p.join(root.path, 'apps', 'mobile'),
+          writeOutput: output.add,
+          writeError: errors.add,
+        ),
+      );
+
+      expect(
+        (
+          exitCode: exitCode,
+          migrated: output.isEmpty ? null : (jsonDecode(output.single! as String) as Map<String, Object?>)['migrated'],
+          workflowUpdated: (await workflow.readAsString()).contains(
+            'SMF_PATH: "apps/mobile/smf"',
+          ),
+          errors: errors.join('\n'),
+        ),
+        (
+          exitCode: 0,
+          migrated: true,
+          workflowUpdated: true,
+          errors: '',
+        ),
+      );
+    },
+  );
+
   test('initializes a CLI-only repository without a workflow', () async {
     final root = await Directory.systemTemp.createTemp('smf-cli-only-');
     addTearDown(() => root.delete(recursive: true));
@@ -281,7 +364,14 @@ void main() {
     final root = await Directory.systemTemp.createTemp(
       'smf-manual-release-',
     );
+    final origin = await Directory.systemTemp.createTemp(
+      'smf-manual-origin-',
+    );
     addTearDown(() => root.delete(recursive: true));
+    addTearDown(() => origin.delete(recursive: true));
+    await GitClient(root: origin.path).run(
+      const <String>['init', '--bare', '-b', 'main'],
+    );
     await Directory(p.join(root.path, 'ios')).create();
     await File(
       p.join(root.path, 'pubspec.yaml'),
@@ -302,6 +392,8 @@ void main() {
     );
     await git.run(const <String>['add', '.']);
     await git.run(const <String>['commit', '-m', 'chore: configure releases']);
+    await git.run(<String>['remote', 'add', 'origin', origin.path]);
+    await git.run(const <String>['push', '-u', 'origin', 'main']);
     await git.run(const <String>[
       'checkout',
       '-b',
@@ -335,6 +427,13 @@ void main() {
     await git.run(
       const <String>['commit', '-m', 'chore(release): prepare iOS 1.1.0'],
     );
+    await git.run(const <String>[
+      'push',
+      '-u',
+      'origin',
+      'smf/manual_app/release',
+    ]);
+    await git.run(const <String>['switch', 'main']);
     final errors = <Object?>[];
 
     expect(
@@ -390,6 +489,7 @@ void main() {
       1,
     );
     expect(errors.single, contains('[NO_RELEASE_CANDIDATE]'));
+    expect(await git.currentBranch(), 'main');
   });
 
   test('ship phase runs a merged pending release without an Action', () async {
@@ -660,7 +760,14 @@ void main() {
       final root = await Directory.systemTemp.createTemp(
         'smf-create-release-',
       );
+      final origin = await Directory.systemTemp.createTemp(
+        'smf-create-release-origin-',
+      );
       addTearDown(() => root.delete(recursive: true));
+      addTearDown(() => origin.delete(recursive: true));
+      await GitClient(root: origin.path).run(
+        const <String>['init', '--bare', '-b', 'main'],
+      );
       await GitClient(root: root.path).run(
         const <String>['init', '-b', 'main'],
       );
@@ -668,7 +775,7 @@ void main() {
       await File(p.join(root.path, 'smf', 'config.yaml')).writeAsString('''
 schema_version: 1
 app_id: "example"
-target_branch: production
+target_branch: main
 platforms:
   ios:
     enabled: true
@@ -729,11 +836,22 @@ platforms:
         contains('Pass --repository owner/name'),
       );
 
+      await GitClient(root: root.path).run(<String>[
+        'remote',
+        'add',
+        'origin',
+        origin.path,
+      ]);
+      await GitClient(root: root.path).run(
+        const <String>['push', '-u', 'origin', 'main'],
+      );
       expect(
         await SmfExecutable.runRelease(
           const <String>[
             '--phase',
             'pull-request',
+            '--platform',
+            'android',
             '--repository',
             'Override/example',
           ],
@@ -746,15 +864,25 @@ platforms:
         containsPair('phase', 'noop'),
       );
 
+      await GitClient(root: root.path).run(<String>[
+        'config',
+        'url.${origin.path}.insteadOf',
+        'git@github.com:Ventairy/example.git',
+      ]);
       await GitClient(root: root.path).run(const <String>[
         'remote',
-        'add',
+        'set-url',
         'origin',
         'git@github.com:Ventairy/example.git',
       ]);
       expect(
         await SmfExecutable.runRelease(
-          const <String>['--phase', 'pull-request'],
+          const <String>[
+            '--phase',
+            'pull-request',
+            '--platform',
+            'android',
+          ],
           io: io,
         ),
         0,
@@ -770,9 +898,20 @@ platforms:
         'origin',
         'https://github.com/Ventairy/example.git',
       ]);
+      await GitClient(root: root.path).run(<String>[
+        'config',
+        '--add',
+        'url.${origin.path}.insteadOf',
+        'https://github.com/Ventairy/example.git',
+      ]);
       expect(
         await SmfExecutable.runRelease(
-          const <String>['--phase', 'pull-request'],
+          const <String>[
+            '--phase',
+            'pull-request',
+            '--platform',
+            'android',
+          ],
           io: io,
         ),
         0,
@@ -780,6 +919,188 @@ platforms:
       expect(
         jsonDecode(output.removeLast()! as String),
         containsPair('phase', 'noop'),
+      );
+    },
+  );
+
+  test(
+    'when release runs below the repository root, it should resolve the selected app from the root',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'smf-release-path-',
+      );
+      final origin = await Directory.systemTemp.createTemp(
+        'smf-release-path-origin-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      addTearDown(() => origin.delete(recursive: true));
+      await GitClient(root: origin.path).run(
+        const <String>['init', '--bare', '-b', 'main'],
+      );
+      final git = GitClient(root: root.path);
+      await git.run(const <String>['init', '-b', 'main']);
+      await git.run(const <String>[
+        'config',
+        'user.name',
+        'Test',
+      ]);
+      await git.run(const <String>[
+        'config',
+        'user.email',
+        'test@example.com',
+      ]);
+      await File(
+        p.join(root.path, 'README.md'),
+      ).writeAsString('fixture\n');
+      await File(
+        p.join(root.path, 'pubspec.lock'),
+      ).writeAsString('# fixture\n');
+      await git.run(const <String>['add', '.']);
+      await git.run(const <String>[
+        'commit',
+        '-m',
+        'chore: bootstrap',
+      ]);
+      await _initializeValidationApp(root.path, 'customer');
+      await _initializeValidationApp(root.path, 'driver');
+      final nestedDirectory = p.join(
+        root.path,
+        'apps',
+        'driver',
+        'lib',
+      );
+      await Directory(nestedDirectory).create();
+      await git.run(const <String>['add', '.']);
+      await git.run(const <String>[
+        'commit',
+        '-m',
+        'chore: configure releases',
+      ]);
+      await git.run(<String>['remote', 'add', 'origin', origin.path]);
+      await git.run(const <String>['push', '-u', 'origin', 'main']);
+      final output = <Object?>[];
+      final errors = <Object?>[];
+
+      final exitCode = await SmfExecutable.runRelease(
+        const <String>[
+          '--phase',
+          'pull-request',
+          '--smf-path',
+          'apps/customer/smf',
+          '--repository',
+          'example/repository',
+        ],
+        io: ExecutableIo(
+          environment: const <String, String>{
+            'SMF_GITHUB_TOKEN': 'token',
+          },
+          workingDirectory: nestedDirectory,
+          writeOutput: output.add,
+          writeError: errors.add,
+        ),
+      );
+
+      expect(
+        (
+          exitCode: exitCode,
+          phase: output.isEmpty ? null : (jsonDecode(output.single! as String) as Map<String, Object?>)['phase'],
+          errors: errors.join('\n'),
+        ),
+        (exitCode: 0, phase: 'noop', errors: ''),
+      );
+    },
+  );
+
+  test(
+    'when pull-request runs from a dirty divergent checkout, it should plan only the remote target branch',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'smf-remote-pull-request-',
+      );
+      final origin = await Directory.systemTemp.createTemp(
+        'smf-remote-pull-request-origin-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      addTearDown(() => origin.delete(recursive: true));
+      await GitClient(root: origin.path).run(
+        const <String>['init', '--bare', '-b', 'main'],
+      );
+      await Directory(p.join(root.path, 'ios')).create();
+      await File(
+        p.join(root.path, 'ios', '.gitkeep'),
+      ).writeAsString('');
+      await File(
+        p.join(root.path, 'pubspec.yaml'),
+      ).writeAsString('name: remote_app\nversion: 1.0.0+1\n');
+      await File(
+        p.join(root.path, 'pubspec.lock'),
+      ).writeAsString('# fixture\n');
+      final git = GitClient(root: root.path);
+      await git.run(const <String>['init', '-b', 'main']);
+      await git.run(const <String>['config', 'user.name', 'Test']);
+      await git.run(
+        const <String>['config', 'user.email', 'test@example.com'],
+      );
+      await git.run(const <String>['add', '.']);
+      await git.run(const <String>['commit', '-m', 'chore: bootstrap']);
+      await RepositoryInitializer.initialize(
+        InitOptions(
+          appRoot: root.path,
+          iosBundleId: 'dev.example.remote',
+          githubActions: false,
+        ),
+      );
+      await git.run(const <String>['add', '.']);
+      await git.run(
+        const <String>['commit', '-m', 'chore: configure releases'],
+      );
+      await git.run(<String>['remote', 'add', 'origin', origin.path]);
+      await git.run(const <String>['push', '-u', 'origin', 'main']);
+      await File(
+        p.join(root.path, 'lib.dart'),
+      ).writeAsString('const releasedLocallyOnly = true;\n');
+      await git.run(const <String>['add', 'lib.dart']);
+      await git.run(
+        const <String>['commit', '-m', 'feat: local-only feature'],
+      );
+      await File(
+        p.join(root.path, 'local-notes.txt'),
+      ).writeAsString('not committed\n');
+      final output = <Object?>[];
+      final errors = <Object?>[];
+
+      final exitCode = await SmfExecutable.runRelease(
+        const <String>[
+          '--phase',
+          'pull-request',
+          '--repository',
+          'example/remote_app',
+        ],
+        io: ExecutableIo(
+          environment: const <String, String>{
+            'SMF_GITHUB_TOKEN': 'token',
+          },
+          workingDirectory: root.path,
+          writeOutput: output.add,
+          writeError: errors.add,
+        ),
+      );
+
+      expect(
+        (
+          exitCode: exitCode,
+          phase: output.isEmpty ? null : (jsonDecode(output.single! as String) as Map<String, Object?>)['phase'],
+          branch: await git.currentBranch(),
+          clean: await git.isClean(),
+          errors: errors.join('\n'),
+        ),
+        (
+          exitCode: 0,
+          phase: 'noop',
+          branch: 'main',
+          clean: false,
+          errors: '',
+        ),
       );
     },
   );

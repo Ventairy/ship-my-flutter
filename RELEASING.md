@@ -1,106 +1,95 @@
 # Releasing SMF packages
 
-The Dart workspace contains five independently versioned pub.dev packages:
-`smf_hooks`, `smf_engine`, `smf_apple`, `smf_android`, and `smf_cli`.
+This runbook covers repeat releases of SMF's independently versioned pub.dev
+packages. It assumes Release Please and trusted publishing are configured.
 
-Release Please owns their package versions, package changelogs, immutable
-component tags, and GitHub Releases. It opens one combined manifest release PR
-but releases only the packages with relevant Conventional Commits under that
-package's directory.
-
-| Package | Immutable tag |
-| --- | --- |
-| `smf_hooks` | `smf_hooks-vX.Y.Z` |
-| `smf_engine` | `smf_engine-vX.Y.Z` |
-| `smf_apple` | `smf_apple-vX.Y.Z` |
+| Package       | Release tag          |
+| ------------- | -------------------- |
+| `smf_hooks`   | `smf_hooks-vX.Y.Z`   |
+| `smf_engine`  | `smf_engine-vX.Y.Z`  |
+| `smf_apple`   | `smf_apple-vX.Y.Z`   |
 | `smf_android` | `smf_android-vX.Y.Z` |
-| `smf_cli` | `smf_cli-vX.Y.Z` |
+| `smf_cli`     | `smf_cli-vX.Y.Z`     |
 
-## Release PR
+Release Please maintains package versions, changelogs, component tags, and
+GitHub Releases. Each component tag triggers publication of its package.
 
-After CI passes for a push to `main`, `.github/workflows/release-please.yml`
-runs. Add a repository secret named `RELEASE_PLEASE_TOKEN` before enabling
-releases. Use a GitHub App installation token or a narrowly scoped fine-grained
-personal access token that can read metadata and write contents, issues, and
-pull requests.
+## 1. Prepare the release
 
-The release PR updates the affected package `pubspec.yaml`, its
-`CHANGELOG.md`, and `.release-please-manifest.json`. Release Please has no Dart
-workspace dependency-cascade plugin, so review internal constraints explicitly:
+Merge releasable changes to `main` through normal reviewed pull requests using
+Conventional Commits. After `main` passes CI, wait for Release Please to create
+or update the combined release pull request.
 
-- a new `smf_hooks` API may require compatible `smf_engine`, adapters, and
-  `smf_cli` releases;
-- a new `smf_engine` API may require compatible adapter and CLI releases;
-- a new adapter API may require a compatible CLI release.
+If an expected package is missing, verify that the commit type is releasable,
+the change is under that package's directory, and the Release Please workflow
+succeeded. Fix the source change or release configuration; do not create a
+manual version commit or tag.
 
-The initial `>=0.1.0 <2.0.0` internal ranges are intentional: the unpublished
-workspace versions and first stable `1.x` packages expose the same reviewed
-APIs. Before any `2.0.0` internal package release, update every affected
-dependent constraint and implementation in the same change so those dependent
-packages receive their own release.
+## 2. Review the release pull request
 
-Before merging:
+For every included package:
 
-1. Review every proposed version and package changelog.
-2. Confirm internal dependency constraints admit the proposed versions.
-3. Run the complete gate from `CONTRIBUTING.md`.
-4. Run `pana --exit-code-threshold 0 packages/<package>` for each releasable
-   package whose internal SMF dependencies already exist on pub.dev.
-5. Test `smf_cli` from a clean Flutter fixture and test affected libraries
-   through hosted or path dependencies.
-6. Confirm the exact release branch passed all hosted gates.
+1. Confirm the proposed version matches its Conventional Commits.
+2. Review the changelog as user-facing release notes.
+3. Confirm `pubspec.yaml`, `CHANGELOG.md`, and the release manifest agree.
+4. Confirm internal dependency constraints admit the released versions.
+5. Run the [contributor validation gate](CONTRIBUTING.md#validate-the-change).
+6. Inspect the package's `dart pub publish --dry-run` archive.
+7. Confirm the exact release pull-request commit passed CI.
 
-Merging creates one immutable component tag and GitHub Release per affected
-package. Never create, reuse, or move those tags manually.
+Release automation does not infer downstream releases from Dart dependency
+constraints. When a change requires dependent code or a higher minimum
+version, include the affected packages in the same release cycle:
 
-## pub.dev bootstrap and trusted publishing
+```text
+smf_hooks -> smf_engine -> smf_apple/smf_android -> smf_cli
+```
 
-Automated publishing cannot create a new pub.dev package. Bootstrap each
-package manually from its exact immutable component tag, in dependency order:
-`smf_hooks`, `smf_engine`, `smf_apple`/`smf_android`, then `smf_cli`.
+## 3. Merge and publish
 
-1. Check out the tag in a clean worktree.
-2. Repeat the complete gate and inspect that package's archive.
-3. Run `pana --exit-code-threshold 0 packages/<package>`. During first
-   bootstrap, do this only after every internal dependency is visible on
-   pub.dev.
-4. Run `dart pub publish` from `packages/<package>`.
-5. Verify the published version, archive, analysis, and documentation on
-   pub.dev before continuing to a dependent package.
-6. Verify a clean consumer can install the intended surface:
-   `dart install smf_cli`, `dart pub add --dev smf_hooks`, or the relevant
-   custom-automation library.
+Merge only the reviewed release pull request whose exact head commit passed all
+required checks.
 
-After the first version exists, configure trusted publishing for that pub.dev
-package:
+The merge causes Release Please to create immutable component tags and GitHub
+Releases. Each tag then starts the pub.dev publication workflow. Do not create,
+reuse, delete, or move component tags manually.
 
-1. In its pub.dev **Admin** tab, allow GitHub Actions from `Ventairy/smf` with
-   the package's component tag pattern.
-2. Use the protected GitHub environment `pub.dev`, with the desired tag
-   restrictions and reviewers.
+When internal minimum versions change, verify publication in dependency order:
 
-Future component tags call Dart's reusable OIDC publisher with the matching
-package working directory. Publication stays separate from Release Please so a
-pub.dev failure cannot rewrite release history.
+1. `smf_hooks`;
+2. `smf_engine`;
+3. `smf_apple` and `smf_android`;
+4. `smf_cli`.
 
-When a release raises an internal package's minimum version, publish in
-dependency order: `smf_hooks`, `smf_engine`, `smf_apple`/`smf_android`, then
-`smf_cli`.
-Component-tag workflows are independently retryable, so retry a dependent
-package only after its new dependency is visible on pub.dev.
+Publication jobs are independent. If a dependent package runs before its new
+dependency is visible on pub.dev, wait for the dependency and rerun the failed
+job from its existing tag.
 
-## Companion GitHub Action
+## 4. Verify
 
-1. Run the workspace gate and `pnpm run vendor-smf` in the adjacent Action
-   checkout.
-2. Run `pnpm install --frozen-lockfile` and `pnpm run check` in `smf-action`.
-3. Confirm `vendor/smf/SMF_COMMIT` names the reviewed workspace commit.
-4. Regenerate `dist`, then verify a second build leaves no diff.
-5. Test plan, candidate dispatch, and merged-release dispatch against a
-   disposable Flutter repository.
-6. Complete the separately tracked live Apple and Google Play acceptance
-   gates.
-7. Follow the Action repository's Release Please procedure; never create or
-   move its tags manually.
+For every released package, confirm:
 
-Do not tag, publish, upload, or move `v1` from an unvalidated working tree.
+- the component tag points to the release commit;
+- the GitHub Release contains the expected notes;
+- the pub.dev publication workflow succeeded;
+- pub.dev shows the expected version, archive, analysis, and API docs;
+- a clean consumer resolves the hosted package without path, Git, workspace,
+  or dependency overrides.
+
+For `smf_cli`, install the published command in a clean environment and exercise
+the affected command surface. Record live Apple or Google Play validation
+separately; package publication does not prove store acceptance.
+
+## Recovery
+
+- Before merge, fix `main`, wait for CI, and let Release Please update the
+  release pull request.
+- After tags exist, repair workflow configuration or wait for dependencies,
+  then retry publication from the same immutable tag.
+- If published code is incorrect, prepare a new corrective release. Never
+  replace a pub.dev version or move its tag.
+- Stop before releasing dependents if the release commit, tag, GitHub Release,
+  workflow result, and pub.dev archive do not agree.
+
+The adjacent `smf-action` repository has its own release workflow. Updating its
+vendored SMF checkout is a separate release task.

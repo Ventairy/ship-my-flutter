@@ -3,33 +3,20 @@
 SMF handles store API credentials and signing material. Protect every secret
 and encoded value exactly like the original credential.
 
-## Workflow credentials
+## Credential setup
 
-### Apple
+The platform setup guides are the canonical source for credential names,
+values, phase requirements, and CLI/GitHub Actions instructions:
 
-| Secret                                  | Contains                         |
-| --------------------------------------- | -------------------------------- |
-| `SMF_APP_STORE_CONNECT_KEY_ID`          | API key ID                       |
-| `SMF_APP_STORE_CONNECT_ISSUER_ID`       | API issuer ID                    |
-| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 `AuthKey_*.p8`            |
-| `SMF_IOS_CERTIFICATE_BASE64`            | Base64 Apple Distribution `.p12` |
-| `SMF_IOS_CERTIFICATE_PASSWORD`          | `.p12` password                  |
-
-### Android
-
-| Secret                                 | Contains                      |
-| -------------------------------------- | ----------------------------- |
-| `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete service-account JSON |
-| `SMF_ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore        |
-| `SMF_ANDROID_KEY_ALIAS`                | Upload-key alias              |
-| `SMF_ANDROID_KEYSTORE_PASSWORD`        | Keystore password             |
-| `SMF_ANDROID_KEY_PASSWORD`             | Key password                  |
+- [Apple credential variables](apple-bootstrap.md#8-provide-the-five-apple-credential-variables)
+- [Android credential variables](android-bootstrap.md#8-provide-the-five-android-credential-variables)
 
 Base64 used for binary signing files is encoding, not encryption.
 
-Store these values as environment secrets under
+For CLI operation, export the variables in the shell that starts SMF. For
+GitHub Actions, store them as Environment secrets under
 `Settings → Environments → smf-<app-id>`. Each initialized app has a separate
-environment, so sibling apps can use the same secret names without sharing
+environment, so sibling apps can use the same names without sharing
 credentials. The generated candidate and ship jobs declare only the selected
 app's environment.
 
@@ -38,11 +25,6 @@ names so one workflow can run either matrix platform. Configure credentials
 only for platforms the app enables. At runtime SMF loads the selected
 platform's credential set, masks supplied secrets, and removes store/signing
 values before repository hooks and project commands.
-
-Creation instructions:
-
-- [Apple setup](apple-bootstrap.md)
-- [Android and Google Play setup](android-bootstrap.md)
 
 ## How SMF handles secrets
 
@@ -243,7 +225,8 @@ Immediately:
 5. Regenerate dependent assets:
    - Apple profiles after replacing a Distribution certificate;
    - GitHub Android signing secrets after resetting the upload key.
-6. Replace repository/organization secrets.
+6. Replace the value in every active credential source, such as the GitHub
+   Environment or the CLI secret manager.
 7. Review audit and workflow logs.
 8. Produce/test a new candidate if artifact identity or signing material
    changed.

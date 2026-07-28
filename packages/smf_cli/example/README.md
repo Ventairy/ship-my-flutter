@@ -8,7 +8,6 @@ cd path/to/flutter_app
 smf init
 smf validate
 smf release --phase pull-request
-# Check out the release branch reported above.
 smf release --phase release-candidate
 # Test and merge the generated release PR, then update the target branch.
 smf release --phase ship

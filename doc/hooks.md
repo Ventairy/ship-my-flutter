@@ -12,7 +12,8 @@ You need:
 - a Flutter app already initialized with `smf init`;
 - Dart 3.10 or newer in the app;
 - permission to change the app's `pubspec.yaml`;
-- a clean Git worktree; and
+- the hook committed and pushed to the remote target branch before SMF runs;
+  and
 - an understanding that hook code runs as trusted repository code in the
   release workflow.
 
@@ -47,7 +48,66 @@ created immediately before that platform is built.
 The hook file must be a regular committed file. SMF rejects an untracked hook
 or a symbolic link.
 
-## 3. Create a hook
+## 3. Supply optional environment variables
+
+A hook inherits ordinary environment variables from the process that starts
+`smf`. SMF does not load `.env` files.
+
+For a CLI run, export the value before the phase that invokes the hook:
+
+```bash
+export MY_RELEASE_VALUE="<value>"
+smf release --phase pull-request
+```
+
+In PowerShell:
+
+```powershell
+$env:MY_RELEASE_VALUE = "<value>"
+smf release --phase pull-request
+```
+
+Read it in Dart with `Platform.environment['MY_RELEASE_VALUE']`.
+
+For `before_create_pr`, store a sensitive value as a repository Actions secret
+because the `pull_request` job does not use the protected `smf-<app-id>`
+Environment. Add it only to that job's `id: smf` step:
+
+```yaml
+- id: smf
+  uses: Ventairy/smf-action@v1
+  env:
+    MY_RELEASE_VALUE: ${{ secrets.MY_RELEASE_VALUE }}
+  with:
+    phase: pull-request
+    smf-path: ${{ env.SMF_PATH }}
+```
+
+For `before_build`, store a sensitive value in the existing
+`smf-<app-id>` GitHub Environment because the `release_candidate` job uses
+that environment. Add the same `env:` mapping to its
+`Ventairy/smf-action@v1` step:
+
+```yaml
+- uses: Ventairy/smf-action@v1
+  env:
+    MY_RELEASE_VALUE: ${{ secrets.MY_RELEASE_VALUE }}
+  with:
+    phase: release-candidate
+    platform: ${{ matrix.platform }}
+    smf-path: ${{ env.SMF_PATH }}
+```
+
+For a non-sensitive value, use the matching repository or environment Actions
+variable and map `${{ vars.MY_RELEASE_VALUE }}` instead. The generated workflow
+does not expose custom secrets or variables automatically.
+
+SMF strips its GitHub, store, and signing credential variables, plus generic
+GitHub token aliases, before starting repository-owned commands. Custom
+variables are not stripped, so expose only the minimum value the hook needs and
+never write it to generated files or logs.
+
+## 4. Create a hook
 
 This `smf/hooks/before_create_pr.dart` example writes deterministic store notes
 that SMF commits to the release PR:
@@ -113,7 +173,7 @@ Future<void> main() => runSmfHook(PreparePlatformBuild());
 command exits unsuccessfully. It runs from the hook process's current directory
 by default. Pass `root: true` to run from the Git repository root.
 
-## 4. Understand hook commits
+## 5. Understand hook commits
 
 SMF stages and commits tracked or unignored files left by a successful hook:
 
@@ -124,7 +184,7 @@ SMF stages and commits tracked or unignored files left by a successful hook:
 Hooks do not configure commit behavior. If a hook produces no changes, the
 commit step is a no-op.
 
-## 5. Verify before pushing
+## 6. Verify before pushing
 
 Format and analyze the hook from the Flutter app:
 

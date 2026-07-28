@@ -85,8 +85,9 @@ release PR. Wait for the candidate jobs and recheck every receipt before merge.
 New qualifying target-branch commits for the app update the same
 `smf/<app-id>/release` PR.
 
-- Unscoped/feature commits apply to all enabled platforms.
-- `ios` and `android` scopes apply selectively.
+- Unscoped commits and unknown/domain scopes apply to all enabled platforms.
+- `ios` and `android` scopes apply selectively; known non-mobile platform
+  scopes do not release iOS or Android.
 - A nested app only considers commits that change its directory or one of its
   configured `release_trigger_paths`.
 - A change scoped away from one platform can still invalidate its candidate if
@@ -113,11 +114,12 @@ After merge:
   `<app-id>/android-vX.Y.Z`;
 - confirm the store status matches the configured mode.
 
-`smf release --phase ship` clones the remote repository into a temporary directory and treats
-the configured remote target branch as the only release source. Local
-manifests, receipts, branches, tags, and uncommitted files cannot change its
-decision. If a release is not committed to the remote target branch, SMF does
-not ship it.
+The `pull-request` and `ship` phases clone the remote repository into a
+temporary directory and treat the configured remote target branch as their
+only release source. The candidate phase similarly uses the remote release
+branch. Local manifests, receipts, branches, tags, uncommitted files, and
+unpushed commits cannot change their decisions. If a release is not committed
+to the required remote branch, SMF does not process it.
 
 ## GitHub checks and branch protection
 
@@ -141,10 +143,15 @@ testers are.
 - TestFlight group names must already exist and match exactly.
 - The Google Play testing track and tester list must already exist/be
   configured.
-- An empty iOS group list leaves the build unassigned.
+- An empty iOS group list leaves the build unassigned. Use it only to diagnose
+  upload/processing, not as release acceptance.
 - Google Play `internal-testing` uses the Play testing opt-in URL.
 
 ## Retry and recovery
+
+In a monorepo with multiple initialized apps, append
+`--smf-path apps/<app>/smf` to every CLI release command below. Keep the same
+app selector throughout the pull-request, candidate, and ship phases.
 
 ### No release PR opened
 
@@ -155,17 +162,20 @@ testers are.
 3. Run `smf validate`.
 4. Rerun `smf release --phase pull-request` or the wrapper job.
 
-If the result is `noop`, confirm the commit qualifies for at least one enabled
-platform and the workflow ran on the configured target branch.
+If the result is `noop`, confirm a qualifying commit for at least one enabled
+platform is present on the configured remote target branch and affects this
+app or one of its `release_trigger_paths`.
 
 ### Candidate build failed
 
-Fix the named source/toolchain/build/signing issue on the target branch. SMF
-updates the PR and generates a new candidate when tracked inputs change.
+For a source, build-configuration, or hook failure, commit and push the fix to
+the target branch so SMF can update the release PR. For a credential, runner,
+or toolchain failure, fix the environment that executes SMF. Tracked source or
+build-input changes cause SMF to generate a new candidate.
 
-For a CLI-only retry, check out the release branch and run
-`smf release --phase release-candidate` again. Use `--platform ios` or
-`--platform android` when only one candidate needs its platform toolchain.
+For a CLI-only retry, run `smf release --phase release-candidate` again. SMF
+uses the remote release branch in an isolated checkout. Use `--platform ios`
+or `--platform android` when only one candidate needs its platform toolchain.
 
 Do not manually invent a receipt.
 
@@ -196,7 +206,8 @@ the preserved store artifact is not valid evidence for this release.
 ### iOS processing or TestFlight failed
 
 - Copy group names exactly from App Store Connect.
-- Confirm API-key role and app access.
+- Confirm API-key role, app access, and Certificates, Identifiers & Profiles
+  access.
 - Read Apple’s processing/compliance message.
 - Fix certificate, profile, entitlement, metadata, or source issues.
 
@@ -212,8 +223,8 @@ Confirm:
 - it has **View app information** and **Release apps to testing tracks**; and
 - production permission exists only when `review`/`auto` needs it.
 
-Replace the GitHub Environment secret after creating a new service-account
-key.
+Replace the value in the active credential source after creating a new
+service-account key.
 
 ### Google Play rejected the upload key
 

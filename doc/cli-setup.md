@@ -49,7 +49,9 @@ For a nested Flutter app:
 smf init --app-path apps/mobile --app-id mobile --version 1.0.0 --ios-bundle-id com.acme.myapp --android-package-name com.acme.myapp --no-github-actions
 ```
 
-Omit the identifier for a platform you do not release. If the platforms have
+Add `--platform ios` or `--platform android` to initialize only one platform,
+even when the Flutter project contains both native directories. Omit
+`--platform` to configure every detected platform. If the platforms have
 different current versions, use `--ios-version` and `--android-version`
 instead of `--version`.
 
@@ -98,20 +100,25 @@ those external checks.
 
 ## 5. Prepare each enabled store
 
-For iOS, complete steps 1–7 of
-[Set up Apple delivery](apple-bootstrap.md) for the App ID, App Store Connect
-app, API key, distribution certificate, and TestFlight group. Skip its GitHub
-Environment step.
+For iOS, follow [Set up Apple delivery](apple-bootstrap.md) for the App ID, App
+Store Connect app, API key, distribution certificate, and TestFlight group.
+Provide its five credentials using the
+[CLI environment-variable instructions](apple-bootstrap.md#cli-environment-variables).
 
-For Android, complete steps 1–7 and 9–10 of
+For Android, follow
 [Set up Android and Google Play delivery](android-bootstrap.md) for the Play
 app, Play App Signing, upload key, tester list, service account, permissions,
-and SMF configuration. Skip its GitHub Environment step.
+and SMF configuration. Provide its five credentials using the
+[CLI environment-variable instructions](android-bootstrap.md#cli-environment-variables).
 
-Keep the credential values outside the repository and provide them to the
-local process as described in
+Also export `SMF_GITHUB_TOKEN` as described in
 [Supply credentials](cli.md#supply-credentials). Never commit credentials,
 service-account JSON, certificates, or keystores.
+
+The pull-request phase needs the GitHub token, not store/signing credentials.
+The candidate phase needs the GitHub token plus every credential for the
+selected platform. The ship phase needs the GitHub token plus that platform's
+store API credentials, but not its certificate or keystore.
 
 ## 6. Add an optional preparation hook
 
@@ -137,11 +144,16 @@ feat(auth): add passkeys
 feat!: replace the account model
 ```
 
-Then load the required `SMF_*` environment variables and run:
+Export `SMF_GITHUB_TOKEN` and any custom variables needed by
+`before_create_pr`, then run:
 
 ```bash
 smf release --phase pull-request
 ```
+
+SMF fetches the configured remote target branch into an isolated temporary
+checkout and plans from that source. Your current branch, uncommitted files,
+and unpushed commits do not participate.
 
 For a monorepo with more than one initialized app, select the app:
 
@@ -150,7 +162,8 @@ smf release --phase pull-request --smf-path apps/customer/smf
 ```
 
 SMF opens or updates `smf/<app-id>/release`. Review the planned platform
-versions and changelogs before creating candidates.
+versions and changelogs before creating candidates. The command's JSON output
+includes the exact release branch.
 
 ## 8. Create and test the candidates
 
@@ -160,8 +173,20 @@ Run the candidate phase on the required native host:
 smf release --phase release-candidate
 ```
 
+SMF fetches the remote release branch into an isolated temporary checkout,
+builds and records candidates there, then deletes that checkout. It does not
+depend on or switch your local branch.
+
 Use `--platform ios` or `--platform android` to process only one platform.
-Run iOS on macOS. Android can run on macOS, Linux, or Windows.
+Run iOS on macOS. Run Android candidates on macOS or Linux. Windows supports
+the pull-request and ship phases, but candidate builds currently require the
+POSIX command environment available on macOS or Linux.
+
+In a monorepo, keep selecting the same app:
+
+```bash
+smf release --phase release-candidate --smf-path apps/customer/smf
+```
 
 Verify that the candidate receipt was committed under `smf/candidates/`. Match
 its version, build number, and artifact ID in TestFlight or Play Console,
@@ -172,10 +197,16 @@ Do not merge the release PR until every intended candidate is approved.
 ## 9. Merge and ship the exact candidates
 
 Merge the approved release PR through the repository's normal review process.
-Then update the local target branch and run:
+Then run from anywhere inside the same Git repository:
 
 ```bash
 smf release --phase ship
+```
+
+In a monorepo:
+
+```bash
+smf release --phase ship --smf-path apps/customer/smf
 ```
 
 The command promotes the recorded candidate; it does not rebuild it. A missing

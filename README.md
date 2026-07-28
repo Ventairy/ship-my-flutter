@@ -7,7 +7,6 @@
 [![CI](https://github.com/Ventairy/smf/actions/workflows/ci.yml/badge.svg)](https://github.com/Ventairy/smf/actions/workflows/ci.yml)
 [![Dart 3.10+](https://img.shields.io/badge/Dart-3.10%2B-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![Status: pre-release](https://img.shields.io/badge/Status-pre--release-orange.svg)](#project-status)
 
 [Why SMF](#why-smf) · [How it works](#how-it-works) ·
 [Get started](#get-started) · [User guide](#user-guide)
@@ -51,7 +50,7 @@ signing identities, policy answers, or product metadata for you.
 
 | What happens                                         | What SMF does                                                                              | What your team controls                                                 |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| A `fix:` or `feat:` commit reaches the target branch | Calculates each affected platform's next version and opens or updates the app's release PR | The code review and Conventional Commit message                         |
+| A qualifying Conventional Commit reaches the target branch | Calculates each affected platform's next version and opens or updates the app's release PR | The code review and Conventional Commit message                         |
 | The release PR is open                               | Builds, signs, uploads, verifies, and records one candidate per planned platform           | Testing the exact TestFlight or Play artifact and approving the release |
 | The release PR is merged                             | Revalidates each recorded artifact, then applies the platform's optional `ship` target     | Branch protection, merge approval, and the selected store destination   |
 
@@ -89,16 +88,19 @@ their versions change:
 | Commit on the target branch            | Result                                   |
 | -------------------------------------- | ---------------------------------------- |
 | `fix: prevent startup crash`           | Patch release for every enabled platform |
+| `perf: improve startup time`           | Patch release for every enabled platform |
+| `deps: update networking`              | Patch release for every enabled platform |
 | `feat(auth): add passkeys`             | Minor release for every enabled platform |
 | `fix(ios): repair camera permission`   | iOS patch only                           |
 | `fix(android): repair back navigation` | Android patch only                       |
 | `feat(ios,android)!: replace storage`  | Major release for both                   |
 | `chore: update documentation`          | No release                               |
 
-Feature scopes such as `auth` apply to every enabled platform. The special
-`ios` and `android` scopes select platforms. Each platform's configured
-`initial_version` is its release-history baseline; SMF calculates later
-versions from qualifying commits.
+Unknown/domain scopes such as `auth` apply to every enabled platform. The
+mobile scopes `ios` and `android` select platforms. Known non-mobile platform
+scopes (`macos`, `windows`, `linux`, and `web`) do not release iOS or Android.
+Each platform's configured `initial_version` is its release-history baseline;
+SMF calculates later versions from qualifying commits.
 
 ### What merging the release PR means
 
@@ -171,8 +173,8 @@ Start with one guide based on what you are trying to do:
 | Choose an SMF setup                                                                 | [Get started](#get-started)                                   |
 | Set up the recommended automated workflow                                           | [GitHub Actions setup](doc/github-actions-setup.md)           |
 | Set up a human-operated or custom workflow                                          | [CLI setup](doc/cli-setup.md)                                 |
-| Prepare App Store Connect, TestFlight, signing, and Apple secrets                   | [Apple setup](doc/apple-bootstrap.md)                         |
-| Prepare Google Play, testing, upload signing, and Android secrets                   | [Android setup](doc/android-bootstrap.md)                     |
+| Prepare App Store Connect, TestFlight, signing, and Apple credentials               | [Apple setup](doc/apple-bootstrap.md)                         |
+| Prepare Google Play, testing, upload signing, and Android credentials               | [Android setup](doc/android-bootstrap.md)                     |
 | Understand the release PR and exact-candidate lifecycle                             | [How releases work](doc/how-it-works.md)                      |
 | Change versions, paths, flavors, build commands, candidate targets, or ship targets | [Configuration](doc/configuration.md)                         |
 | Write, localize, or generate customer-facing store notes                            | [Store release notes](doc/store-release-notes.md)             |

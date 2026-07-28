@@ -84,9 +84,10 @@ release_trigger_paths:
 ```
 
 Use `fix(ios):` or `fix(android):` when a change should release only one
-platform. Unscoped and feature-scoped changes apply to every enabled platform.
-The resulting versions remain independent. SMF calculates them automatically
-when the change reaches the target branch and records them in the release pull
+platform. Unscoped and unknown/domain-scoped changes apply to every enabled
+platform. Known non-mobile platform scopes do not release iOS or Android. The
+resulting versions remain independent. SMF calculates them automatically when
+the change reaches the target branch and records them in the release pull
 request.
 
 ## 2. Configure the candidate destinations

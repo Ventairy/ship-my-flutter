@@ -343,6 +343,46 @@ void main() {
     expect(config.android.initialVersion, '3.1.2');
   });
 
+  test(
+    'when one platform is selected, it should ignore the other detected platform',
+    () async {
+      final root = await Directory.systemTemp.createTemp('smf-init-');
+      addTearDown(() => root.delete(recursive: true));
+      await Directory(p.join(root.path, 'ios')).create();
+      await Directory(p.join(root.path, 'android')).create();
+      await File(
+        p.join(root.path, 'pubspec.yaml'),
+      ).writeAsString('name: example\nversion: 1.0.0+1\n');
+      await GitClient(root: root.path).run(const <String>[
+        'init',
+        '-b',
+        'main',
+      ]);
+
+      await RepositoryInitializer.initialize(
+        InitOptions(
+          appRoot: root.path,
+          selectedPlatform: Platform.android,
+          androidPackageName: 'dev.example.app',
+        ),
+      );
+
+      final config = await SmfState.config(root.path);
+      expect(
+        (
+          iosEnabled: config.ios.enabled,
+          androidEnabled: config.android.enabled,
+          packageName: config.android.packageName,
+        ),
+        (
+          iosEnabled: false,
+          androidEnabled: true,
+          packageName: 'dev.example.app',
+        ),
+      );
+    },
+  );
+
   test('rejects options for a platform the app does not contain', () async {
     final root = await Directory.systemTemp.createTemp('smf-init-');
     addTearDown(() => root.delete(recursive: true));

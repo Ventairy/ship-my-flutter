@@ -53,7 +53,7 @@ iOS and Android versions are intentionally independent.
 | ----------------------- | ----------------------- | ---------------------------------------------------------------------- |
 | `schema_version`        | required, currently `1` | Configuration format                                                   |
 | `app_id`                | required, generated     | Stable identity for this app's release resources                       |
-| `target_branch`         | required                | Branch containing normal application work                              |
+| `target_branch`         | `main`                  | Branch containing normal application work                              |
 | `flavor`                | optional                | One Flutter flavor passed to enabled platform builds                   |
 | `release_trigger_paths` | `[]`                    | Additional repository paths whose qualifying commits apply to this app |
 | `platforms`             | required                | iOS and Android configuration                                          |
@@ -112,7 +112,7 @@ platforms:
 | -------------------------------------------------- | ------------------------------------------- | ------------------------------------------------- |
 | `enabled`                                          | `true` when `ios/` exists at initialization | Include iOS                                       |
 | `initial_version`                                  | initializer version                         | Existing iOS release baseline                     |
-| `bundle_id`                                        | detected when possible                      | Exact App Store bundle ID                         |
+| `bundle_id`                                        | resolved at candidate time when possible    | Exact App Store bundle ID                         |
 | `build_command`                                    | FVM-aware Flutter IPA command               | Trusted project build command                     |
 | `ipa_output_path`                                  | `build/ios/ipa`                             | App-contained IPA file or directory               |
 | `app_store.release_candidate.target`               | `internal-testing`                          | TestFlight audience before merge                  |
@@ -123,7 +123,10 @@ platforms:
 | `app_store.ship.groups`                            | `[]`                                        | Existing external groups for `external-testing`   |
 
 The bundle ID must match the production Xcode target, App ID, provisioning
-profile, and App Store Connect app.
+profile, and App Store Connect app. Set it explicitly when you want the
+generated configuration and `smf validate` review to show the identity.
+Otherwise, the macOS candidate phase resolves it from the Release scheme;
+local validation does not prove that later resolution.
 
 ### Apple targets
 
@@ -132,7 +135,7 @@ is open:
 
 | Target             | What SMF does                                                                                                                 |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `internal-testing` | Uploads the build and assigns it to the listed internal TestFlight groups. The group list may be empty.                       |
+| `internal-testing` | Uploads the build and assigns it to the listed internal TestFlight groups. An empty list is upload-only and cannot prove installability. |
 | `external-testing` | Assigns the build to the listed external groups and submits it to TestFlight Beta App Review. At least one group is required. |
 
 App Store Connect identifies every group as internal or external. SMF resolves
@@ -175,7 +178,7 @@ platforms:
 | -------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- |
 | `enabled`                              | `true` when `android/` exists at initialization | Include Android                                      |
 | `initial_version`                      | initializer version                             | Existing Android release baseline                    |
-| `package_name`                         | detected for simple apps                        | Exact Google Play package name                       |
+| `package_name`                         | resolved at candidate time for simple apps      | Exact Google Play package name                       |
 | `build_command`                        | FVM-aware Flutter AAB command                   | Trusted project build command                        |
 | `aab_output_path`                      | standard release bundle directory               | App-contained AAB file or directory                  |
 | `google_play.release_candidate.target` | `internal-testing`                              | Play destination before merge                        |
@@ -185,7 +188,9 @@ platforms:
 | `google_play.ship.tracks`              | `[]`                                            | Existing tracks for `closed-testing`                 |
 
 Set `package_name` explicitly for flavors, suffixes, or computed Gradle
-application IDs.
+application IDs. When it is omitted, the candidate phase reads a literal
+`applicationId` from `android/app/build.gradle.kts` or `build.gradle`; local
+validation does not prove that later resolution.
 
 SMF chooses the next available Play `versionCode`, passes it as Flutter’s
 `--build-number`, signs the resulting AAB with the configured upload key, and
@@ -295,11 +300,17 @@ localization, deterministic generation, and AI-assisted drafting.
 
 ## Commit routing
 
-Recognized platform scopes are `ios` and `android`. Feature scopes such as `auth` apply to all enabled platforms.
+The mobile platform scopes are `ios` and `android`. An unscoped commit or an
+unknown/domain scope such as `auth` applies to every enabled platform. Known
+non-mobile platform scopes (`macos`, `windows`, `linux`, and `web`) do not
+release iOS or Android. In a multi-scope commit, the presence of any recognized
+platform scope makes routing explicit; only `ios` and/or `android` named in
+that list are released.
 
 | Commit                             | Platforms   | Bump  |
 | ---------------------------------- | ----------- | ----- |
 | `fix: prevent crash`               | all enabled | patch |
+| `deps: update networking`          | all enabled | patch |
 | `feat(auth): add passkeys`         | all enabled | minor |
 | `feat!: replace account model`     | all enabled | major |
 | `fix(ios): repair entitlement`     | iOS         | patch |

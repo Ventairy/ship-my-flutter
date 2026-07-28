@@ -90,12 +90,11 @@ smf init --version 1.0.0 --ios-bundle-id com.acme.myapp --android-package-name c
 For an Android-only app:
 
 ```bash
-smf init --version 1.0.0 --android-package-name com.acme.myapp
+smf init --platform android --version 1.0.0 --android-package-name com.acme.myapp
 ```
 
-For iOS only, omit `--android-package-name`. SMF detects the platform
-directories that actually exist and generates configuration only for those
-platforms.
+For iOS only, use `--platform ios` and pass the iOS bundle ID. Omit
+`--platform` to configure every detected platform directory.
 
 This creates:
 
@@ -146,8 +145,8 @@ apps/mobile/smf/config.yaml
 .github/workflows/smf-<app-id>.yml
 ```
 
-For iOS only, omit `--android-package-name`. For Android only, omit
-`--ios-bundle-id`.
+For one platform only, add `--platform ios` or `--platform android`. Omit
+`--platform` to configure every detected platform directory.
 
 If iOS and Android currently have different versions, replace `--version` with
 one or both platform-specific options:
@@ -279,16 +278,17 @@ after qualifying commits reach the target branch.
 
 ## 5. Complete each enabled store setup
 
-For iOS, follow [Set up Apple delivery](apple-bootstrap.md). It creates/verifies
-the App IDs, App Store Connect app, API key, distribution certificate, optional
-internal TestFlight group, and five secrets in the app's `smf-<app-id>` GitHub
-Environment.
+For iOS, follow [Set up Apple delivery](apple-bootstrap.md). It creates or
+verifies the App IDs, App Store Connect app, API key, distribution certificate,
+and the internal TestFlight group needed to install the acceptance candidate.
+Add the five required values using its
+[GitHub Actions Environment secrets instructions](apple-bootstrap.md#github-actions-environment-secrets).
 
 For Android, follow
 [Set up Android and Google Play delivery](android-bootstrap.md). It
-creates/verifies the Play app, Play App Signing, upload key, internal tester
-list, service account, permissions, and five secrets in the app's
-`smf-<app-id>` GitHub Environment.
+creates or verifies the Play app, Play App Signing, upload key, internal tester
+list, service account, and permissions. Add the five required values using its
+[GitHub Actions Environment secrets instructions](android-bootstrap.md#github-actions-environment-secrets).
 
 Return here only after each enabled platform’s final checklist passes.
 
@@ -343,7 +343,8 @@ credential-aware release workflow.
 
 SMF opens the release PR after a release-worthy commit reaches the configured
 target branch. A release-worthy commit is a real app change with a Conventional
-Commit message that should create a new version, such as `fix:` or `feat:`.
+Commit message that should create a new version, such as `fix:`, `perf:`,
+`deps:`, or `feat:`.
 
 Do not create an empty or fake release commit. Use the real change that you want
 to ship. For example:
@@ -366,9 +367,11 @@ of its `release_trigger_paths`. An unaffected sibling app returns `noop`; it
 does not create a release merely because its workflow started.
 
 SMF always starts from the platform's configured `initial_version` and applies
-the Conventional Commit bump: `fix` produces a patch, `feat` produces a minor,
-and a breaking change (feat!) produces a major. A commit message cannot replace the
-configured baseline or select an arbitrary next version.
+the Conventional Commit bump: `fix`, `perf`, and `deps` produce a patch,
+`feat` produces a minor, and any breaking change produces a major. The mobile
+scopes `ios` and `android` select platforms; known non-mobile platform scopes
+do not release iOS or Android. A commit message cannot replace the configured
+baseline or select an arbitrary next version.
 
 ## 9. Review the app release PR
 

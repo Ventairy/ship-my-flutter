@@ -25,7 +25,8 @@ By the end, you will have:
 3. an upload keystore held by your team;
 4. an internal testing tester list;
 5. a Google Cloud service account with limited Play Console permissions;
-6. for GitHub Actions, five secrets in the app's GitHub Environment; and
+6. five credential values ready for CLI environment variables or GitHub
+   Actions Environment secrets; and
 7. an Android section in `smf/config.yaml` that matches the Play app.
 
 The service-account JSON, keystore, aliases, and passwords never belong in Git,
@@ -215,7 +216,7 @@ testing tracks and tester lists. Google describes the current release
 permissions in [Publish your app](https://support.google.com/googleplay/android-developer/answer/9859751)
 and [Users and permissions](https://support.google.com/googleplay/android-developer/answer/9844686).
 
-## 7. Prepare the two secret values
+## 7. Prepare the credential values
 
 For the service account, open `service-account.json` in a text editor and copy
 the complete document, including the opening and closing braces. Do not edit or
@@ -235,10 +236,52 @@ On Linux:
 base64 -w 0 upload-keystore.jks
 ```
 
-Base64 is not encryption. Delete unprotected working copies after the GitHub
-secrets are verified and the originals are stored safely.
+Base64 is not encryption. Keep the originals in the approved secret manager
+and remove any unprotected working copies after setup.
 
-## 8. For GitHub Actions, add the five Environment secrets
+## 8. Provide the five Android credential variables
+
+Use these same names whether you run SMF from the CLI or GitHub Actions:
+
+| Variable                                       | Value                             | Used by         |
+| ---------------------------------------------- | --------------------------------- | --------------- |
+| `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`         | Complete downloaded JSON document | candidate, ship |
+| `SMF_ANDROID_KEYSTORE_BASE64`                  | Base64 upload keystore            | candidate only  |
+| `SMF_ANDROID_KEY_ALIAS`                        | Upload-key alias                  | candidate only  |
+| `SMF_ANDROID_KEYSTORE_PASSWORD`                | Keystore password                 | candidate only  |
+| `SMF_ANDROID_KEY_PASSWORD`                     | Key password                      | candidate only  |
+
+### CLI environment variables
+
+On macOS or Linux, export the values in the shell that will run SMF:
+
+```bash
+export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
+export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
+export SMF_ANDROID_KEY_ALIAS="upload"
+export SMF_ANDROID_KEYSTORE_PASSWORD="<keystore-password>"
+export SMF_ANDROID_KEY_PASSWORD="<key-password>"
+```
+
+In Windows PowerShell:
+
+```powershell
+$env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = Get-Content "C:\secure\service-account.json" -Raw
+$env:SMF_ANDROID_KEYSTORE_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\upload-keystore.jks"))
+$env:SMF_ANDROID_KEY_ALIAS = "upload"
+$env:SMF_ANDROID_KEYSTORE_PASSWORD = "<keystore-password>"
+$env:SMF_ANDROID_KEY_PASSWORD = "<key-password>"
+```
+
+PowerShell can supply credentials to the pull-request and ship phases.
+Android candidate builds currently require macOS or Linux because project
+build commands run in a POSIX shell.
+
+These variables exist only in that shell session and are inherited by the SMF
+process. SMF strips credential variables before running repository hooks and
+does not automatically load `.env` files.
+
+### GitHub Actions Environment secrets
 
 Read `app_id` from the Flutter app's `smf/config.yaml`. Open the Flutter
 repository:
@@ -248,15 +291,7 @@ repository:
 Create `smf-<app-id>` if it does not exist, replacing `<app-id>` with the exact
 configured value.
 
-Add:
-
-| Secret                             | Value                             |
-| ---------------------------------- | --------------------------------- |
-| `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete downloaded JSON document |
-| `SMF_ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore            |
-| `SMF_ANDROID_KEY_ALIAS`                | Upload-key alias                  |
-| `SMF_ANDROID_KEYSTORE_PASSWORD`        | Keystore password                 |
-| `SMF_ANDROID_KEY_PASSWORD`             | Key password                      |
+Add each variable from the table above as an Environment secret.
 
 The generated candidate and ship jobs use that environment. Do not place one
 app's Play or upload-key credentials in a sibling app's environment.
@@ -312,9 +347,9 @@ Before returning to your selected setup:
 - at least one internal tester has opted in;
 - the Android Publisher API is enabled;
 - the service account is invited with only the required permissions;
-- for GitHub Actions, all needed secrets exist under GitHub environment
-  `smf-<app-id>`, or for CLI operation the same values remain protected outside
-  the repository and are ready to supply as `SMF_*` environment variables;
+- for GitHub Actions, all five names exist as secrets under GitHub Environment
+  `smf-<app-id>`, or for CLI operation all five values remain protected outside
+  the repository and are ready to export as environment variables;
 - `google_play.ship` is still omitted; and
 - `smf validate` succeeds.
 

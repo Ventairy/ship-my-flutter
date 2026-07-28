@@ -25,8 +25,10 @@ By the end, you will have:
 2. one App Store Connect app record for the main app;
 3. one App Store Connect API key used by SMF;
 4. one Apple Distribution identity exported as a password-protected `.p12`;
-5. optionally, one internal TestFlight group; and
-6. for GitHub Actions, five secrets in the app's GitHub Environment.
+5. one internal TestFlight group for the documented install-and-test
+   acceptance run; and
+6. five credential values ready for CLI environment variables or GitHub
+   Actions Environment secrets.
 
 None of the `.p8`, `.p12`, or password values belong in Git, YAML, an issue, a
 pull request, or a build log.
@@ -78,8 +80,8 @@ is not always the same as the role assigned to the automation key.
 | Create the App Store Connect app record                              | Account Holder, Admin, or App Manager                       |
 | Create a team API key                                                | Account Holder or Admin                                     |
 | Create an internal TestFlight group manually                         | Account Holder, Admin, App Manager, Developer, or Marketing |
-| Build and upload through SMF                                         | API key with App Manager role                               |
-| Assign builds to groups or submit an app version through SMF         | API key with App Manager role                               |
+| Build and upload through SMF                                         | Team API key with App Manager access and provisioning access |
+| Assign builds to groups or submit an app version through SMF         | Team API key with App Manager access                         |
 
 If you do not have the required human role, ask someone with that role to
 perform the named portal step. Do not solve a permissions error by granting
@@ -283,9 +285,14 @@ it to be downloaded only once.
    Access**, accepts the terms, submits the request, and waits for approval.
 5. Open **Team Keys** and click the add button (**+**) or **Generate API Key**.
 6. Enter a descriptive name such as `SMF GitHub Actions`.
-7. Choose **App Manager**. SMF uses the same key to prepare and upload
-   candidates, manage configured TestFlight groups, and perform an Apple
-   [ship action](configuration.md#apple-targets).
+7. Choose **App Manager** and ensure the key can access Certificates,
+   Identifiers & Profiles. SMF uses the same key to inspect certificates,
+   bundle IDs, and provisioning profiles, prepare and upload candidates,
+   manage configured TestFlight groups, and perform an Apple
+   [ship action](configuration.md#apple-targets). If your organization's
+   access model cannot grant those provisioning operations to this key, ask
+   the Account Holder or Admin to create an appropriately authorized team key
+   under the organization's policy.
 8. Generate the key.
 9. Record the **Issuer ID** and **Key ID**.
 10. Click **Download API Key**, confirm the download, and immediately move the
@@ -463,22 +470,18 @@ key metadata and exits with status 0 without importing the identity. Do not
 put the password in the command.
 
 If OpenSSL prints `Can't read Password`, it could not read from the current
-terminal. That message does not mean the password itself was rejected. Read
-the value silently in the shell and pass it through a temporary environment
-variable instead:
+terminal. That message does not mean the password itself was rejected. Export
+the value in the current shell and pass it through an environment variable
+instead:
 
 ```bash
-read -r -s SMF_P12_PASSWORD
-echo
-export SMF_P12_PASSWORD
+export SMF_P12_PASSWORD="<p12-password>"
 
 openssl pkcs12 \
   -in "/absolute/path/smf-distribution.p12" \
   -info \
   -noout \
   -passin env:SMF_P12_PASSWORD
-
-unset SMF_P12_PASSWORD
 ```
 
 This keeps the value out of process arguments and shell history. If the
@@ -496,10 +499,12 @@ The output must list the Apple Distribution identity. Apple's
 [Certificates overview](https://developer.apple.com/help/account/certificates/certificates-overview/)
 explains the role and lifecycle restrictions.
 
-## 7. Optionally create an internal TestFlight group
+## 7. Create an internal TestFlight group for the acceptance run
 
 An internal group is the simplest and safest way to prove tester assignment.
 Its testers must already be App Store Connect users with access to the app.
+Create one when the release owner must install and test the candidate before
+merging, as required by SMF's documented acceptance path.
 
 1. In App Store Connect, open **Apps** and select the app.
 2. Open the **TestFlight** tab.
@@ -523,7 +528,9 @@ app_store:
     wait_timeout_minutes: 45
 ```
 
-Leave `groups: []` if the first run should only upload and process the build.
+Use `groups: []` only for an upload-and-processing diagnostic. With no group,
+SMF does not assign the build to testers, so that run cannot complete the
+install-and-test acceptance gate and its release PR must not be merged.
 
 > [!NOTE]
 > Do not use an external group for the first acceptance run. External testing
@@ -533,10 +540,52 @@ Leave `groups: []` if the first run should only upload and process the build.
 > exact build to Beta App Review. Follow Apple's
 > [external testing procedure](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/).
 
-## 8. For GitHub Actions, add the five Environment secrets
+## 8. Provide the five Apple credential variables
 
 Base64 is transport encoding, not encryption. Anyone who obtains the encoded
 value can recover the credential.
+
+Use these same names whether you run SMF from the CLI or GitHub Actions:
+
+| Variable                                    | Value                                     | Used by        |
+| ------------------------------------------- | ----------------------------------------- | -------------- |
+| `SMF_APP_STORE_CONNECT_KEY_ID`              | Key ID recorded in step 5                 | candidate, ship |
+| `SMF_APP_STORE_CONNECT_ISSUER_ID`           | Issuer ID recorded in step 5              | candidate, ship |
+| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64`     | Base64 of the `AuthKey_*.p8`              | candidate, ship |
+| `SMF_IOS_CERTIFICATE_BASE64`                | Base64 of the `.p12`                      | candidate only |
+| `SMF_IOS_CERTIFICATE_PASSWORD`              | Password chosen when exporting the `.p12` | candidate only |
+
+### CLI environment variables
+
+On macOS or Linux, export the values in the shell that will run SMF:
+
+```bash
+export SMF_APP_STORE_CONNECT_KEY_ID="<key-id>"
+export SMF_APP_STORE_CONNECT_ISSUER_ID="<issuer-id>"
+export SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64="$(base64 <"/secure/AuthKey_ABC123.p8" | tr -d '\n')"
+export SMF_IOS_CERTIFICATE_BASE64="$(base64 <"/secure/smf-distribution.p12" | tr -d '\n')"
+export SMF_IOS_CERTIFICATE_PASSWORD="<p12-password>"
+```
+
+In Windows PowerShell:
+
+```powershell
+$env:SMF_APP_STORE_CONNECT_KEY_ID = "<key-id>"
+$env:SMF_APP_STORE_CONNECT_ISSUER_ID = "<issuer-id>"
+$env:SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\AuthKey_ABC123.p8"))
+$env:SMF_IOS_CERTIFICATE_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\smf-distribution.p12"))
+$env:SMF_IOS_CERTIFICATE_PASSWORD = "<p12-password>"
+```
+
+PowerShell can supply the App Store Connect variables to the pull-request and
+ship phases. iOS candidate builds require macOS; the certificate variables are
+used there.
+
+These variables exist only in that shell session and are inherited by the SMF
+process. SMF strips credential variables before running repository hooks and
+does not automatically load `.env` files.
+
+### GitHub Actions Environment secrets
 
 Read `app_id` from the Flutter app's `smf/config.yaml`. In the GitHub
 repository:
@@ -546,18 +595,10 @@ repository:
 3. Create or open environment `smf-<app-id>`, replacing `<app-id>` with the
    exact configured value.
 4. Under **Environment secrets**, click **Add environment secret** for each
-   value below.
+   variable in the table above.
 
 The generated workflow declares this environment for candidate and ship jobs.
 Do not place one app's signing credentials in a sibling app's environment.
-
-| Secret                              | Value                                     |
-| ----------------------------------- | ----------------------------------------- |
-| `SMF_APP_STORE_CONNECT_KEY_ID`          | Key ID recorded in step 5                 |
-| `SMF_APP_STORE_CONNECT_ISSUER_ID`       | Issuer ID recorded in step 5              |
-| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 of the `AuthKey_*.p8`              |
-| `SMF_IOS_CERTIFICATE_BASE64`            | Base64 of the `.p12`                      |
-| `SMF_IOS_CERTIFICATE_PASSWORD`          | Password chosen when exporting the `.p12` |
 
 On a trusted Mac, each command copies one encoded file to the clipboard:
 
@@ -589,12 +630,12 @@ Apple setup is complete when:
   `.p8`;
 - the exported `.p12` and password pass the local check;
 - every signed target has a registered App ID on the same team;
-- an internal TestFlight group exists when the team will install the candidate;
-  and
-- for GitHub Actions, all five secret names appear under GitHub environment
+- an internal TestFlight group exists for the documented install-and-test
+  acceptance run; and either
+- for GitHub Actions, all five names appear as secrets under GitHub Environment
   `smf-<app-id>`; or
-- for CLI operation, the credentials remain protected outside the repository
-  and are ready to supply as `SMF_*` environment variables.
+- for CLI operation, all five values remain protected outside the repository
+  and are ready to export as environment variables.
 
 For the automated path, continue at
 [Allow the workflow to open release PRs](github-actions-setup.md#6-allow-actions-to-create-the-release-pr).

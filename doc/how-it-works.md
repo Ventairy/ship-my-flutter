@@ -30,8 +30,10 @@ app-scoped release pull request
 
 ## 1. Commits create platform plans
 
-SMF reads Conventional Commits since each platform’s own baseline. For a
-nested Flutter app, it includes commits that change:
+The `pull-request` phase reads the configured remote target branch in an
+isolated checkout. From there, SMF reads Conventional Commits since each
+platform’s own baseline. For a nested Flutter app, it includes commits that
+change:
 
 - the app directory; or
 - a repository path listed in that app's `release_trigger_paths`.
@@ -52,6 +54,13 @@ Platform scopes apply selectively:
 fix(ios): repair entitlement
 fix(android): repair back navigation
 ```
+
+`fix`, `perf`, and `deps` produce a patch; `feat` produces a minor; any
+breaking commit produces a major. Unknown/domain scopes such as `auth` apply
+to all enabled platforms. Known non-mobile scopes (`macos`, `windows`, `linux`,
+and `web`) do not release iOS or Android. If a scope list contains any
+recognized platform name, only `ios` and/or `android` explicitly present in
+that list are selected.
 
 Each platform calculates its own next version. One may release while the other
 remains unchanged.
@@ -76,8 +85,9 @@ store notes, and platform selection like any other production change.
 The optional GitHub Actions wrapper uses one matrix entry for every platform in
 the PR. The CLI can perform the same candidate operations sequentially with
 `smf release --phase release-candidate`, or one platform at a time with
-`--platform`. Candidate jobs are serialized because each commits its receipt
-to the same branch.
+`--platform`. Each candidate reads the remote release branch in an isolated
+checkout. Candidate jobs are serialized because each commits its receipt to
+that same remote branch.
 
 ### iOS candidate
 
@@ -180,6 +190,10 @@ artifact after the release PR is merged. See
 [Apple targets](configuration.md#apple-targets) and
 [Google Play targets](configuration.md#google-play-targets) for the canonical
 store-specific behavior.
+
+The `ship` phase reads the configured remote target branch in an isolated
+checkout. It does not use a local branch, manifest, receipt, or uncommitted
+file.
 
 ## What changes invalidate a candidate
 

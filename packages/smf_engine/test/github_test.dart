@@ -228,6 +228,132 @@ void main() {
   });
 
   test(
+    'when a single-branch checkout updates an existing release branch, it should fetch the remote branch explicitly',
+    () async {
+      final source = await Directory.systemTemp.createTemp(
+        'smf-github-source-',
+      );
+      final origin = await Directory.systemTemp.createTemp('smf-origin-');
+      final checkout = await Directory.systemTemp.createTemp(
+        'smf-github-checkout-',
+      );
+      addTearDown(() async {
+        await source.delete(recursive: true);
+        await origin.delete(recursive: true);
+        await checkout.delete(recursive: true);
+      });
+      await GitClient(root: origin.path).run(
+        const <String>['init', '--bare', '-b', 'main'],
+      );
+      await Directory(p.join(source.path, 'ios')).create();
+      await File(
+        p.join(source.path, 'ios', '.gitkeep'),
+      ).writeAsString('');
+      await File(
+        p.join(source.path, 'pubspec.yaml'),
+      ).writeAsString('name: example\nversion: 1.0.0+1\n');
+      await File(
+        p.join(source.path, 'pubspec.lock'),
+      ).writeAsString('# fixture\n');
+      final sourceGit = GitClient(root: source.path);
+      await sourceGit.run(const <String>['init', '-b', 'main']);
+      await sourceGit.run(const <String>['config', 'user.name', 'Test']);
+      await sourceGit.run(
+        const <String>['config', 'user.email', 'test@example.com'],
+      );
+      await sourceGit.run(const <String>['add', '.']);
+      await sourceGit.run(
+        const <String>['commit', '-m', 'chore: bootstrap'],
+      );
+      await RepositoryInitializer.initialize(
+        InitOptions(
+          appRoot: source.path,
+          iosBundleId: 'dev.example.app',
+          githubActions: false,
+        ),
+      );
+      await sourceGit.run(const <String>['add', '.']);
+      await sourceGit.run(
+        const <String>['commit', '-m', 'chore: configure releases'],
+      );
+      await sourceGit.run(<String>[
+        'remote',
+        'add',
+        'origin',
+        origin.path,
+      ]);
+      await sourceGit.run(const <String>['push', '-u', 'origin', 'main']);
+      await sourceGit.run(
+        const <String>['switch', '-c', 'smf/example/release'],
+      );
+      await sourceGit.run(
+        const <String>['push', '-u', 'origin', 'smf/example/release'],
+      );
+      await sourceGit.run(const <String>['switch', 'main']);
+      await GitClient(root: source.path).run(<String>[
+        'clone',
+        '--branch',
+        'main',
+        '--single-branch',
+        origin.path,
+        checkout.path,
+      ]);
+      final checkoutGit = GitClient(root: checkout.path);
+      final sha = await checkoutGit.currentSha();
+      final result = await ReleasePullRequest.createOrUpdate(
+        workingDirectory: checkout.path,
+        config: await SmfState.config(checkout.path),
+        plans: <ReleasePlan>[
+          ReleasePlan(
+            platform: Platform.ios,
+            currentVersion: '1.0.0',
+            nextVersion: '1.0.1',
+            versionBump: VersionBump.patch,
+            baseSha: sha,
+            headSha: sha,
+            changes: <ConventionalChange>[
+              ConventionalChange(
+                sha: sha,
+                type: 'fix',
+                scope: 'ios',
+                description: 'Fix launch',
+                body: null,
+                breaking: false,
+                versionBump: VersionBump.patch,
+                platforms: const <Platform>[Platform.ios],
+              ),
+            ],
+          ),
+        ],
+        context: const GitHubContext(
+          owner: 'example',
+          repo: 'app',
+          token: 'unused',
+        ),
+        githubApi: FakeGitHubApi(),
+      );
+
+      expect(
+        (
+          releaseBranch: result.branch,
+          currentBranch: await checkoutGit.currentBranch(),
+          remotePrepared: (await GitClient(root: origin.path).run(
+            const <String>[
+              'show',
+              'smf/example/release:smf/manifest.json',
+            ],
+          )).contains('"pendingRelease": true'),
+        ),
+        (
+          releaseBranch: 'smf/example/release',
+          currentBranch: 'main',
+          remotePrepared: true,
+        ),
+      );
+    },
+  );
+
+  test(
     'restores the starting branch after a release-branch merge fails',
     () async {
       final root = await Directory.systemTemp.createTemp(

@@ -1,96 +1,141 @@
-# Contributing
+# Contributing to SMF
 
-Contributions are welcome through focused issues and pull requests.
+Thank you for helping improve SMF. Contributions are welcome as focused issues
+and pull requests.
 
-## Development
+For usage questions and confirmed bugs, open a
+[GitHub issue](https://github.com/Ventairy/smf/issues/new). Discuss substantial
+features, breaking changes, and new dependencies in an issue before investing
+in an implementation. Report vulnerabilities privately by following
+[SECURITY.md](SECURITY.md).
 
-Requirements:
+## Set up the workspace
 
-- Dart 3.10 or newer
-- Git
-- macOS with Xcode only for real iOS signing/build integration
-- Flutter plus a JDK (`keytool` and `jarsigner`) for real Android
-  signing/build integration
+Install Git and a Dart SDK that satisfies the constraint in `pubspec.yaml`.
+Platform tooling is needed only when a change must exercise a real Apple or
+Android build.
 
-The workspace includes `very_good_analysis` 10.1.0 exactly. That is the newest
-stable preset compatible with the Dart 3.10 floor and keeps every CI SDK on the
-same lint rules.
+Clone your fork, enter the repository, and resolve the workspace:
 
-Use the current stable Dart SDK for formatting. CI still analyzes and tests on
-Dart 3.10, but does not ask that older SDK to enforce a formatter whose output
-can differ from stable.
+```bash
+git clone https://github.com/YOUR_GITHUB_USERNAME/smf.git
+cd smf
+dart pub get
+```
+
+Create a branch for one focused change:
+
+```bash
+git switch -c fix/short-description
+```
+
+## Find the right package
+
+SMF is a Dart workspace with clear package ownership:
+
+| Package       | Contribute here when changing                                 |
+| ------------- | ------------------------------------------------------------- |
+| `smf_hooks`   | The typed repository hook SDK                                 |
+| `smf_engine`  | Planning, state, Git/GitHub behavior, or shared release logic |
+| `smf_apple`   | Apple signing or App Store Connect delivery                   |
+| `smf_android` | Android signing or Google Play delivery                       |
+| `smf_cli`     | Commands, arguments, terminal output, or package composition  |
+
+Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing package boundaries or
+release behavior. Follow [AGENTS.md](AGENTS.md) for coding, testing, security,
+and repository-operation conventions.
+
+## Make the change
+
+- Keep the pull request limited to one problem.
+- Add or update tests for behavior changes. A bug fix needs a regression test.
+- Run focused tests from the package that owns them:
+
+  ```bash
+  cd packages/smf_engine
+  dart test test/config_test.dart
+  cd ../..
+  ```
+
+- Change annotated models or DTOs at their authored source, then regenerate
+  committed `*.freezed.dart` and `*.g.dart` files. Never edit generated files
+  directly.
+- Update parsing, validation, schema, templates, tests, and consumer
+  documentation together when configuration behavior changes.
+- Keep user documentation in `README.md` and `doc/`; keep contributor,
+  architecture, and release material in the corresponding root documents.
+- Never include real credentials, signing assets, store identifiers, tokens, or
+  service-account files.
+
+Normal tests use mocks, disposable repositories, and synthetic signing assets.
+They must not contact production Apple, Google Play, or GitHub resources.
+
+## Validate the change
+
+Run the complete gate from the repository root before opening a pull request:
 
 ```bash
 dart pub get
-dart run melos run generate --no-select
-git diff --exit-code -- packages
-dart run tool/check_dart_format.dart
-dart run tool/check_markdown_links.dart
-dart analyze --fatal-infos
+dart run melos run gen --no-select
+dart run melos run format
+dart run melos run docs:check
+dart run melos run analyze
 dart run melos run test --no-select
 dart run melos run publish:dry-run --no-select
 git diff --check
 ```
 
-Freezed and json_serializable outputs are committed package source. Run the
-generator after changing an annotated model or DTO, review both the authored
-and generated diffs, and never edit generated files directly.
+Review generated and formatted changes before including them. Do not commit
+unrelated output.
 
-The workspace lockfile is intentionally ignored. CI resolves the newest
-compatible graph on Dart 3.10 and stable, then separately runs
-`dart pub downgrade`, analysis, and every package test to verify lower
-dependency bounds. The companion Action owns its committed deployment
-lockfile.
-
-The test suites use disposable Git repositories, synthetic signing assets, and
-mocked GitHub, Apple, and Google Play endpoints. They must not contact a
-production store account.
-
-Use Conventional Commits. A change limited to one delivery platform should use
-that platform scope, for example `fix(ios): handle expired profiles`.
-
-## Package boundaries
-
-- `smf_hooks` owns the stable, lightweight repository hook SDK.
-- `smf_engine` owns platform-neutral planning, state, and GitHub orchestration.
-- `smf_apple` owns signing, upload, TestFlight, and App Store operations.
-- `smf_android` owns upload-key signing, AAB validation, and Google Play
-  operations.
-- `smf_cli` owns terminal parsing and composes core with adapters.
-
-Dependencies flow from `smf_cli` to core/adapters, from adapters to core, and
-from core to hooks. Core must never import a platform adapter. Keep the
-companion Action as a thin adapter over the public phased CLI.
-
-CLI success output is one JSON value on stdout. Human diagnostics and errors go
-to stderr. Never add a raw-secret argument; use a documented environment
-variable or file path.
-
-## Apple integration changes
-
-Never add real `.p8`, `.p12`, `.mobileprovision`, App Store Connect IDs, or
-repository tokens. Changes to App Store Connect requests should cite the
-current Apple contract in the pull request. Changes to signing should describe
-cleanup behavior and be tested on a disposable app/team before release.
-
-## Android integration changes
-
-Never add real service-account JSON, upload keystores, aliases, passwords, or
-repository tokens. Google Play API changes should cite the current official
-contract. Signing changes must pass the opt-in real Flutter AAB integration
-test:
+When changing dependency constraints, also verify the minimum supported
+resolution:
 
 ```bash
-SMF_RUN_ANDROID_SIGNING_INTEGRATION=true \
-  dart test packages/smf_android/test/android_signing_integration_test.dart
+dart pub downgrade
+dart run melos run analyze
+dart run melos run test --no-select
+dart pub upgrade
 ```
 
-Live Google Play acceptance remains a separate credentialed gate.
+If a credentialed or platform-specific check is relevant but unavailable,
+state exactly what remains unverified. Mocked coverage is not live store
+acceptance.
 
-## Pull requests
+## Commit the change
 
-- Keep unrelated changes separate.
-- Add or update tests for behavioral changes.
-- Update schemas and documentation with configuration changes.
-- Run every command in the development gate.
-- Explain anything that could not be validated against a live store account.
+Use a [Conventional Commit](https://www.conventionalcommits.org/) message:
+
+```text
+<type>[optional scope][optional !]: <description>
+```
+
+Examples:
+
+```text
+fix(android): reject an unsigned app bundle
+feat(cli): add candidate inspection
+docs: clarify hook recovery
+```
+
+Use `!` and explain the migration in the commit body or a `BREAKING CHANGE:`
+footer when the change intentionally breaks a public contract.
+
+## Open the pull request
+
+Complete the pull request template and include:
+
+- the problem and user-visible result;
+- the issue it resolves, when applicable;
+- tests added or updated;
+- documentation or schema changes;
+- the commands you ran;
+- any platform or live-service validation that remains unverified.
+
+Before submitting, review the complete diff for unrelated files, generated
+noise, credentials, and accidental public API changes. CI must pass before the
+pull request is ready to merge.
+
+Preparing a contribution does not authorize tagging, publishing, uploading
+artifacts, or changing a live store. Maintainers perform releases according to
+[RELEASING.md](RELEASING.md).

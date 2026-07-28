@@ -78,8 +78,8 @@ smf init \
 - `--version` is the latest version already released, not the next version.
 - Use `--ios-version` and `--android-version` when the platforms have different
   released versions.
-- Omit the iOS or Android identifier when the app does not support that
-  platform.
+- Add `--platform ios` or `--platform android` to initialize only one platform;
+  omit it to configure every detected platform directory.
 - Choose an explicit, permanent `--app-id` for every app in a monorepo.
 - You can omit version options and let SMF detect the current versions.
 
@@ -185,16 +185,22 @@ The `pull-request` phase detects `owner/name` from the current Git repository's
 `origin` remote. Set `SMF_GITHUB_REPOSITORY` or use `--repository owner/name`
 only to override that detected repository. It derives the affected platforms
 from the release changes and returns the release branch in its JSON result.
+The result's `phase` field reports the next work to run
+(`release-candidate` or `ship`), or `noop`; it does not merely echo
+`pull-request`.
 
 The manual sequence is:
 
 ```bash
-git switch main
-git pull --ff-only origin main
 smf release --phase pull-request
-git fetch origin
-git switch smf/<app-id>/release
 smf release --phase release-candidate
+```
+
+For one app in a monorepo, keep its selector on every phase:
+
+```bash
+smf release --phase pull-request --smf-path apps/customer/smf
+smf release --phase release-candidate --smf-path apps/customer/smf
 ```
 
 Install and test every candidate from its configured TestFlight or Google Play
@@ -205,12 +211,19 @@ inside the same Git repository:
 smf release --phase ship
 ```
 
-The `pull-request` phase requires a clean checkout. The `release-candidate`
-phase must run from the reported release branch. The `ship` phase fetches the
-repository into an isolated temporary checkout, treats the configured remote
-target branch as its source of truth, and deletes the checkout when it
-finishes. An iOS candidate requires macOS and the local Flutter/iOS toolchain.
-Android candidates can run on a supported Android build machine.
+For that monorepo app:
+
+```bash
+smf release --phase ship --smf-path apps/customer/smf
+```
+
+The `pull-request` and `ship` phases fetch the configured remote target branch
+into an isolated temporary checkout. The `release-candidate` phase does the
+same with the remote release branch. Every phase deletes its checkout when
+finished and does not depend on or switch your local branch. Local uncommitted
+files and unpushed commits do not participate. An iOS candidate requires macOS
+and the local Flutter/iOS toolchain. Android candidates can run on a supported
+Android build machine.
 
 Omit `--platform` to process every eligible platform. Add `--platform ios` or
 `--platform android` to any phase to plan, create, ship, or retry only that
@@ -234,31 +247,26 @@ For production and shared machines, use environment variables. Process
 arguments may be visible to other local processes, shell history, job
 diagnostics, or monitoring tools.
 
-On macOS or Linux, export the credentials for the release:
+First export the GitHub token. On macOS or Linux:
 
 ```bash
 export SMF_GITHUB_TOKEN="<token>"
-export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
-export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
-export SMF_ANDROID_KEY_ALIAS="upload"
-export SMF_ANDROID_KEYSTORE_PASSWORD="<keystore-password>"
-export SMF_ANDROID_KEY_PASSWORD="<key-password>"
-
-smf release --phase release-candidate
 ```
 
 In Windows PowerShell:
 
 ```powershell
 $env:SMF_GITHUB_TOKEN = "<token>"
-$env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = Get-Content "C:\secure\service-account.json" -Raw
-$env:SMF_ANDROID_KEYSTORE_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\upload-keystore.jks"))
-$env:SMF_ANDROID_KEY_ALIAS = "upload"
-$env:SMF_ANDROID_KEYSTORE_PASSWORD = "<keystore-password>"
-$env:SMF_ANDROID_KEY_PASSWORD = "<key-password>"
-
-smf release --phase release-candidate
 ```
+
+Then follow the platform guide for the remaining values:
+
+- [Export the five Apple CLI variables](apple-bootstrap.md#cli-environment-variables)
+  for iOS;
+- [export the five Android CLI variables](android-bootstrap.md#cli-environment-variables)
+  for Android.
+
+For a two-platform run without `--platform`, export both sets.
 
 For a quick local run, every credential also has a direct option:
 
@@ -273,7 +281,9 @@ Use `smf release --phase pull-request --help` for the complete option list. SMF 
 an option when its matching `SMF_*` variable is also set. SMF does not accept
 credential-file options or credential `_PATH` variables.
 
-Run release commands only from the branch and repository state described in
+Run release commands from anywhere inside the repository. The configured
+remote target and release branches are authoritative; local branches,
+uncommitted files, and unpushed commits do not participate. See
 [Release operations and recovery](operations.md). The platform setup guides
 list the complete set of variables required by Apple and Android.
 
@@ -290,8 +300,10 @@ SMF does not automatically load `.env` files.
 
 Follow:
 
-- [Apple setup](apple-bootstrap.md) for App Store Connect and iOS signing;
-- [Android setup](android-bootstrap.md) for Google Play and Android signing; and
+- [Apple credential variables](apple-bootstrap.md#8-provide-the-five-apple-credential-variables)
+  for App Store Connect and iOS signing;
+- [Android credential variables](android-bootstrap.md#8-provide-the-five-android-credential-variables)
+  for Google Play and Android signing; and
 - [Security](security.md) before using credentials in custom automation.
 
 If a command fails, it prints an explanation and a short error name in

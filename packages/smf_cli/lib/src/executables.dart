@@ -397,9 +397,13 @@ $credentialGuidance
     if (environmentRepository != null || !inferFromGit) {
       return environmentRepository;
     }
-    final remote = await GitClient(
-      root: _workingDirectory(io),
-    ).run(const <String>['remote', 'get-url', 'origin'], allowFailure: true);
+    final remote =
+        await GitClient(
+          root: _workingDirectory(io),
+        ).run(
+          const <String>['config', '--get', 'remote.origin.url'],
+          allowFailure: true,
+        );
     return _githubRepositoryFromRemote(remote);
   }
 
@@ -545,6 +549,11 @@ $credentialGuidance
             'detection for Android.',
       )
       ..addOption(
+        'platform',
+        valueHelp: 'ios|android',
+        help: 'Restrict initialization to one detected platform.',
+      )
+      ..addOption(
         'ios-bundle-id',
         valueHelp: 'bundle-id',
         help:
@@ -610,6 +619,10 @@ $credentialGuidance
             platformVersionDetectors: <Platform, Future<String?> Function(String appRoot)>{
               Platform.ios: apple.AppleProject.detectVersion,
               Platform.android: android.AndroidProject.detectVersion,
+            },
+            selectedPlatform: switch (arguments.option('platform')) {
+              final value? => Platform.parse(value),
+              null => null,
             },
             iosBundleId: arguments.option('ios-bundle-id'),
             androidPackageName: arguments.option('android-package-name'),
@@ -691,16 +704,24 @@ $credentialGuidance
       arguments: arguments,
       parser: parser,
       io: io,
-      operation: (arguments, io) async => (await SmfMigration.migrate(
-        MigrationOptions(
-          workingDirectory: _workingDirectory(io),
-          smfPath: _smfPath(arguments),
-          appId: arguments.option('app-id'),
-          config: arguments.flag('config'),
-          githubActions: arguments.flag('github-actions'),
-          registry: arguments.flag('registry'),
-        ),
-      )).toJson(),
+      operation: (arguments, io) async {
+        final repositoryRoot =
+            await GitClient(
+              root: _workingDirectory(io),
+            ).run(
+              const <String>['rev-parse', '--show-toplevel'],
+            );
+        return (await SmfMigration.migrate(
+          MigrationOptions(
+            workingDirectory: repositoryRoot,
+            smfPath: _smfPath(arguments),
+            appId: arguments.option('app-id'),
+            config: arguments.flag('config'),
+            githubActions: arguments.flag('github-actions'),
+            registry: arguments.flag('registry'),
+          ),
+        )).toJson();
+      },
     );
   }
 
@@ -818,10 +839,13 @@ $credentialGuidance
         }
         final selected = arguments.option('platform');
         final selectedPlatform = selected == null ? null : Platform.parse(selected);
-        final workingDirectory = _workingDirectory(
+        final requestedWorkingDirectory = _workingDirectory(
           io,
           arguments.option('working-directory'),
         );
+        final workingDirectory = await GitClient(
+          root: requestedWorkingDirectory,
+        ).run(const <String>['rev-parse', '--show-toplevel']);
         final smfPath = _smfPath(arguments);
         final github = await _requiredGitHub(
           arguments,
@@ -830,14 +854,14 @@ $credentialGuidance
         );
         switch (phase) {
           case 'pull-request':
-            return (await _prepareRelease(
+            return (await _prepareReleaseFromRemote(
               workingDirectory: workingDirectory,
               smfPath: smfPath,
               github: github,
               selectedPlatform: selectedPlatform,
             )).toJson();
           case 'release-candidate':
-            final releases = await _createCandidates(
+            final releases = await _createCandidatesFromRemote(
               workingDirectory: workingDirectory,
               smfPath: smfPath,
               github: github,
@@ -969,7 +993,7 @@ $credentialGuidance
     );
 
     final temporaryDirectory = await dart_io.Directory.systemTemp.createTemp(
-      'smf-ship-',
+      'smf-release-',
     );
     final checkoutRoot = p.join(temporaryDirectory.path, 'repository');
     var failed = true;
@@ -1075,6 +1099,58 @@ $credentialGuidance
     };
   }
 
+  static Future<List<Map<String, Object?>>> _createCandidatesFromRemote({
+    required String workingDirectory,
+    required String? smfPath,
+    required GitHubContext github,
+    required Map<String, String> environment,
+    Platform? selectedPlatform,
+  }) => _withRemoteTargetCheckout(
+    workingDirectory: workingDirectory,
+    smfPath: smfPath,
+    github: github,
+    operation:
+        (
+          remoteWorkingDirectory,
+          remoteSmfPath,
+          config,
+          _,
+          gitClient,
+        ) async {
+          final releaseBranch = ReleaseReference.branch(config.appId);
+          final remoteBranch = await gitClient.authenticated(<String>[
+            'ls-remote',
+            '--heads',
+            'origin',
+            'refs/heads/$releaseBranch',
+          ], github.token);
+          SmfError.check(
+            remoteBranch.isNotEmpty,
+            'Remote release branch $releaseBranch does not exist. Run the '
+                'pull-request phase first.',
+            'RELEASE_BRANCH_NOT_FOUND',
+          );
+          await gitClient.authenticated(<String>[
+            'fetch',
+            'origin',
+            'refs/heads/$releaseBranch:refs/remotes/origin/$releaseBranch',
+          ], github.token);
+          await gitClient.run(<String>[
+            'checkout',
+            '-B',
+            releaseBranch,
+            'origin/$releaseBranch',
+          ]);
+          return _createCandidates(
+            workingDirectory: remoteWorkingDirectory,
+            smfPath: remoteSmfPath,
+            github: github,
+            environment: environment,
+            selectedPlatform: selectedPlatform,
+          );
+        },
+  );
+
   static Future<List<Map<String, Object?>>> _createCandidates({
     required String workingDirectory,
     required String? smfPath,
@@ -1098,9 +1174,9 @@ $credentialGuidance
     SmfError.check(
       platforms.isNotEmpty,
       selectedPlatform == null
-          ? 'No release candidate is pending on the current release branch.'
+          ? 'No release candidate is pending on the remote release branch.'
           : 'No ${selectedPlatform.value} release candidate is pending on the '
-                'current release branch.',
+                'remote release branch.',
       'NO_RELEASE_CANDIDATE',
     );
     final releases = <Map<String, Object?>>[];
@@ -1128,6 +1204,30 @@ $credentialGuidance
     smfPath: smfPath,
     github: github,
     selectedPlatform: selectedPlatform,
+  );
+
+  static Future<CommandResult> _prepareReleaseFromRemote({
+    required String workingDirectory,
+    required String? smfPath,
+    required GitHubContext github,
+    Platform? selectedPlatform,
+  }) => _withRemoteTargetCheckout(
+    workingDirectory: workingDirectory,
+    smfPath: smfPath,
+    github: github,
+    operation:
+        (
+          remoteWorkingDirectory,
+          remoteSmfPath,
+          _,
+          _,
+          _,
+        ) => _prepareRelease(
+          workingDirectory: remoteWorkingDirectory,
+          smfPath: remoteSmfPath,
+          github: github,
+          selectedPlatform: selectedPlatform,
+        ),
   );
 
   static Future<Map<String, Object?>> _shipPlatform({
