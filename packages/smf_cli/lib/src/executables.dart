@@ -42,15 +42,15 @@ final class SmfExecutable {
   static const String _topLevelUsage = '''
 SMF release automation
 
-Usage: smf <command> [options]
+Usage:
+  smf --phase <pull-request|release-candidate|ship> [options]
+  smf <command> [options]
 
 Commands:
   init              Initialize SMF in a Flutter repository.
   upgrade           Upgrade the installed SMF CLI to the latest version.
   migrate           Update files created by an older SMF CLI to the installed format.
   validate          Validate repository configuration.
-  create-release    Create a release PR and its store candidates.
-  ship              Ship the created release to its configured targets.
 ''';
 
   /// Runs the top-level SMF command.
@@ -62,6 +62,11 @@ Commands:
     if (arguments.isEmpty || arguments.first == '--help' || arguments.first == '-h') {
       resolvedIo.writeOutput(_topLevelUsage);
       final exitCode = arguments.isEmpty ? 64 : 0;
+      await _writeUpdateNotice(resolvedIo);
+      return exitCode;
+    }
+    if (arguments.first.startsWith('-')) {
+      final exitCode = await runRelease(arguments, io: resolvedIo);
       await _writeUpdateNotice(resolvedIo);
       return exitCode;
     }
@@ -77,16 +82,10 @@ Commands:
         exitCode = await runMigrate(options, io: resolvedIo);
       case 'validate':
         exitCode = await runValidate(options, io: resolvedIo);
-      case 'create-release':
-        exitCode = await runCreateRelease(options, io: resolvedIo);
-      case 'ship':
-        exitCode = await runShip(options, io: resolvedIo);
-      case 'action':
-        exitCode = await runAction(options, io: resolvedIo);
       default:
         exitCode = _unknownCommand(command, resolvedIo);
     }
-    if (command != 'upgrade' && command != 'action') {
+    if (command != 'upgrade') {
       await _writeUpdateNotice(resolvedIo);
     }
     return exitCode;
@@ -581,7 +580,7 @@ $credentialGuidance
         negatable: false,
         help:
             'Initialize SMF without generating a GitHub Actions workflow. Use '
-            'the CLI manually for create-release and ship.',
+            'the phased CLI manually for release operations.',
       );
     return _runExecutable(
       name: 'init',
@@ -734,7 +733,8 @@ $credentialGuidance
     );
   }
 
-  static Future<int> runCreateRelease(
+  /// Runs one release workflow phase.
+  static Future<int> runRelease(
     List<String> arguments, {
     ExecutableIo? io,
   }) {
@@ -744,154 +744,87 @@ $credentialGuidance
             includeSigning: true,
           )
           ..addOption(
+            'phase',
+            allowed: const <String>[
+              'pull-request',
+              'release-candidate',
+              'ship',
+            ],
+            mandatory: true,
+            help: 'Release workflow phase to execute.',
+          )
+          ..addOption(
             'platform',
             valueHelp: 'ios|android',
             allowed: Platform.values.map((platform) => platform.value),
             help:
-                'Create only this platform candidate after preparing the release. '
-                'Omit it to create every candidate selected by the changes.',
+                'Restrict the phase to one platform. Omit it to process every '
+                'eligible platform.',
           )
-          ..addFlag(
-            'prepare-only',
-            negatable: false,
-            help:
-                'Prepare and push the release PR without building candidates. Use '
-                'this when candidate platforms run on separate machines.',
-          );
+          ..addOption('working-directory', hide: true);
     return _runExecutable(
-      name: 'create_release',
+      name: 'release',
       description:
-          'Create or update the shared release pull request, push its release '
-          'branch, then build, sign, upload, and record store candidates for '
-          'every platform selected by the release changes.',
+          'Run one phase of the SMF release workflow. Without --platform, the '
+          'phase processes every eligible platform.',
       arguments: arguments,
       parser: parser,
       io: io,
       operation: (arguments, io) async {
-        final workingDirectory = _workingDirectory(io);
-        final smfPath = _smfPath(arguments);
-        final credentialEnvironment = _credentialEnvironment(
-          arguments,
-          io.environment,
-          includeSigning: true,
+        final workingDirectory = _workingDirectory(
+          io,
+          arguments.option('working-directory'),
         );
+        final smfPath = _smfPath(arguments);
         final github = await _requiredGitHub(
           arguments,
           io,
           inferRepositoryFromGit: true,
         );
-        final result = await _prepareRelease(
-          workingDirectory: workingDirectory,
-          smfPath: smfPath,
-          github: github,
-        );
-        if (arguments.flag('prepare-only') || result.phase == 'noop') {
-          return result.toJson();
-        }
-        SmfError.check(
-          result.phase == 'release-candidate',
-          'The created release is already on the target branch. Run smf ship '
-              'to deliver its tested candidates.',
-          'RELEASE_READY_TO_SHIP',
-        );
-        final targets = result.releases ?? const <ReleaseTarget>[];
         final selected = arguments.option('platform');
-        final platforms = <Platform>[
-          for (final target in targets)
-            if (selected == null || target.platform.value == selected) target.platform,
-        ];
-        SmfError.check(
-          platforms.isNotEmpty,
-          'The prepared release does not contain a $selected candidate.',
-          'PLATFORM_NOT_IN_RELEASE',
-        );
-        final branch = result.branch;
-        SmfError.check(
-          branch != null && branch.isNotEmpty,
-          'The prepared release did not provide a candidate branch.',
-          'RELEASE_BRANCH_MISSING',
-        );
-        final paths = SmfPaths.resolve(
-          workingDirectory,
-          smfPath: smfPath,
-        );
-        final gitClient = GitClient(root: paths.repositoryRoot);
-        final startingBranch = await gitClient.currentBranch();
-        if (startingBranch != branch) {
-          await gitClient.run(<String>['checkout', branch!]);
-        }
-        try {
-          final candidates = <Map<String, Object?>>[];
-          for (final platform in platforms) {
-            candidates.add(
-              await _createCandidate(
-                platform: platform,
-                workingDirectory: workingDirectory,
-                smfPath: smfPath,
-                github: github,
-                environment: credentialEnvironment,
+        final selectedPlatform = selected == null ? null : Platform.parse(selected);
+        switch (arguments.option('phase')) {
+          case 'pull-request':
+            return (await _prepareRelease(
+              workingDirectory: workingDirectory,
+              smfPath: smfPath,
+              github: github,
+              selectedPlatform: selectedPlatform,
+            )).toJson();
+          case 'release-candidate':
+            final releases = await _createCandidates(
+              workingDirectory: workingDirectory,
+              smfPath: smfPath,
+              github: github,
+              environment: _credentialEnvironment(
+                arguments,
+                io.environment,
+                includeSigning: true,
               ),
+              selectedPlatform: selectedPlatform,
             );
-          }
-          return <String, Object?>{
-            ...result.toJson(),
-            'candidates': candidates,
-          };
-        } finally {
-          if (startingBranch.isNotEmpty && startingBranch != branch && await gitClient.isClean()) {
-            await gitClient.run(<String>['checkout', startingBranch]);
-          }
+            return <String, Object?>{
+              'phase': 'release-candidate',
+              'releases': releases,
+            };
+          case 'ship':
+            final releases = await _shipFromRemote(
+              workingDirectory: workingDirectory,
+              smfPath: smfPath,
+              github: github,
+              environment: _credentialEnvironment(
+                arguments,
+                io.environment,
+                includeSigning: false,
+              ),
+              selectedPlatform: selectedPlatform,
+            );
+            return <String, Object?>{
+              'phase': 'ship',
+              'releases': releases,
+            };
         }
-      },
-    );
-  }
-
-  static Future<int> runShip(
-    List<String> arguments, {
-    ExecutableIo? io,
-  }) {
-    final parser =
-        _addStoreCredentialOptions(
-          _githubOptions(inferRepositoryFromGit: true),
-          includeSigning: false,
-        )..addOption(
-          'platform',
-          valueHelp: 'ios|android',
-          allowed: Platform.values.map((platform) => platform.value),
-          help:
-              'Ship only this pending platform. Omit it to ship every platform '
-              'in the created release.',
-        );
-    return _runExecutable(
-      name: 'ship',
-      description:
-          'Ship every pending platform from the remote target branch to its '
-          'configured destination without rebuilding its tested candidate.',
-      arguments: arguments,
-      parser: parser,
-      io: io,
-      operation: (arguments, io) async {
-        final workingDirectory = _workingDirectory(io);
-        final smfPath = _smfPath(arguments);
-        final credentialEnvironment = _credentialEnvironment(
-          arguments,
-          io.environment,
-          includeSigning: false,
-        );
-        final github = await _requiredGitHub(
-          arguments,
-          io,
-          inferRepositoryFromGit: true,
-        );
-        final selected = arguments.option('platform');
-        final releases = await _shipFromRemote(
-          workingDirectory: workingDirectory,
-          smfPath: smfPath,
-          github: github,
-          environment: credentialEnvironment,
-          selectedPlatform: selected == null ? null : Platform.parse(selected),
-        );
-        return <String, Object?>{'releases': releases};
+        throw const SmfError('Unsupported release phase.', 'INVALID_PHASE');
       },
     );
   }
@@ -931,8 +864,9 @@ $credentialGuidance
           SmfError.check(
             platforms.isNotEmpty,
             'No created release is ready to ship on the remote '
-                '${config.targetBranch} branch. Run smf create-release, test '
-                'its candidates, and merge its release PR first.',
+                '${config.targetBranch} branch. Run the pull-request and '
+                'release-candidate phases, test the candidates, and merge the '
+                'release PR first.',
             'NO_RELEASE_TO_SHIP',
           );
           final releases = <Map<String, Object?>>[];
@@ -1096,14 +1030,59 @@ $credentialGuidance
     };
   }
 
+  static Future<List<Map<String, Object?>>> _createCandidates({
+    required String workingDirectory,
+    required String? smfPath,
+    required GitHubContext github,
+    required Map<String, String> environment,
+    Platform? selectedPlatform,
+  }) async {
+    final paths = SmfPaths.resolve(
+      workingDirectory,
+      smfPath: smfPath,
+    );
+    final (config, manifest) = await (
+      SmfState.config(paths.directory),
+      SmfState.manifest(paths.directory),
+    ).wait;
+    final platforms = <Platform>[
+      for (final platform in config.enabledPlatforms)
+        if ((selectedPlatform == null || platform == selectedPlatform) && manifest.forPlatform(platform).pendingRelease)
+          platform,
+    ];
+    SmfError.check(
+      platforms.isNotEmpty,
+      selectedPlatform == null
+          ? 'No release candidate is pending on the current release branch.'
+          : 'No ${selectedPlatform.value} release candidate is pending on the '
+                'current release branch.',
+      'NO_RELEASE_CANDIDATE',
+    );
+    final releases = <Map<String, Object?>>[];
+    for (final platform in platforms) {
+      releases.add(
+        await _createCandidate(
+          platform: platform,
+          workingDirectory: workingDirectory,
+          smfPath: smfPath,
+          github: github,
+          environment: environment,
+        ),
+      );
+    }
+    return releases;
+  }
+
   static Future<CommandResult> _prepareRelease({
     required String workingDirectory,
     required String? smfPath,
     required GitHubContext github,
+    Platform? selectedPlatform,
   }) => const ReleaseOrchestrator().plan(
     workingDirectory: workingDirectory,
     smfPath: smfPath,
     github: github,
+    selectedPlatform: selectedPlatform,
   );
 
   static Future<Map<String, Object?>> _shipPlatform({
@@ -1137,78 +1116,5 @@ $credentialGuidance
         ),
       )).toJson(),
     };
-  }
-
-  static Future<int> runAction(List<String> arguments, {ExecutableIo? io}) {
-    final parser = _githubOptions()
-      ..addOption(
-        'phase',
-        allowed: const <String>['pull-request', 'release-candidate', 'ship'],
-        mandatory: true,
-        help: 'Private workflow phase executed by smf-action.',
-      )
-      ..addOption(
-        'platform',
-        valueHelp: 'ios|android',
-        allowed: Platform.values.map((platform) => platform.value),
-        help:
-            'Platform selected by the action matrix. Required for '
-            'release-candidate and ship.',
-      )
-      ..addOption('working-directory', hide: true);
-    return _runExecutable(
-      name: 'action',
-      description: 'Run the private smf-action machine adapter.',
-      arguments: arguments,
-      parser: parser,
-      io: io,
-      operation: (arguments, io) async {
-        final workingDirectory = _workingDirectory(
-          io,
-          arguments.option('working-directory'),
-        );
-        final smfPath = _smfPath(arguments);
-        switch (arguments.option('phase')) {
-          case 'pull-request':
-            return (await _prepareRelease(
-              workingDirectory: workingDirectory,
-              smfPath: smfPath,
-              github: await _requiredGitHub(arguments, io),
-            )).toJson();
-          case 'release-candidate':
-            final github = await _requiredGitHub(arguments, io);
-            final platform = arguments.option('platform');
-            SmfError.check(
-              platform != null,
-              '--platform is required for release-candidate.',
-              'PLATFORM_REQUIRED',
-            );
-            return _createCandidate(
-              platform: Platform.parse(platform!),
-              workingDirectory: workingDirectory,
-              smfPath: smfPath,
-              github: github,
-              environment: io.environment,
-            );
-          case 'ship':
-            final platform = arguments.option('platform');
-            SmfError.check(
-              platform != null,
-              '--platform is required for ship.',
-              'PLATFORM_REQUIRED',
-            );
-            final github = await _requiredGitHub(arguments, io);
-            final releases = await _shipFromRemote(
-              workingDirectory: workingDirectory,
-              smfPath: smfPath,
-              github: github,
-              environment: io.environment,
-              selectedPlatform: Platform.parse(platform!),
-            );
-            return releases.single;
-        }
-        throw const SmfError('Unsupported action phase.', 'INVALID_PHASE');
-      },
-    );
   }
 }

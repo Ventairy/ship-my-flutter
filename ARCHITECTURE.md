@@ -12,9 +12,9 @@ SMF separates generic release planning from platform delivery.
 - `smf_android`: Google credentials, upload-key signing, AAB build, Android
   Publisher edits/tracks, and Google Play delivery.
 - `smf_cli`: the only executable; composes engine and adapters.
-- `Ventairy/smf-action`: vendored deployment adapter over private
-  `smf action` phases that delegate to the same prepare, candidate, and ship
-  operations used by the public commands.
+- `Ventairy/smf-action`: vendored deployment adapter over the public phased
+  CLI that delegates to the same prepare, candidate, and ship operations used
+  manually.
 
 Dependency direction:
 

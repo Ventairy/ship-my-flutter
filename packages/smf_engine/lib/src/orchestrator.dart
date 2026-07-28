@@ -17,6 +17,7 @@ final class ReleaseOrchestrator {
     required String workingDirectory,
     required GitHubContext github,
     String? smfPath,
+    Platform? selectedPlatform,
   }) async {
     final paths = SmfPaths.resolve(workingDirectory, smfPath: smfPath);
     final repositoryRoot = paths.repositoryRoot;
@@ -25,7 +26,11 @@ final class ReleaseOrchestrator {
       SmfState.config(paths.directory),
       SmfState.manifest(paths.directory),
     ).wait;
-    if (config.enabledPlatforms.isEmpty) {
+    final platforms = <Platform>[
+      for (final platform in config.enabledPlatforms)
+        if (selectedPlatform == null || platform == selectedPlatform) platform,
+    ];
+    if (platforms.isEmpty) {
       return const CommandResult(phase: 'noop');
     }
     final branch = await gitClient.currentBranch();
@@ -42,7 +47,7 @@ final class ReleaseOrchestrator {
     }
     await RepositoryValidator.validate(paths.directory);
     final pending = <ReleaseTarget>[];
-    for (final platform in config.enabledPlatforms) {
+    for (final platform in platforms) {
       final state = manifest.forPlatform(platform);
       if (state.pendingRelease &&
           await releasePlanner.needsPromotion(
@@ -67,7 +72,7 @@ final class ReleaseOrchestrator {
       return CommandResult(phase: 'ship', releases: pending);
     }
     final plans = <ReleasePlan>[];
-    for (final platform in config.enabledPlatforms) {
+    for (final platform in platforms) {
       final plan = await releasePlanner.create(
         manifest: manifest,
         platform: platform,

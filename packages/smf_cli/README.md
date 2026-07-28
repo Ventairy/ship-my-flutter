@@ -14,8 +14,9 @@ Then initialize and operate SMF from a Flutter application repository:
 smf init
 smf migrate
 smf validate
-smf create-release
-smf ship
+smf --phase pull-request
+smf --phase release-candidate
+smf --phase ship
 ```
 
 Run `smf migrate` after installing a newer CLI in an existing SMF repository.
