@@ -232,8 +232,7 @@ For production and shared machines, use environment variables. Process
 arguments may be visible to other local processes, shell history, job
 diagnostics, or monitoring tools.
 
-On macOS or Linux, export the credentials for the release and remove them
-afterward:
+On macOS or Linux, export the credentials for the release:
 
 ```bash
 export SMF_GITHUB_TOKEN="<token>"
