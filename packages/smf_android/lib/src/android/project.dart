@@ -48,10 +48,8 @@ final class AndroidProject {
     return versions.isEmpty ? null : _oneVersion(versions);
   }
 
-  static Set<String> _stableVersions(Iterable<String?> values) => <String>{
-    for (final value in values)
-      if (value?.trim() case final candidate? when _isStableVersion(candidate)) candidate,
-  };
+  static Set<String> _stableVersions(Iterable<String?> values) =>
+      values.whereType<String>().map((value) => value.trim()).where(_isStableVersion).toSet();
 
   static bool _isStableVersion(String value) => RegExp(
     r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$',
