@@ -60,7 +60,7 @@ that platform scope, for example `fix(ios): handle expired profiles`.
 
 Dependencies flow from `smf_cli` to core/adapters, from adapters to core, and
 from core to hooks. Core must never import a platform adapter. Keep the
-companion Action as a thin adapter over the private `smf action` command.
+companion Action as a thin adapter over the public phased CLI.
 
 CLI success output is one JSON value on stdout. Human diagnostics and errors go
 to stderr. Never add a raw-secret argument; use a documented environment

@@ -167,38 +167,32 @@ workflow, or SMF release records.
 
 ## Run a release from the CLI
 
-The complete manual lifecycle uses two commands:
-
 Use this mode when the generated workflow is absent or disabled. Do not run
 manual candidate creation while the automated wrapper is also active; both
 would react to the same release branch and could upload concurrently.
 
-| Command              | Purpose                                                   |
-| -------------------- | --------------------------------------------------------- |
-| `smf create-release` | Create/update the release PR and create its candidates    |
-| `smf ship`           | Ship the created release to its configured store targets |
+Every release operation uses `--phase`:
 
-`smf create-release` detects `owner/name` from the current Git repository's
-`origin` remote. Set `SMF_GITHUB_REPOSITORY` or use
-`--repository owner/name` only to override that detected repository. The
-command stops with an explanation when it cannot detect one. SMF derives the
-affected platforms from the release changes, creates or updates the release
-PR, checks out its release branch, builds, signs, uploads, and records every
-candidate, then restores your starting branch.
+| Phase               | Purpose                                                        |
+| ------------------- | -------------------------------------------------------------- |
+| `pull-request`      | Create or update the release PR and report planned platforms   |
+| `release-candidate` | Build, upload, verify, and record the planned store candidates |
+| `ship`              | Ship the exact tested candidates after the release PR merges   |
 
-`smf ship` must run after that release PR has been reviewed, tested, and merged.
-It fetches the repository into an isolated temporary checkout, reads the
-committed configuration and release state from the configured remote target
-branch, checks remote release tags, and delivers each exact tested candidate to
-its configured target. Your current branch, uncommitted files, and local tags
-do not affect what ships. You do not select iOS or Android manually.
+The `pull-request` phase detects `owner/name` from the current Git repository's
+`origin` remote. Set `SMF_GITHUB_REPOSITORY` or use `--repository owner/name`
+only to override that detected repository. It derives the affected platforms
+from the release changes and returns the release branch in its JSON result.
 
 The manual sequence is:
 
 ```bash
 git switch main
 git pull --ff-only origin main
-smf create-release
+smf release --phase pull-request
+git fetch origin
+git switch smf/<app-id>/release
+smf release --phase release-candidate
 ```
 
 Install and test every candidate from its configured TestFlight or Google Play
@@ -206,20 +200,20 @@ testing destination. Review and merge the release PR. Then ship from anywhere
 inside the same Git repository:
 
 ```bash
-smf ship
+smf release --phase ship
 ```
 
-`create-release` requires a clean checkout. `ship` does not read or modify the
-caller checkout; it deletes its temporary remote checkout when the command
+The `pull-request` phase requires a clean checkout. The `release-candidate`
+phase must run from the reported release branch. The `ship` phase fetches the
+repository into an isolated temporary checkout, treats the configured remote
+target branch as its source of truth, and deletes the checkout when it
 finishes. An iOS candidate requires macOS and the local Flutter/iOS toolchain.
-Android candidates can run on a supported Android build machine. On a macOS
-machine configured for both, the default command creates both candidates
-sequentially.
+Android candidates can run on a supported Android build machine.
 
-For split machines or a targeted retry, use `--platform ios` or
-`--platform android`. `create-release --prepare-only` prepares the PR without
-building candidates so separate runners can create them afterward. These are
-also useful when building a custom automation wrapper.
+Omit `--platform` to process every eligible platform. Add `--platform ios` or
+`--platform android` to any phase to plan, create, ship, or retry only that
+platform. The generated GitHub workflow uses the same commands and supplies
+`--platform` to its runner-specific matrix jobs.
 
 Read [How releases work](how-it-works.md) and
 [Release operations and recovery](operations.md) before a live release.
@@ -227,10 +221,8 @@ Read [How releases work](how-it-works.md) and
 ## Supply credentials
 
 Export the store and signing variables described in the platform setup guides
-before running a release command. `create-release` needs store API credentials
-and signing credentials for every selected candidate. `ship` needs the store
-API credentials but does not need signing credentials because it never
-rebuilds.
+before `--phase release-candidate`. The `ship` phase needs store API
+credentials but does not need signing credentials because it never rebuilds.
 
 Every public SMF environment variable starts with `SMF_`. Generic provider
 names such as `GITHUB_TOKEN` and `GITHUB_REPOSITORY` are not aliases and are
@@ -240,34 +232,18 @@ For production and shared machines, use environment variables. Process
 arguments may be visible to other local processes, shell history, job
 diagnostics, or monitoring tools.
 
-On macOS or Linux, read sensitive text without echoing it, export it for the
-release, and remove it afterward:
+On macOS or Linux, export the credentials for the release:
 
 ```bash
-read -r -s SMF_GITHUB_TOKEN
-export SMF_GITHUB_TOKEN
-echo
+export SMF_GITHUB_TOKEN="<token>"
 
 export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
 export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
 export SMF_ANDROID_KEY_ALIAS="upload"
+export SMF_ANDROID_KEYSTORE_PASSWORD="<keystore-password>"
+export SMF_ANDROID_KEY_PASSWORD="<key-password>"
 
-read -r -s SMF_ANDROID_KEYSTORE_PASSWORD
-export SMF_ANDROID_KEYSTORE_PASSWORD
-echo
-
-read -r -s SMF_ANDROID_KEY_PASSWORD
-export SMF_ANDROID_KEY_PASSWORD
-echo
-
-smf create-release
-
-unset SMF_GITHUB_TOKEN \
-  SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON \
-  SMF_ANDROID_KEYSTORE_BASE64 \
-  SMF_ANDROID_KEY_ALIAS \
-  SMF_ANDROID_KEYSTORE_PASSWORD \
-  SMF_ANDROID_KEY_PASSWORD
+smf release --phase release-candidate
 ```
 
 In Windows PowerShell:
@@ -280,7 +256,7 @@ $env:SMF_ANDROID_KEY_ALIAS = "upload"
 $env:SMF_ANDROID_KEYSTORE_PASSWORD = Read-Host "Keystore password" -MaskInput
 $env:SMF_ANDROID_KEY_PASSWORD = Read-Host "Key password" -MaskInput
 
-smf create-release
+smf release --phase release-candidate
 
 Remove-Item Env:SMF_GITHUB_TOKEN,Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,Env:SMF_ANDROID_KEYSTORE_BASE64,Env:SMF_ANDROID_KEY_ALIAS,Env:SMF_ANDROID_KEYSTORE_PASSWORD,Env:SMF_ANDROID_KEY_PASSWORD
 ```
@@ -288,15 +264,15 @@ Remove-Item Env:SMF_GITHUB_TOKEN,Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,Env:SM
 For a quick local run, every credential also has a direct option:
 
 ```bash
-smf ship \
+smf release --phase ship \
   --platform android \
   --github-token "<token>" \
   --google-play-service-account-json '<complete JSON>'
 ```
 
-Use `smf create-release --help` and `smf ship --help` for the complete option
-list. SMF rejects an option when its matching `SMF_*` variable is also set.
-SMF does not accept credential-file options or credential `_PATH` variables.
+Use `smf release --phase pull-request --help` for the complete option list. SMF rejects
+an option when its matching `SMF_*` variable is also set. SMF does not accept
+credential-file options or credential `_PATH` variables.
 
 Run release commands only from the branch and repository state described in
 [Release operations and recovery](operations.md). The platform setup guides

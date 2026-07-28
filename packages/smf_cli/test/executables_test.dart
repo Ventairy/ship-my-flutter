@@ -257,7 +257,7 @@ void main() {
     expect(errors, isEmpty);
   });
 
-  test('create-release runs a pending candidate without an Action', () async {
+  test('release-candidate runs a pending candidate without an Action', () async {
     final root = await Directory.systemTemp.createTemp(
       'smf-manual-release-',
     );
@@ -318,8 +318,10 @@ void main() {
     final errors = <Object?>[];
 
     expect(
-      await SmfExecutable.runCreateRelease(
+      await SmfExecutable.runRelease(
         <String>[
+          '--phase',
+          'release-candidate',
           '--app-store-connect-auth-key-base64',
           base64Encode(utf8.encode('private-key')),
           '--app-store-connect-key-id',
@@ -346,9 +348,31 @@ void main() {
         contains('SMF_APP_STORE_CONNECT_ISSUER_ID'),
       ),
     );
+    errors.clear();
+    expect(
+      await SmfExecutable.runRelease(
+        const <String>[
+          '--phase',
+          'release-candidate',
+          '--platform',
+          'android',
+        ],
+        io: ExecutableIo(
+          environment: const <String, String>{
+            'SMF_GITHUB_REPOSITORY': 'example/manual_app',
+            'SMF_GITHUB_TOKEN': 'token',
+          },
+          workingDirectory: root.path,
+          writeOutput: (_) {},
+          writeError: errors.add,
+        ),
+      ),
+      1,
+    );
+    expect(errors.single, contains('[NO_RELEASE_CANDIDATE]'));
   });
 
-  test('ship runs a merged pending release without an Action', () async {
+  test('ship phase runs a merged pending release without an Action', () async {
     final root = await Directory.systemTemp.createTemp('smf-manual-ship-');
     final origin = await Directory.systemTemp.createTemp('smf-manual-origin-');
     addTearDown(() => root.delete(recursive: true));
@@ -433,8 +457,8 @@ void main() {
     final errors = <Object?>[];
 
     expect(
-      await SmfExecutable.runShip(
-        const <String>[],
+      await SmfExecutable.runRelease(
+        const <String>['--phase', 'ship'],
         io: ExecutableIo(
           environment: const <String, String>{
             'SMF_GITHUB_REPOSITORY': 'example/manual_app',
@@ -463,7 +487,7 @@ void main() {
     errors.clear();
 
     expect(
-      await SmfExecutable.runAction(
+      await SmfExecutable.runRelease(
         const <String>['--phase', 'ship', '--platform', 'ios'],
         io: ExecutableIo(
           environment: const <String, String>{
@@ -493,8 +517,8 @@ void main() {
     errors.clear();
 
     expect(
-      await SmfExecutable.runShip(
-        const <String>[],
+      await SmfExecutable.runRelease(
+        const <String>['--phase', 'ship'],
         io: ExecutableIo(
           environment: const <String, String>{
             'SMF_GITHUB_REPOSITORY': 'example/manual_app',
@@ -552,13 +576,7 @@ void main() {
     );
 
     final help = output.single! as String;
-    for (final command in <String>[
-      'init',
-      'migrate',
-      'validate',
-      'create-release',
-      'ship',
-    ]) {
+    for (final command in <String>['init', 'migrate', 'validate']) {
       expect(
         help,
         matches(RegExp('^  ${RegExp.escape(command)}  +\\S', multiLine: true)),
@@ -570,8 +588,10 @@ void main() {
 
   test('accepts a direct GitHub token without echoing it', () async {
     final errors = <Object?>[];
-    final exitCode = await SmfExecutable.runCreateRelease(
+    final exitCode = await SmfExecutable.runRelease(
       const <String>[
+        '--phase',
+        'pull-request',
         '--github-token',
         'visible-secret',
         '--repository',
@@ -589,8 +609,10 @@ void main() {
 
     errors.clear();
     expect(
-      await SmfExecutable.runCreateRelease(
+      await SmfExecutable.runRelease(
         const <String>[
+          '--phase',
+          'pull-request',
           '--github-token',
           'argument-secret',
           '--repository',
@@ -613,7 +635,7 @@ void main() {
   });
 
   test(
-    'create-release infers the repository from Git origin and accepts an override',
+    'pull-request infers the repository from Git origin and accepts an override',
     () async {
       final root = await Directory.systemTemp.createTemp(
         'smf-create-release-',
@@ -644,8 +666,13 @@ platforms:
       final output = <Object?>[];
       final errors = <Object?>[];
       expect(
-        await SmfExecutable.runCreateRelease(
-          const <String>['--repository', 'example/repository'],
+        await SmfExecutable.runRelease(
+          const <String>[
+            '--phase',
+            'pull-request',
+            '--repository',
+            'example/repository',
+          ],
           io: ExecutableIo(
             environment: const <String, String>{
               'GITHUB_TOKEN': 'ignored',
@@ -670,15 +697,26 @@ platforms:
         writeError: errors.add,
       );
 
-      expect(await SmfExecutable.runCreateRelease(const <String>[], io: io), 1);
+      expect(
+        await SmfExecutable.runRelease(
+          const <String>['--phase', 'pull-request'],
+          io: io,
+        ),
+        1,
+      );
       expect(
         errors.removeLast(),
         contains('Pass --repository owner/name'),
       );
 
       expect(
-        await SmfExecutable.runCreateRelease(
-          const <String>['--repository', 'Override/example'],
+        await SmfExecutable.runRelease(
+          const <String>[
+            '--phase',
+            'pull-request',
+            '--repository',
+            'Override/example',
+          ],
           io: io,
         ),
         0,
@@ -694,7 +732,13 @@ platforms:
         'origin',
         'git@github.com:Ventairy/example.git',
       ]);
-      expect(await SmfExecutable.runCreateRelease(const <String>[], io: io), 0);
+      expect(
+        await SmfExecutable.runRelease(
+          const <String>['--phase', 'pull-request'],
+          io: io,
+        ),
+        0,
+      );
       expect(
         jsonDecode(output.removeLast()! as String),
         containsPair('phase', 'noop'),
@@ -706,7 +750,13 @@ platforms:
         'origin',
         'https://github.com/Ventairy/example.git',
       ]);
-      expect(await SmfExecutable.runCreateRelease(const <String>[], io: io), 0);
+      expect(
+        await SmfExecutable.runRelease(
+          const <String>['--phase', 'pull-request'],
+          io: io,
+        ),
+        0,
+      );
       expect(
         jsonDecode(output.removeLast()! as String),
         containsPair('phase', 'noop'),
@@ -855,8 +905,8 @@ platforms:
       output.clear();
 
       expect(
-        await SmfExecutable.runCreateRelease(
-          const <String>['--help'],
+        await SmfExecutable.runRelease(
+          const <String>['--phase', 'pull-request', '--help'],
           io: ExecutableIo(
             environment: const <String, String>{},
             workingDirectory: Directory.current.path,
@@ -866,8 +916,25 @@ platforms:
         ),
         0,
       );
+      expect(output.single, contains('--phase (mandatory)'));
+      expect(
+        output.single,
+        contains(
+          '--phase (mandatory)                             Release workflow '
+          'phase: pull-request, release-candidate, or ship.',
+        ),
+      );
+      expect(
+        output.single,
+        contains(
+          '--platform=<ios|android>                        Optional platform '
+          'filter: ios or android. Omit it to process every eligible platform.',
+        ),
+      );
       expect(output.single, contains('--platform=<ios|android>'));
-      expect(output.single, contains('--prepare-only'));
+      expect(output.single, isNot(contains('[pull-request, release-candidate, ship]')));
+      expect(output.single, isNot(contains('[ios, android]')));
+      expect(output.single, isNot(contains('--prepare-only')));
       for (final option in <String>[
         '--github-token=<value>',
         '--app-store-connect-key-id=<value>',
@@ -883,26 +950,108 @@ platforms:
       ]) {
         expect(output.single, contains(option));
       }
+      for (final environmentName in <String>[
+        'SMF_GITHUB_TOKEN',
+        'SMF_APP_STORE_CONNECT_KEY_ID',
+        'SMF_APP_STORE_CONNECT_ISSUER_ID',
+        'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
+        'SMF_IOS_CERTIFICATE_BASE64',
+        'SMF_IOS_CERTIFICATE_PASSWORD',
+        'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON',
+        'SMF_ANDROID_KEYSTORE_BASE64',
+        'SMF_ANDROID_KEY_ALIAS',
+        'SMF_ANDROID_KEYSTORE_PASSWORD',
+        'SMF_ANDROID_KEY_PASSWORD',
+      ]) {
+        expect(
+          output.single,
+          contains('the $environmentName environment variable'),
+        );
+      }
       expect(output.single, isNot(contains('--github-token-file')));
       expect(errors, isEmpty);
     },
   );
 
-  test('documents every visible CLI option in command help', () async {
-    final commands = <String>[
-      'init',
-      'upgrade',
-      'migrate',
-      'validate',
-      'create-release',
-      'ship',
-    ];
+  test('reports a user error when the release phase is missing', () async {
+    final output = <Object?>[];
+    final errors = <Object?>[];
 
-    for (final command in commands) {
+    final exitCode = await SmfExecutable.run(
+      const <String>['release'],
+      io: ExecutableIo(
+        environment: const <String, String>{},
+        workingDirectory: Directory.current.path,
+        writeOutput: output.add,
+        writeError: errors.add,
+      ),
+    );
+
+    expect(exitCode, 64);
+    expect(output, isEmpty);
+    expect(
+      errors.first,
+      'smf release: Missing required option "--phase". Choose pull-request, '
+      'release-candidate, or ship.',
+    );
+    expect(errors.last, contains('Usage: smf release [options]'));
+    expect(errors.join('\n'), isNot(contains('Unhandled exception')));
+  });
+
+  test('reports unsupported release phase and platform values', () async {
+    for (final testCase in <(List<String>, String)>[
+      (
+        const <String>['release', '--phase', 'deploy'],
+        'smf release: Unsupported phase "deploy". Choose pull-request, '
+            'release-candidate, or ship.',
+      ),
+      (
+        const <String>[
+          'release',
+          '--phase',
+          'pull-request',
+          '--platform',
+          'web',
+        ],
+        'smf release: Unsupported platform "web".',
+      ),
+    ]) {
+      final errors = <Object?>[];
+
+      final exitCode = await SmfExecutable.run(
+        testCase.$1,
+        io: ExecutableIo(
+          environment: const <String, String>{},
+          workingDirectory: Directory.current.path,
+          writeOutput: (_) {},
+          writeError: errors.add,
+        ),
+      );
+
+      expect(exitCode, 64);
+      expect(errors.first, testCase.$2);
+    }
+  });
+
+  test('documents every visible CLI option in command help', () async {
+    final commands = <String, List<String>>{
+      'init': <String>['init', '--help'],
+      'upgrade': <String>['upgrade', '--help'],
+      'migrate': <String>['migrate', '--help'],
+      'validate': <String>['validate', '--help'],
+      'release phases': <String>[
+        'release',
+        '--phase',
+        'pull-request',
+        '--help',
+      ],
+    };
+
+    for (final entry in commands.entries) {
       final output = <Object?>[];
       final errors = <Object?>[];
       final exitCode = await SmfExecutable.run(
-        <String>[command, '--help'],
+        entry.value,
         io: ExecutableIo(
           environment: const <String, String>{},
           workingDirectory: Directory.current.path,
@@ -911,20 +1060,22 @@ platforms:
         ),
       );
 
-      expect(exitCode, 0, reason: command);
-      expect(errors, isEmpty, reason: command);
+      expect(exitCode, 0, reason: entry.key);
+      expect(errors, isEmpty, reason: entry.key);
       final help = output.single! as String;
       final optionLines = help
           .split('\n')
           .where(
             (line) => line.trimLeft().startsWith('-h,') || line.trimLeft().startsWith('--'),
           );
-      expect(optionLines, isNotEmpty, reason: command);
+      expect(optionLines, isNotEmpty, reason: entry.key);
       for (final line in optionLines) {
         expect(
           line,
-          matches(RegExp(r'^\s*(?:-\w,\s+)?--\S+\s{2,}\S')),
-          reason: '$command has an undocumented option: $line',
+          matches(
+            RegExp(r'^\s*(?:-\w,\s+)?--\S+(?: \(mandatory\))?\s{2,}\S'),
+          ),
+          reason: '${entry.key} has an undocumented option: $line',
         );
       }
     }
@@ -933,13 +1084,16 @@ platforms:
   test('rejects removed release and candidate command names', () async {
     for (final command in <String>[
       'open-pr',
-      'release',
+      'create-release',
+      'ship',
+      'action',
       'candidate',
       'testflight',
       'internal-testing',
       'promote',
       'app-store',
       'google-play',
+      '--phase',
     ]) {
       final errors = <Object?>[];
 

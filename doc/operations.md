@@ -107,12 +107,13 @@ hand-edit machine-owned files while resolving conflicts.
 After merge:
 
 - with automation, watch `ship (ios)` and/or `ship (android)`;
-- without automation, run `smf ship` from anywhere inside the repository;
+- without automation, run `smf release --phase ship` from anywhere inside the
+  repository;
 - confirm `<app-id>/ios-vX.Y.Z` and/or
   `<app-id>/android-vX.Y.Z`;
 - confirm the store status matches the configured mode.
 
-`smf ship` clones the remote repository into a temporary directory and treats
+`smf release --phase ship` clones the remote repository into a temporary directory and treats
 the configured remote target branch as the only release source. Local
 manifests, receipts, branches, tags, and uncommitted files cannot change its
 decision. If a release is not committed to the remote target branch, SMF does
@@ -147,12 +148,12 @@ testers are.
 
 ### No release PR opened
 
-1. Read the failed `smf create-release` output or open the failed
+1. Read the failed `smf release --phase pull-request` output or open the failed
    `pull-request` job.
 2. Fix the reported config, permission, or commit-message issue on the target
    branch.
 3. Run `smf validate`.
-4. Rerun `smf create-release` or the wrapper job.
+4. Rerun `smf release --phase pull-request` or the wrapper job.
 
 If the result is `noop`, confirm the commit qualifies for at least one enabled
 platform and the workflow ran on the configured target branch.
@@ -162,9 +163,9 @@ platform and the workflow ran on the configured target branch.
 Fix the named source/toolchain/build/signing issue on the target branch. SMF
 updates the PR and generates a new candidate when tracked inputs change.
 
-For a CLI-only retry, run `smf create-release` again. Use
-`--platform ios` or `--platform android` when only one candidate needs its
-platform toolchain.
+For a CLI-only retry, check out the release branch and run
+`smf release --phase release-candidate` again. Use `--platform ios` or
+`--platform android` when only one candidate needs its platform toolchain.
 
 Do not manually invent a receipt.
 
@@ -182,7 +183,7 @@ Do not delete or edit
 of the upload attempt, not a receipt or a file you need to complete.
 
 Fix the GitHub permission/ruleset and rerun the failed candidate job or
-`smf create-release --platform <platform>`. A fresh runner reads the intent,
+`smf release --phase release-candidate --platform <platform>`. A fresh runner reads the intent,
 looks up that exact build in the store, completes any unfinished testing
 assignment, and replaces the intent with the final receipt. It never selects
 the newest unrelated store build.
@@ -229,13 +230,14 @@ Do not create a new app or change the package name.
 
 SMF reads all bundles visible to Google Play and chooses the next integer.
 This error usually means another release uploaded concurrently or a stale edit.
-Rerun after the other upload finishes. Never reuse a `versionCode`.
+Rerun the release-candidate phase after the other upload finishes. Never reuse
+a `versionCode`.
 
 ### Android production release already in progress
 
 SMF refuses to replace a production track containing an unfinished release.
 Open Play Console and finish or halt that release, obtain release-owner
-approval, then rerun `ship`.
+approval, then rerun `smf release --phase ship`.
 
 ### Google Play production published automatically
 
@@ -261,8 +263,9 @@ Restore the expected source or produce and retest a new candidate.
 ### Ship failed after merge
 
 Preserve the merged receipt and tag state. Fix the named store/GitHub
-permission or external metadata issue and rerun `smf ship` or the failed
-platform job. Use `smf ship --platform <platform>` for a targeted manual retry.
+permission or external metadata issue and rerun `smf release --phase ship` or the
+failed platform job. Use `smf release --phase ship --platform <platform>` for a
+targeted manual retry.
 SMF reuses matching store and GitHub resources.
 
 Do not create a manual tag/Release to hide a failed ship.

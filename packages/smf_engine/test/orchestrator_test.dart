@@ -103,6 +103,14 @@ void main() {
           ],
           'branch': 'smf/example/release',
         });
+        expect(
+          (await const ReleaseOrchestrator().plan(
+            workingDirectory: root.path,
+            github: context,
+            selectedPlatform: Platform.android,
+          )).toJson(),
+          <String, Object?>{'phase': 'noop'},
+        );
 
         await GitClient(root: root.path).run(
           const <String>['tag', 'example/ios-v1.1.0'],

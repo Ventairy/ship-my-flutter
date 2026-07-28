@@ -7,9 +7,11 @@ dart install smf_cli
 cd path/to/flutter_app
 smf init
 smf validate
-smf create-release
+smf release --phase pull-request
+# Check out the release branch reported above.
+smf release --phase release-candidate
 # Test and merge the generated release PR, then update the target branch.
-smf ship
+smf release --phase ship
 ```
 
 Add `--no-github-actions` to `smf init` when the release will be operated only

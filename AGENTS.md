@@ -42,7 +42,7 @@ smf_cli -> smf_android -> smf_engine
 - Do not add a platform-interface package until two adapters prove core's
   contract needs one.
 - The adjacent `smf-action` repository is a thin GitHub-native adapter over the
-  private `smf action` command; it must not reimplement Dart release logic.
+  public phased CLI; it must not reimplement Dart release logic.
 
 ## Product contracts
 
