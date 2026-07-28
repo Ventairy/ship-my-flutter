@@ -236,7 +236,6 @@ On macOS or Linux, export the credentials for the release:
 
 ```bash
 export SMF_GITHUB_TOKEN="<token>"
-
 export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
 export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
 export SMF_ANDROID_KEY_ALIAS="upload"
@@ -249,12 +248,12 @@ smf release --phase release-candidate
 In Windows PowerShell:
 
 ```powershell
-$env:SMF_GITHUB_TOKEN = Read-Host "GitHub token" -MaskInput
+$env:SMF_GITHUB_TOKEN = "<token>"
 $env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = Get-Content "C:\secure\service-account.json" -Raw
 $env:SMF_ANDROID_KEYSTORE_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\upload-keystore.jks"))
 $env:SMF_ANDROID_KEY_ALIAS = "upload"
-$env:SMF_ANDROID_KEYSTORE_PASSWORD = Read-Host "Keystore password" -MaskInput
-$env:SMF_ANDROID_KEY_PASSWORD = Read-Host "Key password" -MaskInput
+$env:SMF_ANDROID_KEYSTORE_PASSWORD = "<keystore-password>"
+$env:SMF_ANDROID_KEY_PASSWORD = "<key-password>"
 
 smf release --phase release-candidate
 
