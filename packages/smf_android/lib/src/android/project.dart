@@ -72,7 +72,8 @@ final class AndroidProject {
     AndroidConfig config, {
     String? flavor,
   }) async {
-    if (config.packageName != null) return config.packageName!;
+    final configuredPackageName = config.packageName;
+    if (configuredPackageName != null) return configuredPackageName;
     SmfError.check(
       flavor == null,
       'platforms.android.package_name is required when flavor is configured.',

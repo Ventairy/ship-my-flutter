@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/models/release_enums.dart';
 import 'package:smf_engine/src/serialization.dart';
 
 part 'candidate_intent.freezed.dart';
+part 'candidate_intent.g.dart';
 
 /// Durable evidence written before SMF uploads a candidate to a store.
 ///
@@ -15,6 +15,11 @@ part 'candidate_intent.freezed.dart';
 @freezed
 abstract class CandidateIntent with _$CandidateIntent {
   /// Creates a candidate upload intent.
+  @JsonSerializable(
+    checked: true,
+    dateTimeUtc: true,
+    disallowUnrecognizedKeys: true,
+  )
   const factory CandidateIntent({
     required Platform platform,
     required String version,
@@ -25,7 +30,7 @@ abstract class CandidateIntent with _$CandidateIntent {
     required String sourceFingerprint,
     required String artifactSha256,
     required DateTime preparedAt,
-    @Default(1) int schemaVersion,
+    @JsonKey(required: true) @Default(1) int schemaVersion,
   }) = _CandidateIntent;
 
   const CandidateIntent._();
@@ -34,56 +39,7 @@ abstract class CandidateIntent with _$CandidateIntent {
   factory CandidateIntent.fromJson(
     Object? value, {
     String source = 'candidate intent',
-  }) {
-    try {
-      final intent = _object(value);
-      _equal(intent['schemaVersion'], 1, 'schemaVersion');
-      final version = _string(intent['version'], 'version');
-      if (!_versionPattern.hasMatch(version)) {
-        _fail('version must be major.minor.patch');
-      }
-      final buildNumber = _string(intent['buildNumber'], 'buildNumber');
-      if (!_buildNumberPattern.hasMatch(buildNumber)) {
-        _fail('buildNumber must contain only digits');
-      }
-      final sourceSha = _string(intent['sourceSha'], 'sourceSha');
-      if (!_gitShaPattern.hasMatch(sourceSha)) {
-        _fail('sourceSha must be a complete Git SHA');
-      }
-      return CandidateIntent(
-        platform: Platform.parse(
-          _nonEmptyString(intent['platform'], 'platform'),
-        ),
-        version: version,
-        buildNumber: buildNumber,
-        applicationId: _nonEmptyString(
-          intent['applicationId'],
-          'applicationId',
-        ),
-        storeApplicationId: _nonEmptyString(
-          intent['storeApplicationId'],
-          'storeApplicationId',
-        ),
-        sourceSha: sourceSha,
-        sourceFingerprint: _digest(
-          intent['sourceFingerprint'],
-          'sourceFingerprint',
-        ),
-        artifactSha256: _digest(
-          intent['artifactSha256'],
-          'artifactSha256',
-        ),
-        preparedAt: _dateTime(intent['preparedAt'], 'preparedAt'),
-      );
-    } on Object catch (error) {
-      final message = error is SmfError ? error.message : error.toString();
-      throw SmfError(
-        '$source is invalid:\n$message',
-        'INVALID_CANDIDATE_INTENT',
-        cause: error,
-      );
-    }
-  }
+  }) => _decodeCandidateIntent(value, source);
 
   /// Reads and validates candidate intent JSON from [filePath].
   static Future<CandidateIntent> read(String filePath) async {
@@ -107,20 +63,6 @@ abstract class CandidateIntent with _$CandidateIntent {
     }
   }
 
-  /// Encodes this intent for deterministic persistence.
-  Map<String, Object?> toJson() => <String, Object?>{
-    'schemaVersion': schemaVersion,
-    'platform': platform.value,
-    'version': version,
-    'buildNumber': buildNumber,
-    'applicationId': applicationId,
-    'storeApplicationId': storeApplicationId,
-    'sourceSha': sourceSha,
-    'sourceFingerprint': sourceFingerprint,
-    'artifactSha256': artifactSha256,
-    'preparedAt': preparedAt.toUtc().toIso8601String(),
-  };
-
   static final RegExp _versionPattern = RegExp(r'^\d+\.\d+\.\d+$');
   static final RegExp _buildNumberPattern = RegExp(r'^\d+$');
   static final RegExp _gitShaPattern = RegExp(
@@ -143,35 +85,57 @@ abstract class CandidateIntent with _$CandidateIntent {
     if (actual != expected) _fail('$path must be $expected');
   }
 
-  static String _string(Object? value, String path) {
-    if (value is! String) _fail('$path must be a string');
-    return value;
+  static void _nonEmpty(String value, String path) {
+    if (value.trim().isEmpty) _fail('$path must not be empty');
   }
 
-  static String _nonEmptyString(Object? value, String path) {
-    final result = _string(value, path);
-    if (result.isEmpty) _fail('$path must not be empty');
-    return result;
-  }
-
-  static String _digest(Object? value, String path) {
-    final result = _string(value, path);
-    if (!_digestPattern.hasMatch(result)) {
+  static void _digest(String value, String path) {
+    if (!_digestPattern.hasMatch(value)) {
       _fail('$path must be a SHA-256 digest');
     }
-    return result;
-  }
-
-  static DateTime _dateTime(Object? value, String path) {
-    final text = _string(value, path);
-    final result = DateTime.tryParse(text);
-    if (result == null || !result.isUtc) {
-      _fail('$path must be an ISO-8601 UTC timestamp');
-    }
-    return result;
   }
 
   static Never _fail(String message) {
     throw SmfError(message, 'INVALID_CANDIDATE_INTENT');
+  }
+}
+
+CandidateIntent _decodeCandidateIntent(Object? value, String source) {
+  try {
+    final json = CandidateIntent._object(value);
+    CandidateIntent._equal(json['schemaVersion'], 1, 'schemaVersion');
+    final intent = _$CandidateIntentFromJson(json);
+    if (!CandidateIntent._versionPattern.hasMatch(intent.version)) {
+      CandidateIntent._fail('version must be major.minor.patch');
+    }
+    if (!CandidateIntent._buildNumberPattern.hasMatch(intent.buildNumber)) {
+      CandidateIntent._fail('buildNumber must contain only digits');
+    }
+    CandidateIntent._nonEmpty(intent.applicationId, 'applicationId');
+    CandidateIntent._nonEmpty(
+      intent.storeApplicationId,
+      'storeApplicationId',
+    );
+    if (!CandidateIntent._gitShaPattern.hasMatch(intent.sourceSha)) {
+      CandidateIntent._fail('sourceSha must be a complete Git SHA');
+    }
+    CandidateIntent._digest(
+      intent.sourceFingerprint,
+      'sourceFingerprint',
+    );
+    CandidateIntent._digest(intent.artifactSha256, 'artifactSha256');
+    if (!intent.preparedAt.isUtc) {
+      CandidateIntent._fail(
+        'preparedAt must be an ISO-8601 UTC timestamp',
+      );
+    }
+    return intent;
+  } on Object catch (error) {
+    final message = error is SmfError ? error.message : error.toString();
+    throw SmfError(
+      '$source is invalid:\n$message',
+      'INVALID_CANDIDATE_INTENT',
+      cause: error,
+    );
   }
 }

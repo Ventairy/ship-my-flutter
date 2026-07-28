@@ -830,7 +830,13 @@ $credentialGuidance
             'release-candidate, or ship.',
           );
         }
-        final phase = arguments.option('phase')!;
+        final phase = arguments.option('phase');
+        if (phase == null) {
+          throw const FormatException(
+            'Missing required option "--phase". Choose pull-request, '
+            'release-candidate, or ship.',
+          );
+        }
         if (phase != 'pull-request' && phase != 'release-candidate' && phase != 'ship') {
           throw FormatException(
             'Unsupported phase "$phase". Choose pull-request, '

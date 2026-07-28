@@ -82,6 +82,22 @@ final class _ReleasePlanFixture {
 }
 
 void main() {
+  test(
+    'when release trigger paths are exposed, they should reject mutation',
+    () {
+      final planner = ReleasePlanner(
+        gitClient: const GitClient(root: '/tmp/repository'),
+        appId: 'example',
+        releaseTriggerPaths: <String>['apps/example'],
+      );
+
+      expect(
+        planner.releaseTriggerPaths.clear,
+        throwsUnsupportedError,
+      );
+    },
+  );
+
   group('release planning', () {
     test('bumps iOS independently and excludes Android-only changes', () async {
       final (directory, baselineSha) = await _ReleasePlanFixture.repository();

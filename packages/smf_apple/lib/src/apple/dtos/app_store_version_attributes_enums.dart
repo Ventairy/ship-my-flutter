@@ -102,17 +102,15 @@ enum AppVersionState {
 }
 
 /// Release policy configured for an App Store version.
+@JsonEnum(valueField: 'value')
 enum AppStoreReleaseType {
   /// The developer manually releases the version after approval.
-  @JsonValue('MANUAL')
   manual('MANUAL'),
 
   /// Apple releases the version automatically after approval.
-  @JsonValue('AFTER_APPROVAL')
   afterApproval('AFTER_APPROVAL'),
 
   /// Apple releases the version at a configured date.
-  @JsonValue('SCHEDULED')
   scheduled('SCHEDULED');
 
   const AppStoreReleaseType(this.value);

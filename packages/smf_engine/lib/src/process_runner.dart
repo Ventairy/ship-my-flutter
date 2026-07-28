@@ -8,7 +8,9 @@ import 'package:smf_engine/src/process/run_result.dart';
 export 'process/run_options.dart';
 export 'process/run_result.dart';
 
+/// Runs subprocesses through an injectable, typed boundary.
 abstract interface class ProcessRunner {
+  /// Runs [executable] with [arguments] and returns its complete result.
   Future<RunResult> run(
     String executable,
     List<String> arguments, {
@@ -16,7 +18,9 @@ abstract interface class ProcessRunner {
   });
 }
 
+/// Starts local system processes with SMF credentials removed by default.
 final class SystemProcessRunner implements ProcessRunner {
+  /// Creates a system runner with an optional deterministic parent environment.
   const SystemProcessRunner({this.parentEnvironment});
 
   static const Set<String> _sensitiveEnvironmentNames = <String>{

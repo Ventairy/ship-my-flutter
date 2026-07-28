@@ -11,16 +11,19 @@ part of 'candidate_intent.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
+
 /// @nodoc
 mixin _$CandidateIntent {
 
- Platform get platform; String get version; String get buildNumber; String get applicationId; String get storeApplicationId; String get sourceSha; String get sourceFingerprint; String get artifactSha256; DateTime get preparedAt; int get schemaVersion;
+ Platform get platform; String get version; String get buildNumber; String get applicationId; String get storeApplicationId; String get sourceSha; String get sourceFingerprint; String get artifactSha256; DateTime get preparedAt;@JsonKey(required: true) int get schemaVersion;
 /// Create a copy of CandidateIntent
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CandidateIntentCopyWith<CandidateIntent> get copyWith => _$CandidateIntentCopyWithImpl<CandidateIntent>(this as CandidateIntent, _$identity);
 
+  /// Serializes this CandidateIntent to a JSON map.
+  Map<String, dynamic> toJson();
 
 
 @override
@@ -28,7 +31,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is CandidateIntent&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.storeApplicationId, storeApplicationId) || other.storeApplicationId == storeApplicationId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.artifactSha256, artifactSha256) || other.artifactSha256 == artifactSha256)&&(identical(other.preparedAt, preparedAt) || other.preparedAt == preparedAt)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,platform,version,buildNumber,applicationId,storeApplicationId,sourceSha,sourceFingerprint,artifactSha256,preparedAt,schemaVersion);
 
@@ -45,7 +48,7 @@ abstract mixin class $CandidateIntentCopyWith<$Res>  {
   factory $CandidateIntentCopyWith(CandidateIntent value, $Res Function(CandidateIntent) _then) = _$CandidateIntentCopyWithImpl;
 @useResult
 $Res call({
- Platform platform, String version, String buildNumber, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime preparedAt, int schemaVersion
+ Platform platform, String version, String buildNumber, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime preparedAt,@JsonKey(required: true) int schemaVersion
 });
 
 
@@ -159,7 +162,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime preparedAt,  int schemaVersion)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime preparedAt, @JsonKey(required: true)  int schemaVersion)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CandidateIntent() when $default != null:
 return $default(_that.platform,_that.version,_that.buildNumber,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.preparedAt,_that.schemaVersion);case _:
@@ -180,7 +183,7 @@ return $default(_that.platform,_that.version,_that.buildNumber,_that.application
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime preparedAt,  int schemaVersion)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime preparedAt, @JsonKey(required: true)  int schemaVersion)  $default,) {final _that = this;
 switch (_that) {
 case _CandidateIntent():
 return $default(_that.platform,_that.version,_that.buildNumber,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.preparedAt,_that.schemaVersion);case _:
@@ -200,7 +203,7 @@ return $default(_that.platform,_that.version,_that.buildNumber,_that.application
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Platform platform,  String version,  String buildNumber,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime preparedAt,  int schemaVersion)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Platform platform,  String version,  String buildNumber,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime preparedAt, @JsonKey(required: true)  int schemaVersion)?  $default,) {final _that = this;
 switch (_that) {
 case _CandidateIntent() when $default != null:
 return $default(_that.platform,_that.version,_that.buildNumber,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.preparedAt,_that.schemaVersion);case _:
@@ -213,10 +216,10 @@ return $default(_that.platform,_that.version,_that.buildNumber,_that.application
 
 /// @nodoc
 
-
+@JsonSerializable(checked: true, dateTimeUtc: true, disallowUnrecognizedKeys: true)
 class _CandidateIntent extends CandidateIntent {
-  const _CandidateIntent({required this.platform, required this.version, required this.buildNumber, required this.applicationId, required this.storeApplicationId, required this.sourceSha, required this.sourceFingerprint, required this.artifactSha256, required this.preparedAt, this.schemaVersion = 1}): super._();
-  
+  const _CandidateIntent({required this.platform, required this.version, required this.buildNumber, required this.applicationId, required this.storeApplicationId, required this.sourceSha, required this.sourceFingerprint, required this.artifactSha256, required this.preparedAt, @JsonKey(required: true) this.schemaVersion = 1}): super._();
+  factory _CandidateIntent.fromJson(Map<String, dynamic> json) => _$CandidateIntentFromJson(json);
 
 @override final  Platform platform;
 @override final  String version;
@@ -227,7 +230,7 @@ class _CandidateIntent extends CandidateIntent {
 @override final  String sourceFingerprint;
 @override final  String artifactSha256;
 @override final  DateTime preparedAt;
-@override@JsonKey() final  int schemaVersion;
+@override@JsonKey(required: true) final  int schemaVersion;
 
 /// Create a copy of CandidateIntent
 /// with the given fields replaced by the non-null parameter values.
@@ -235,14 +238,17 @@ class _CandidateIntent extends CandidateIntent {
 @pragma('vm:prefer-inline')
 _$CandidateIntentCopyWith<_CandidateIntent> get copyWith => __$CandidateIntentCopyWithImpl<_CandidateIntent>(this, _$identity);
 
-
+@override
+Map<String, dynamic> toJson() {
+  return _$CandidateIntentToJson(this, );
+}
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _CandidateIntent&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.storeApplicationId, storeApplicationId) || other.storeApplicationId == storeApplicationId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.artifactSha256, artifactSha256) || other.artifactSha256 == artifactSha256)&&(identical(other.preparedAt, preparedAt) || other.preparedAt == preparedAt)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,platform,version,buildNumber,applicationId,storeApplicationId,sourceSha,sourceFingerprint,artifactSha256,preparedAt,schemaVersion);
 
@@ -259,7 +265,7 @@ abstract mixin class _$CandidateIntentCopyWith<$Res> implements $CandidateIntent
   factory _$CandidateIntentCopyWith(_CandidateIntent value, $Res Function(_CandidateIntent) _then) = __$CandidateIntentCopyWithImpl;
 @override @useResult
 $Res call({
- Platform platform, String version, String buildNumber, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime preparedAt, int schemaVersion
+ Platform platform, String version, String buildNumber, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime preparedAt,@JsonKey(required: true) int schemaVersion
 });
 
 

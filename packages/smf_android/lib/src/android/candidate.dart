@@ -361,8 +361,16 @@ final class AndroidCandidate {
                   )
                   .firstOrNull;
         if (uploaded != null) {
+          final matchingIntent = previousIntent;
+          if (matchingIntent == null) {
+            throw const SmfError(
+              'Google Play matched a candidate build without a recorded '
+                  'candidate intent.',
+              'CANDIDATE_INTENT_MISSING',
+            );
+          }
           SmfError.check(
-            uploaded.sha256 == previousIntent!.artifactSha256,
+            uploaded.sha256 == matchingIntent.artifactSha256,
             'Google Play contains versionCode $intentVersionCode, but its '
                 'bundle checksum does not match the committed candidate '
                 'intent.',
@@ -449,7 +457,14 @@ final class AndroidCandidate {
             'GOOGLE_PLAY_BUNDLE_MISMATCH',
           );
         }
-        final finalizedIntent = uploadIntent!;
+        final finalizedIntent = uploadIntent;
+        if (finalizedIntent == null) {
+          throw const SmfError(
+            'Google Play candidate creation completed without a recorded '
+                'candidate intent.',
+            'CANDIDATE_INTENT_MISSING',
+          );
+        }
         final versionCode = uploaded.versionCode;
         final notes = await SmfState.storeReleaseNotes(paths.directory);
         for (final testingTrack in testingTracks) {

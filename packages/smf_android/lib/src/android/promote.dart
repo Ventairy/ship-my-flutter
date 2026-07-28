@@ -8,16 +8,17 @@ import 'package:smf_engine/smf_engine.dart';
 /// Stable machine-readable Android promotion evidence.
 final class AndroidPromotionResult {
   /// Creates promotion evidence.
-  const AndroidPromotionResult({
+  AndroidPromotionResult({
     required this.version,
     required this.tag,
     required this.versionCode,
     required this.testingTrack,
     required this.githubReleaseUrl,
-    this.testingTracks = const <String>[],
-    this.shippedTracks = const <String>[],
+    List<String> testingTracks = const <String>[],
+    List<String> shippedTracks = const <String>[],
     this.productionTrack,
-  });
+  }) : testingTracks = List<String>.unmodifiable(testingTracks),
+       shippedTracks = List<String>.unmodifiable(shippedTracks);
 
   /// Promoted marketing version.
   final String version;
@@ -302,29 +303,34 @@ final class AndroidRelease {
       Platform.android,
       state.version,
     );
-    final githubApi = options.githubApi ?? GitHubRestApi(context: options.github);
-    final githubRelease =
-        await githubApi.releaseByTag(tag) ??
-        await githubApi.createRelease(
-          tag: tag,
-          targetCommitish: await gitClient.currentSha(),
-          name: '${config.appId} Android v${state.version}',
-          body: ReleaseChangelog.markdown(
-            platform: Platform.android,
-            release: release,
-          ),
-        );
-    return AndroidPromotionResult(
-      version: state.version,
-      tag: tag,
-      versionCode: versionCode,
-      testingTrack: testingTracks.first,
-      testingTracks: testingTracks,
-      shippedTracks: promotedTracks,
-      productionTrack: promotedTracks.contains(GooglePlayTrackNames.production)
-          ? GooglePlayTrackNames.production
-          : null,
-      githubReleaseUrl: githubRelease.htmlUrl,
-    );
+    GitHubRestApi? ownedGitHubApi;
+    final githubApi = options.githubApi ?? (ownedGitHubApi = GitHubRestApi(context: options.github));
+    try {
+      final githubRelease =
+          await githubApi.releaseByTag(tag) ??
+          await githubApi.createRelease(
+            tag: tag,
+            targetCommitish: await gitClient.currentSha(),
+            name: '${config.appId} Android v${state.version}',
+            body: ReleaseChangelog.markdown(
+              platform: Platform.android,
+              release: release,
+            ),
+          );
+      return AndroidPromotionResult(
+        version: state.version,
+        tag: tag,
+        versionCode: versionCode,
+        testingTrack: testingTracks.first,
+        testingTracks: testingTracks,
+        shippedTracks: promotedTracks,
+        productionTrack: promotedTracks.contains(GooglePlayTrackNames.production)
+            ? GooglePlayTrackNames.production
+            : null,
+        githubReleaseUrl: githubRelease.htmlUrl,
+      );
+    } finally {
+      ownedGitHubApi?.close();
+    }
   }
 }

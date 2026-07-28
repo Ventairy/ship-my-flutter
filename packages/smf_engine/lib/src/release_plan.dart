@@ -6,13 +6,16 @@ import 'package:smf_engine/src/git.dart';
 import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/release_branch.dart';
 
+/// Derives deterministic platform releases from Git history.
 final class ReleasePlanner {
-  const ReleasePlanner({
+  /// Creates a planner over [gitClient] for one SMF app.
+  ReleasePlanner({
     required this.gitClient,
     required this.appId,
-    this.releaseTriggerPaths = const <String>[],
-  });
+    List<String> releaseTriggerPaths = const <String>[],
+  }) : releaseTriggerPaths = List<String>.unmodifiable(releaseTriggerPaths);
 
+  /// Creates a planner using the system Git process boundary.
   factory ReleasePlanner.forRepository({
     required String repositoryRoot,
     required String appId,
@@ -25,10 +28,16 @@ final class ReleasePlanner {
     );
   }
 
+  /// Repository Git client used to inspect release history.
   final GitClient gitClient;
+
+  /// App identifier used to derive platform tags.
   final String appId;
+
+  /// Additional repository paths whose commits can trigger this app.
   final List<String> releaseTriggerPaths;
 
+  /// Whether [platform] has a pending version without its immutable tag.
   Future<bool> needsPromotion({
     required SmfManifest manifest,
     required Platform platform,
@@ -40,6 +49,7 @@ final class ReleasePlanner {
     ));
   }
 
+  /// Creates the next release for [platform], or `null` when no change applies.
   Future<ReleasePlan?> create({
     required SmfManifest manifest,
     required Platform platform,

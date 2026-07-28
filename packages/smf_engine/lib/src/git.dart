@@ -6,18 +6,24 @@ import 'package:smf_engine/src/process_runner.dart';
 
 export 'git/git_commit.dart';
 
+/// Runs repository-scoped Git commands through an injectable process boundary.
 final class GitClient {
+  /// Creates a Git client rooted at [root].
   const GitClient({
     required this.root,
     this.processRunner = const SystemProcessRunner(),
   });
 
+  /// Repository working directory used for every command.
   final String root;
+
+  /// Process boundary used to invoke Git.
   final ProcessRunner processRunner;
 
   static const String _recordSeparator = '\u001e';
   static const String _fieldSeparator = '\u001f';
 
+  /// Runs Git with trimmed output.
   Future<String> run(
     List<String> arguments, {
     bool allowFailure = false,
@@ -28,6 +34,7 @@ final class GitClient {
     environment: environment,
   )).trim();
 
+  /// Runs Git while preserving output whitespace and record separators.
   Future<String> runRaw(List<String> arguments) => _run(arguments, allowFailure: false);
 
   Future<String> _run(
@@ -47,6 +54,7 @@ final class GitClient {
     return result.stdout;
   }
 
+  /// Runs an authenticated GitHub command without placing [token] in arguments.
   Future<String> authenticated(
     List<String> arguments,
     String token, {
@@ -64,12 +72,16 @@ final class GitClient {
     );
   }
 
+  /// Returns the current `HEAD` commit SHA.
   Future<String> currentSha() => run(const <String>['rev-parse', 'HEAD']);
 
+  /// Returns the current branch, or an empty string for a detached checkout.
   Future<String> currentBranch() => run(const <String>['branch', '--show-current']);
 
+  /// Whether the repository has no staged, unstaged, or untracked changes.
   Future<bool> isClean() async => (await run(const <String>['status', '--porcelain'])).isEmpty;
 
+  /// Whether a local Git tag named [tag] exists.
   Future<bool> tagExists(String tag) async {
     final result = await processRunner.run('git', <String>[
       'rev-parse',
@@ -96,13 +108,14 @@ final class GitClient {
       r'^ref: refs/heads/(.+)\s+HEAD$',
       multiLine: true,
     ).firstMatch(output);
-    if (match == null || match.group(1)!.trim().isEmpty) {
+    final branch = match?.group(1)?.trim();
+    if (branch == null || branch.isEmpty) {
       throw SmfError(
         'Could not determine the default branch advertised by $remote.',
         'REMOTE_DEFAULT_BRANCH',
       );
     }
-    return match.group(1)!.trim();
+    return branch;
   }
 
   /// Whether [tag] currently exists on [remote].
@@ -127,8 +140,10 @@ final class GitClient {
     return output.isNotEmpty;
   }
 
+  /// Returns the commit SHA referenced by a local [tag].
   Future<String> tagSha(String tag) => run(<String>['rev-list', '-n', '1', tag]);
 
+  /// Reads commits after [baseSha] through [headSha], optionally path-filtered.
   Future<List<GitCommit>> commitsBetween(
     String baseSha, {
     String headSha = 'HEAD',
@@ -152,6 +167,7 @@ final class GitClient {
     ];
   }
 
+  /// Configures the repository-local SMF bot commit identity.
   Future<void> configureBotIdentity() async {
     await run(const <String>['config', 'user.name', 'smf[bot]']);
     await run(const <String>[

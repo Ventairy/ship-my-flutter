@@ -17,6 +17,29 @@ Future<void> writeObject(String path, Object? value) async {
 }
 
 void main() {
+  test(
+    'when promotion result collections are exposed, they should reject mutation',
+    () {
+      final result = AndroidPromotionResult(
+        version: '1.2.3',
+        tag: 'example/android-v1.2.3',
+        versionCode: 7,
+        testingTrack: 'internal',
+        githubReleaseUrl: 'https://example.invalid/release',
+        testingTracks: <String>['internal'],
+        shippedTracks: <String>['production'],
+      );
+
+      expect(
+        <void Function()>[
+          result.testingTracks.clear,
+          result.shippedTracks.clear,
+        ],
+        everyElement(throwsUnsupportedError),
+      );
+    },
+  );
+
   test('moves the exact internal-testing versionCode to production', () async {
     final root = await Directory.systemTemp.createTemp('smf-android-promote-');
     addTearDown(() => root.delete(recursive: true));

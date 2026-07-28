@@ -78,7 +78,8 @@ final class AppleProject {
     ProcessRunner processRunner = const SystemProcessRunner(),
     bool? isMacOS,
   }) async {
-    if (config.bundleId != null) return config.bundleId!;
+    final configuredBundleId = config.bundleId;
+    if (configuredBundleId != null) return configuredBundleId;
     if (!(isMacOS ?? Platform.isMacOS)) {
       throw const SmfError(
         'platforms.ios.bundle_id is required when configuration is validated '
@@ -194,7 +195,8 @@ final class AppleProject {
         continue;
       }
       final bundleId = settingsValue['PRODUCT_BUNDLE_IDENTIFIER'];
-      final target = item['target'] is String ? item['target']! as String : 'unknown target';
+      final targetValue = item['target'];
+      final target = targetValue is String ? targetValue : 'unknown target';
       if (bundleId is! String || !_isExplicitBundleId(bundleId.trim())) {
         throw SmfError(
           'Xcode target "$target" does not resolve to an explicit Release '

@@ -5,7 +5,32 @@ import 'package:http/testing.dart';
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
+final class _TrackingClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(const Stream<List<int>>.empty(), 204);
+  }
+
+  @override
+  void close() {
+    closed = true;
+    super.close();
+  }
+}
+
 void main() {
+  test('when the GitHub client closes, it should close its transport', () {
+    final transport = _TrackingClient();
+    GitHubRestApi(
+      context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
+      client: transport,
+    ).close();
+
+    expect(transport.closed, isTrue);
+  });
+
   test(
     'GitHub REST client maps transport failures to a typed failure',
     () async {
@@ -15,6 +40,7 @@ void main() {
           (request) async => throw http.ClientException('connection failed', request.url),
         ),
       );
+      addTearDown(api.close);
 
       await expectLater(
         api.listPullRequests(
@@ -55,6 +81,7 @@ void main() {
           return responses.removeAt(0);
         }),
       );
+      addTearDown(api.close);
 
       expect(
         (await api.listPullRequests(
@@ -98,6 +125,7 @@ void main() {
         (_) async => http.Response('{"message":"forbidden"}', 403),
       ),
     );
+    addTearDown(api.close);
     await expectLater(
       api.labelExists('pending'),
       throwsA(
@@ -121,6 +149,7 @@ void main() {
       context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
       client: MockClient((_) async => http.Response('{not-json', 200)),
     );
+    addTearDown(api.close);
 
     await expectLater(
       api.listPullRequests(

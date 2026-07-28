@@ -29,6 +29,112 @@ final class _CandidateReceiptFixture {
 }
 
 void main() {
+  test(
+    'when a receipt contains an unknown field, it should reject the persisted contract',
+    () {
+      expect(
+        () => CandidateReceipt.fromJson(<String, Object?>{
+          ..._CandidateReceiptFixture.json(),
+          'unexpected': true,
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'INVALID_CANDIDATE_RECEIPT',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'when a current receipt contains an unknown field, it should reject the generated contract',
+    () {
+      final receipt = CandidateReceipt.fromJson(
+        _CandidateReceiptFixture.json(),
+      ).toJson()..['unexpected'] = true;
+
+      expect(
+        () => CandidateReceipt.fromJson(receipt),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'INVALID_CANDIDATE_RECEIPT',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'when a receipt has a fractional schema version, it should reject the persisted contract',
+    () {
+      expect(
+        () => CandidateReceipt.fromJson(<String, Object?>{
+          ..._CandidateReceiptFixture.json(),
+          'schemaVersion': 1.5,
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'INVALID_CANDIDATE_RECEIPT',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'when a receipt omits its processing state, it should reject the persisted contract',
+    () {
+      final receipt = _CandidateReceiptFixture.json()..remove('processingState');
+
+      expect(
+        () => CandidateReceipt.fromJson(receipt),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'INVALID_CANDIDATE_RECEIPT',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'when a receipt time has an offset, it should normalize the time to UTC',
+    () {
+      final receipt = _CandidateReceiptFixture.json()..['uploadedAt'] = '2026-07-25T21:00:00-03:00';
+
+      expect(
+        CandidateReceipt.fromJson(receipt).uploadedAt,
+        DateTime.utc(2026, 7, 26),
+      );
+    },
+  );
+
+  test(
+    'when a receipt repeats a testing destination, it should reject ambiguous evidence',
+    () {
+      final receipt = _CandidateReceiptFixture.json()..['testflightGroups'] = <Object?>['Internal', 'Internal'];
+
+      expect(
+        () => CandidateReceipt.fromJson(receipt),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'INVALID_CANDIDATE_RECEIPT',
+          ),
+        ),
+      );
+    },
+  );
+
   test('maps malformed JSON to a typed candidate receipt failure', () async {
     final directory = await Directory.systemTemp.createTemp('smf-receipt-');
     addTearDown(() => directory.delete(recursive: true));

@@ -66,6 +66,7 @@ final class AppleRelease {
 
     final ownsClient = options.client == null;
     final client = options.client ?? AppStoreConnectClient(options.appleCredentials);
+    GitHubRestApi? ownedGitHubApi;
     try {
       final bundleId = await options.resolveBundleIdentifier(
         paths.appRoot,
@@ -102,7 +103,7 @@ final class AppleRelease {
       String? reviewSubmissionId;
       String? betaReviewSubmissionId;
       final ship = config.ios.appStore.ship;
-      if (ship?.target == AppleShipTarget.externalTesting) {
+      if (ship case AppleShipConfig(target: AppleShipTarget.externalTesting)) {
         final notes = await SmfState.storeReleaseNotes(paths.directory);
         for (final entry in notes.forRelease(platform: Platform.ios, version: state.version).entries) {
           await client.setBetaBuildLocalization(
@@ -114,7 +115,7 @@ final class AppleRelease {
         await client.addBuildToGroups(
           appId: app.id,
           buildId: receipt.artifactId,
-          names: ship!.groups,
+          names: ship.groups,
           internal: false,
         );
         betaReviewSubmissionId = await client.submitBuildForBetaReview(
@@ -173,7 +174,7 @@ final class AppleRelease {
         Platform.ios,
         state.version,
       );
-      final githubApi = options.githubApi ?? GitHubRestApi(context: options.github);
+      final githubApi = options.githubApi ?? (ownedGitHubApi = GitHubRestApi(context: options.github));
       final githubRelease =
           await githubApi.releaseByTag(tag) ??
           await githubApi.createRelease(
@@ -196,6 +197,7 @@ final class AppleRelease {
         githubReleaseUrl: githubRelease.htmlUrl,
       );
     } finally {
+      ownedGitHubApi?.close();
       if (ownsClient) client.close();
     }
   }

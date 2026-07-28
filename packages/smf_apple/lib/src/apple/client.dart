@@ -446,7 +446,14 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
           'APP_STORE_CONNECT_RESPONSE',
         );
       }
-      final major = BigInt.parse(match.group(1)!);
+      final majorValue = match.group(1);
+      if (majorValue == null) {
+        throw SmfError(
+          'App Store Connect returned unsupported build number "$value".',
+          'APP_STORE_CONNECT_RESPONSE',
+        );
+      }
+      final major = BigInt.parse(majorValue);
       if (major > latestMajor) latestMajor = major;
     }
     return '${latestMajor + BigInt.one}';
@@ -468,15 +475,17 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
             (item) => item.attributes.version == buildNumber,
           )
           .firstOrNull;
-      if (build?.attributes.processingState == BuildProcessingState.valid) {
-        return build!;
-      }
-      if (build?.attributes.processingState case BuildProcessingState.failed || BuildProcessingState.invalid) {
-        throw SmfError(
-          'Apple marked $version ($buildNumber) as '
-              '${build?.attributes.processingState.value}.',
-          'BUILD_INVALID',
-        );
+      if (build case final build?) {
+        if (build.attributes.processingState == BuildProcessingState.valid) {
+          return build;
+        }
+        if (build.attributes.processingState case BuildProcessingState.failed || BuildProcessingState.invalid) {
+          throw SmfError(
+            'Apple marked $version ($buildNumber) as '
+                '${build.attributes.processingState.value}.',
+            'BUILD_INVALID',
+          );
+        }
       }
       if (interval > Duration.zero) await _delay(interval);
     }
@@ -555,12 +564,13 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
             (item) => item.attributes['name'] == name,
           )
           .firstOrNull;
-      SmfError.check(
-        group != null,
-        'TestFlight group "$name" was not found for this app.',
-        'BETA_GROUP_NOT_FOUND',
-      );
-      final isInternalGroup = group!.attributes['isInternalGroup'];
+      if (group == null) {
+        throw SmfError(
+          'TestFlight group "$name" was not found for this app.',
+          'BETA_GROUP_NOT_FOUND',
+        );
+      }
+      final isInternalGroup = group.attributes['isInternalGroup'];
       SmfError.check(
         isInternalGroup is bool,
         'App Store Connect did not identify the audience for TestFlight group '
@@ -768,15 +778,16 @@ final class AppStoreConnectClient implements AppStoreConnectApi {
           (item) => item.attributes['locale'] == locale,
         )
         .firstOrNull;
-    SmfError.check(
-      localization != null,
-      'App Store locale "$locale" does not exist. Add it to the app in App '
-          'Store Connect before releasing.',
-      'APP_STORE_LOCALE_NOT_FOUND',
-    );
+    if (localization == null) {
+      throw SmfError(
+        'App Store locale "$locale" does not exist. Add it to the app in App '
+            'Store Connect before releasing.',
+        'APP_STORE_LOCALE_NOT_FOUND',
+      );
+    }
     await _request(
       'PATCH',
-      '/v1/appStoreVersionLocalizations/${localization!.id}',
+      '/v1/appStoreVersionLocalizations/${localization.id}',
       body: <String, Object?>{
         'data': <String, Object?>{
           'type': 'appStoreVersionLocalizations',

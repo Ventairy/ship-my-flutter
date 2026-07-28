@@ -10,7 +10,6 @@ import 'package:smf_engine/src/models/smf_config.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/serialization.dart';
 import 'package:smf_engine/src/templates.dart';
-import 'package:yaml/yaml.dart';
 
 /// A user-selectable group of files owned by SMF migration.
 enum MigrationTarget {
@@ -69,10 +68,11 @@ final class MigrationOptions {
 /// Observable result of a completed repository migration.
 final class MigrationResult {
   /// Creates a migration result.
-  const MigrationResult({
-    required this.targets,
-    required this.changedFiles,
-  });
+  MigrationResult({
+    required List<MigrationTarget> targets,
+    required List<String> changedFiles,
+  }) : targets = List<MigrationTarget>.unmodifiable(targets),
+       changedFiles = List<String>.unmodifiable(changedFiles);
 
   /// File groups selected by the user or discovered for the default command.
   final List<MigrationTarget> targets;
@@ -211,7 +211,7 @@ final class SmfMigration {
   static Future<String> _appIdForMigration(
     SmfPaths paths,
     String? explicitAppId,
-    Map<Object?, Object?> config,
+    Map<String, Object?> config,
   ) async {
     final configured = config['app_id'];
     if (configured is String && explicitAppId != null && explicitAppId != configured) {
@@ -231,7 +231,7 @@ final class SmfMigration {
     final pubspec = await SmfFileSystem.readYaml(
       p.join(paths.appRoot, 'pubspec.yaml'),
     );
-    final name = pubspec is Map<Object?, Object?> ? pubspec['name'] : null;
+    final name = pubspec is Map<String, Object?> ? pubspec['name'] : null;
     if (name is String && name.trim().isNotEmpty) {
       final appId = _validateMigrationAppId(name.trim());
       await _ensureUniqueMigrationAppId(paths, appId);
@@ -252,7 +252,7 @@ final class SmfMigration {
       final value = await SmfFileSystem.readYaml(
         p.join(directory, SmfPaths.configFileName),
       );
-      final otherAppId = value is Map<Object?, Object?> ? value['app_id'] : null;
+      final otherAppId = value is Map<String, Object?> ? value['app_id'] : null;
       if (otherAppId == appId) {
         throw SmfError(
           'app_id "$appId" is already used by '
@@ -274,20 +274,20 @@ final class SmfMigration {
     return value;
   }
 
-  static Map<Object?, Object?> _parseConfigMap(String source, String path) {
+  static Map<String, Object?> _parseConfigMap(String source, String path) {
     try {
       final value = SmfFileSystem.parseYaml(
         source,
         sourceUrl: Uri.file(path),
       );
-      if (value is! Map<Object?, Object?>) {
+      if (value is! Map<String, Object?>) {
         throw const SmfError(
           'smf/config.yaml must contain a YAML object before it can be migrated.',
           'CONFIG_MIGRATION_INVALID',
         );
       }
       return value;
-    } on YamlException catch (error) {
+    } on FormatException catch (error) {
       throw SmfError(
         '$path contains malformed YAML.',
         'CONFIG_MIGRATION_INVALID',
@@ -296,7 +296,7 @@ final class SmfMigration {
     }
   }
 
-  static int _configSchemaVersion(Map<Object?, Object?> value) {
+  static int _configSchemaVersion(Map<String, Object?> value) {
     final schemaVersion = value['schema_version'];
     if (schemaVersion is! int || schemaVersion < 0) {
       throw const SmfError(

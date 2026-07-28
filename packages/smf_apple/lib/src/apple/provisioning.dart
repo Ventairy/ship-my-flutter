@@ -99,9 +99,11 @@ final class AppleProvisioning {
     );
     final knownNames = knownProfiles.map((profile) => profile.name).toSet();
     final encodedProfiles = <String, String>{};
-    final sortedBundleIds = bundleIds.toList()..sort();
-    for (final bundleId in sortedBundleIds) {
-      final bundleResource = bundleResources[bundleId]!;
+    final sortedBundleResources = bundleResources.entries.toList()
+      ..sort((left, right) => left.key.compareTo(right.key));
+    for (final bundleEntry in sortedBundleResources) {
+      final bundleId = bundleEntry.key;
+      final bundleResource = bundleEntry.value;
       var profile = _bestProfile(
         knownProfiles,
         bundleResource,

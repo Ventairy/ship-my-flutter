@@ -1,3 +1,4 @@
+/// An actionable SMF domain failure with a stable automation code.
 final class SmfError implements Exception {
   /// Creates an SMF failure with a stable machine-readable [code].
   const SmfError(this.message, this.code, {this.cause});

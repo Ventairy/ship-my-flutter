@@ -11,16 +11,19 @@ part of 'candidate_receipt.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
+
 /// @nodoc
 mixin _$CandidateReceipt {
 
- Platform get platform; String get version; String get buildNumber; String get artifactId; String get applicationId; String get storeApplicationId; String get sourceSha; String get sourceFingerprint; String get artifactSha256; DateTime get uploadedAt; List<String> get testingDestinations; String get processingState; int get schemaVersion;
+ Platform get platform; String get version; String get buildNumber; String get artifactId; String get applicationId; String get storeApplicationId; String get sourceSha; String get sourceFingerprint; String get artifactSha256;@UtcDateTimeConverter() DateTime get uploadedAt; List<String> get testingDestinations; String get processingState;@JsonKey(required: true) int get schemaVersion;
 /// Create a copy of CandidateReceipt
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CandidateReceiptCopyWith<CandidateReceipt> get copyWith => _$CandidateReceiptCopyWithImpl<CandidateReceipt>(this as CandidateReceipt, _$identity);
 
+  /// Serializes this CandidateReceipt to a JSON map.
+  Map<String, dynamic> toJson();
 
 
 @override
@@ -28,7 +31,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is CandidateReceipt&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.artifactId, artifactId) || other.artifactId == artifactId)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.storeApplicationId, storeApplicationId) || other.storeApplicationId == storeApplicationId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.artifactSha256, artifactSha256) || other.artifactSha256 == artifactSha256)&&(identical(other.uploadedAt, uploadedAt) || other.uploadedAt == uploadedAt)&&const DeepCollectionEquality().equals(other.testingDestinations, testingDestinations)&&(identical(other.processingState, processingState) || other.processingState == processingState)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,platform,version,buildNumber,artifactId,applicationId,storeApplicationId,sourceSha,sourceFingerprint,artifactSha256,uploadedAt,const DeepCollectionEquality().hash(testingDestinations),processingState,schemaVersion);
 
@@ -45,7 +48,7 @@ abstract mixin class $CandidateReceiptCopyWith<$Res>  {
   factory $CandidateReceiptCopyWith(CandidateReceipt value, $Res Function(CandidateReceipt) _then) = _$CandidateReceiptCopyWithImpl;
 @useResult
 $Res call({
- Platform platform, String version, String buildNumber, String artifactId, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime uploadedAt, List<String> testingDestinations, String processingState, int schemaVersion
+ Platform platform, String version, String buildNumber, String artifactId, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256,@UtcDateTimeConverter() DateTime uploadedAt, List<String> testingDestinations, String processingState,@JsonKey(required: true) int schemaVersion
 });
 
 
@@ -162,7 +165,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime uploadedAt,  List<String> testingDestinations,  String processingState,  int schemaVersion)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256, @UtcDateTimeConverter()  DateTime uploadedAt,  List<String> testingDestinations,  String processingState, @JsonKey(required: true)  int schemaVersion)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CandidateReceipt() when $default != null:
 return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.uploadedAt,_that.testingDestinations,_that.processingState,_that.schemaVersion);case _:
@@ -183,7 +186,7 @@ return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime uploadedAt,  List<String> testingDestinations,  String processingState,  int schemaVersion)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256, @UtcDateTimeConverter()  DateTime uploadedAt,  List<String> testingDestinations,  String processingState, @JsonKey(required: true)  int schemaVersion)  $default,) {final _that = this;
 switch (_that) {
 case _CandidateReceipt():
 return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.uploadedAt,_that.testingDestinations,_that.processingState,_that.schemaVersion);case _:
@@ -203,7 +206,7 @@ return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256,  DateTime uploadedAt,  List<String> testingDestinations,  String processingState,  int schemaVersion)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Platform platform,  String version,  String buildNumber,  String artifactId,  String applicationId,  String storeApplicationId,  String sourceSha,  String sourceFingerprint,  String artifactSha256, @UtcDateTimeConverter()  DateTime uploadedAt,  List<String> testingDestinations,  String processingState, @JsonKey(required: true)  int schemaVersion)?  $default,) {final _that = this;
 switch (_that) {
 case _CandidateReceipt() when $default != null:
 return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,_that.applicationId,_that.storeApplicationId,_that.sourceSha,_that.sourceFingerprint,_that.artifactSha256,_that.uploadedAt,_that.testingDestinations,_that.processingState,_that.schemaVersion);case _:
@@ -216,10 +219,10 @@ return $default(_that.platform,_that.version,_that.buildNumber,_that.artifactId,
 
 /// @nodoc
 
-
+@JsonSerializable(checked: true, disallowUnrecognizedKeys: true)
 class _CandidateReceipt extends CandidateReceipt {
-  const _CandidateReceipt({required this.platform, required this.version, required this.buildNumber, required this.artifactId, required this.applicationId, required this.storeApplicationId, required this.sourceSha, required this.sourceFingerprint, required this.artifactSha256, required this.uploadedAt, required final  List<String> testingDestinations, this.processingState = 'VALID', this.schemaVersion = 2}): _testingDestinations = testingDestinations,super._();
-  
+  const _CandidateReceipt({required this.platform, required this.version, required this.buildNumber, required this.artifactId, required this.applicationId, required this.storeApplicationId, required this.sourceSha, required this.sourceFingerprint, required this.artifactSha256, @UtcDateTimeConverter() required this.uploadedAt, required final  List<String> testingDestinations, this.processingState = 'VALID', @JsonKey(required: true) this.schemaVersion = 2}): _testingDestinations = testingDestinations,super._();
+  factory _CandidateReceipt.fromJson(Map<String, dynamic> json) => _$CandidateReceiptFromJson(json);
 
 @override final  Platform platform;
 @override final  String version;
@@ -230,7 +233,7 @@ class _CandidateReceipt extends CandidateReceipt {
 @override final  String sourceSha;
 @override final  String sourceFingerprint;
 @override final  String artifactSha256;
-@override final  DateTime uploadedAt;
+@override@UtcDateTimeConverter() final  DateTime uploadedAt;
  final  List<String> _testingDestinations;
 @override List<String> get testingDestinations {
   if (_testingDestinations is EqualUnmodifiableListView) return _testingDestinations;
@@ -239,7 +242,7 @@ class _CandidateReceipt extends CandidateReceipt {
 }
 
 @override@JsonKey() final  String processingState;
-@override@JsonKey() final  int schemaVersion;
+@override@JsonKey(required: true) final  int schemaVersion;
 
 /// Create a copy of CandidateReceipt
 /// with the given fields replaced by the non-null parameter values.
@@ -247,14 +250,17 @@ class _CandidateReceipt extends CandidateReceipt {
 @pragma('vm:prefer-inline')
 _$CandidateReceiptCopyWith<_CandidateReceipt> get copyWith => __$CandidateReceiptCopyWithImpl<_CandidateReceipt>(this, _$identity);
 
-
+@override
+Map<String, dynamic> toJson() {
+  return _$CandidateReceiptToJson(this, );
+}
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _CandidateReceipt&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.version, version) || other.version == version)&&(identical(other.buildNumber, buildNumber) || other.buildNumber == buildNumber)&&(identical(other.artifactId, artifactId) || other.artifactId == artifactId)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.storeApplicationId, storeApplicationId) || other.storeApplicationId == storeApplicationId)&&(identical(other.sourceSha, sourceSha) || other.sourceSha == sourceSha)&&(identical(other.sourceFingerprint, sourceFingerprint) || other.sourceFingerprint == sourceFingerprint)&&(identical(other.artifactSha256, artifactSha256) || other.artifactSha256 == artifactSha256)&&(identical(other.uploadedAt, uploadedAt) || other.uploadedAt == uploadedAt)&&const DeepCollectionEquality().equals(other._testingDestinations, _testingDestinations)&&(identical(other.processingState, processingState) || other.processingState == processingState)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,platform,version,buildNumber,artifactId,applicationId,storeApplicationId,sourceSha,sourceFingerprint,artifactSha256,uploadedAt,const DeepCollectionEquality().hash(_testingDestinations),processingState,schemaVersion);
 
@@ -271,7 +277,7 @@ abstract mixin class _$CandidateReceiptCopyWith<$Res> implements $CandidateRecei
   factory _$CandidateReceiptCopyWith(_CandidateReceipt value, $Res Function(_CandidateReceipt) _then) = __$CandidateReceiptCopyWithImpl;
 @override @useResult
 $Res call({
- Platform platform, String version, String buildNumber, String artifactId, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256, DateTime uploadedAt, List<String> testingDestinations, String processingState, int schemaVersion
+ Platform platform, String version, String buildNumber, String artifactId, String applicationId, String storeApplicationId, String sourceSha, String sourceFingerprint, String artifactSha256,@UtcDateTimeConverter() DateTime uploadedAt, List<String> testingDestinations, String processingState,@JsonKey(required: true) int schemaVersion
 });
 
 

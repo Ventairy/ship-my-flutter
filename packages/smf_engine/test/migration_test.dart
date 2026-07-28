@@ -74,6 +74,77 @@ Future<void> writeJson(String path, Object? value) async {
 }
 
 void main() {
+  test(
+    'when migration result sources change, it should preserve its completed evidence',
+    () {
+      final targets = <MigrationTarget>[MigrationTarget.config];
+      final changedFiles = <String>['smf/config.yaml'];
+      final result = MigrationResult(
+        targets: targets,
+        changedFiles: changedFiles,
+      );
+
+      targets.clear();
+      changedFiles.clear();
+
+      expect(
+        <String, Object?>{
+          'targets': result.targets,
+          'changedFiles': result.changedFiles,
+        },
+        <String, Object?>{
+          'targets': <MigrationTarget>[MigrationTarget.config],
+          'changedFiles': <String>['smf/config.yaml'],
+        },
+      );
+    },
+  );
+
+  test(
+    'when migration result collections are exposed, they should reject mutation',
+    () {
+      final result = MigrationResult(
+        targets: <MigrationTarget>[MigrationTarget.config],
+        changedFiles: <String>['smf/config.yaml'],
+      );
+
+      expect(
+        <void Function()>[
+          result.targets.clear,
+          result.changedFiles.clear,
+        ],
+        everyElement(throwsUnsupportedError),
+      );
+    },
+  );
+
+  test(
+    'when migration reads a non-string YAML key, it should report an invalid configuration',
+    () async {
+      final (root, paths) = await repository();
+      await File(paths.config).writeAsString('''
+schema_version: 1
+1: invalid
+''');
+
+      await expectLater(
+        SmfMigration.migrate(
+          MigrationOptions(
+            workingDirectory: root.path,
+            config: true,
+          ),
+        ),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'CONFIG_MIGRATION_INVALID',
+          ),
+        ),
+      );
+    },
+  );
+
   test('default migration preserves a CLI-only repository', () async {
     final root = await Directory.systemTemp.createTemp(
       'smf-migrate-manual-',

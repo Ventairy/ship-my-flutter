@@ -10,7 +10,10 @@ part 'changelog_release.g.dart';
 @freezed
 abstract class ChangelogRelease with _$ChangelogRelease {
   /// Creates a changelog release.
-  @JsonSerializable(checked: true, explicitToJson: true)
+  @JsonSerializable(
+    checked: true,
+    explicitToJson: true,
+  )
   const factory ChangelogRelease({
     required String version,
     @UtcDateTimeConverter() required DateTime preparedAt,

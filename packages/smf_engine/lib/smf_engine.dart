@@ -7,6 +7,7 @@ export 'src/config.dart' show SmfState;
 export 'src/conventional_commit.dart' show ConventionalCommit;
 export 'src/error.dart' show SmfError;
 export 'src/fingerprint.dart' show FileDigest, SourceFingerprint;
+export 'src/flutter_toolchain.dart' show FlutterToolchain;
 export 'src/git.dart' show GitClient, GitCommit;
 export 'src/github.dart' show ReleasePullRequest, ReleasePullRequestResult;
 export 'src/github_api.dart' show GitHubApi, GitHubApiException, GitHubPullRequest, GitHubRelease, GitHubRestApi;

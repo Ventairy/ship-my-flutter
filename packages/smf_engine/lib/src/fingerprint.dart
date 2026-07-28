@@ -73,21 +73,21 @@ final class SourceFingerprint {
     final configPath = paths.config;
     try {
       final raw = await SmfFileSystem.readYaml(configPath);
-      if (raw is Map<Object?, Object?>) {
+      if (raw is Map<String, Object?>) {
         final platforms = raw['platforms'];
-        final ios = platforms is Map<Object?, Object?> ? platforms['ios'] : null;
-        final android = platforms is Map<Object?, Object?> ? platforms['android'] : null;
+        final ios = platforms is Map<String, Object?> ? platforms['ios'] : null;
+        final android = platforms is Map<String, Object?> ? platforms['android'] : null;
         final buildInputs = <String, Object?>{
           'app_id': raw['app_id'],
           if (raw.containsKey('flavor')) 'flavor': raw['flavor'],
           'release_trigger_paths': raw['release_trigger_paths'] ?? <Object?>[],
-          if (ios is Map<Object?, Object?>)
+          if (ios is Map<String, Object?>)
             'ios': <String, Object?>{
               if (ios.containsKey('bundle_id')) 'bundle_id': ios['bundle_id'],
               'build_command': ios['build_command'] ?? 'auto',
               'ipa_output_path': ios['ipa_output_path'] ?? 'build/ios/ipa',
             },
-          if (android is Map<Object?, Object?>)
+          if (android is Map<String, Object?>)
             'android': <String, Object?>{
               if (android.containsKey('package_name')) 'package_name': android['package_name'],
               'build_command': android['build_command'] ?? 'auto',

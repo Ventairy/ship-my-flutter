@@ -70,7 +70,7 @@ final class RepositoryValidator {
       final value = await SmfFileSystem.readYaml(
         p.join(directory, SmfPaths.configFileName),
       );
-      final siblingAppId = value is Map<Object?, Object?> ? value['app_id'] : null;
+      final siblingAppId = value is Map<String, Object?> ? value['app_id'] : null;
       SmfError.check(
         siblingAppId != config.appId,
         'app_id "${config.appId}" is also used by '
@@ -138,13 +138,14 @@ final class RepositoryValidator {
       repositoryRoot: repositoryRoot,
       projectRoot: projectRoot,
     );
-    SmfError.check(
-      lockfile != null,
-      'No committed pubspec.lock exists at the Flutter project or workspace '
-          'root.',
-      'LOCKFILE_NOT_FOUND',
-    );
-    final relativeLockfile = p.relative(lockfile!, from: repositoryRoot);
+    if (lockfile == null) {
+      throw const SmfError(
+        'No committed pubspec.lock exists at the Flutter project or workspace '
+            'root.',
+        'LOCKFILE_NOT_FOUND',
+      );
+    }
+    final relativeLockfile = p.relative(lockfile, from: repositoryRoot);
     SmfError.check(
       (await GitClient(root: repositoryRoot).run(<String>[
         'ls-files',

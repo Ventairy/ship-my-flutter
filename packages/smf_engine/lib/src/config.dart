@@ -134,6 +134,12 @@ final class _SmfStateFiles {
         'INVALID_CONFIG',
         cause: error,
       );
+    } on FormatException catch (error) {
+      throw SmfError(
+        '${paths.config} is invalid:\n${error.message}',
+        'INVALID_CONFIG',
+        cause: error,
+      );
     }
   }
 

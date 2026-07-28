@@ -90,22 +90,8 @@ final class AppleBuild {
     String? configuredCommand,
   }) async {
     if (configuredCommand != null) return configuredCommand;
-
-    var directory = p.normalize(p.absolute(projectRoot));
-    while (true) {
-      final usesFvm =
-          await File(p.join(directory, '.fvmrc')).exists() ||
-          await File(p.join(directory, '.fvm', 'fvm_config.json')).exists();
-      if (usesFvm) return 'fvm flutter build ipa --release';
-
-      final gitBoundary =
-          await File(p.join(directory, '.git')).exists() || await Directory(p.join(directory, '.git')).exists();
-      final parent = p.dirname(directory);
-      if (gitBoundary || parent == directory) break;
-      directory = parent;
-    }
-
-    return 'flutter build ipa --release';
+    final executable = await FlutterToolchain.resolveExecutable(projectRoot);
+    return '$executable build ipa --release';
   }
 
   /// Runs the project-owned command with managed Apple build arguments.

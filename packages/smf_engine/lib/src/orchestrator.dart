@@ -8,11 +8,15 @@ import 'package:smf_engine/src/release_branch.dart';
 import 'package:smf_engine/src/release_plan.dart';
 import 'package:smf_engine/src/validate.dart';
 
+/// Plans and creates app-scoped release pull requests.
 final class ReleaseOrchestrator {
+  /// Creates an orchestrator with an optional GitHub test double.
   const ReleaseOrchestrator({this.githubApi});
 
+  /// GitHub boundary used for pull-request operations.
   final GitHubApi? githubApi;
 
+  /// Plans the next workflow operation for the selected app and platform.
   Future<CommandResult> plan({
     required String workingDirectory,
     required GitHubContext github,

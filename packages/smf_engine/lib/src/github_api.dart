@@ -13,7 +13,9 @@ export 'github/dtos/github_pull_request.dart';
 export 'github/dtos/github_release.dart';
 export 'github/github_api_exception.dart';
 
+/// GitHub operations required by SMF release workflows.
 abstract interface class GitHubApi {
+  /// Lists pull requests matching an exact state, head, and base branch.
   Future<List<GitHubPullRequest>> listPullRequests({
     required String state,
     required String head,
@@ -21,6 +23,7 @@ abstract interface class GitHubApi {
     required int perPage,
   });
 
+  /// Creates a pull request.
   Future<GitHubPullRequest> createPullRequest({
     required String head,
     required String base,
@@ -28,23 +31,29 @@ abstract interface class GitHubApi {
     required String body,
   });
 
+  /// Replaces the title and body of an existing pull request.
   Future<void> updatePullRequest({
     required int number,
     required String title,
     required String body,
   });
 
+  /// Whether a repository label named [name] exists.
   Future<bool> labelExists(String name);
 
+  /// Creates a repository label.
   Future<void> createLabel({required String name, required String color});
 
+  /// Adds [labels] to one issue or pull request.
   Future<void> addLabels({
     required int issueNumber,
     required List<String> labels,
   });
 
+  /// Finds the GitHub Release attached to [tag], if one exists.
   Future<GitHubRelease?> releaseByTag(String tag);
 
+  /// Creates a GitHub Release for an existing tag target.
   Future<GitHubRelease> createRelease({
     required String tag,
     required String name,
@@ -53,14 +62,22 @@ abstract interface class GitHubApi {
   });
 }
 
+/// Authenticated GitHub REST implementation used by SMF.
 final class GitHubRestApi implements GitHubApi {
+  /// Creates a client for one repository.
+  ///
+  /// This instance owns [client], when supplied, and closes it from [close].
   GitHubRestApi({required this.context, http.Client? client, Uri? apiRoot})
     : _client = client ?? http.Client(),
       _apiRoot = apiRoot ?? Uri.parse('https://api.github.com');
 
+  /// Authentication and repository identity used by every request.
   final GitHubContext context;
   final http.Client _client;
   final Uri _apiRoot;
+
+  /// Releases the HTTP resources owned by this client.
+  void close() => _client.close();
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final basePath = _apiRoot.path.endsWith('/') ? _apiRoot.path.substring(0, _apiRoot.path.length - 1) : _apiRoot.path;

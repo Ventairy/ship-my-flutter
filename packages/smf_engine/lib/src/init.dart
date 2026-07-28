@@ -12,19 +12,25 @@ import 'package:smf_engine/src/templates.dart';
 
 /// Inputs used to initialize one Flutter application.
 final class InitOptions {
-  const InitOptions({
+  InitOptions({
     required this.appRoot,
     this.appId,
     this.version,
-    this.platformVersions = const <Platform, String>{},
-    this.platformVersionDetectors = const <Platform, Future<String?> Function(String appRoot)>{},
+    Map<Platform, String> platformVersions = const <Platform, String>{},
+    Map<Platform, Future<String?> Function(String appRoot)> platformVersionDetectors =
+        const <Platform, Future<String?> Function(String appRoot)>{},
     this.selectedPlatform,
     this.iosBundleId,
     this.androidPackageName,
     this.force = false,
     this.githubActionsOnly = false,
     this.githubActions = true,
-  });
+  }) : platformVersions = Map<Platform, String>.unmodifiable(
+         platformVersions,
+       ),
+       platformVersionDetectors = Map<Platform, Future<String?> Function(String appRoot)>.unmodifiable(
+         platformVersionDetectors,
+       );
 
   final String appRoot;
   final String? appId;
@@ -49,7 +55,7 @@ final class RepositoryInitializer {
     final pubspecPath = p.join(root, 'pubspec.yaml');
     if (!(await SmfFileSystem.exists(pubspecPath))) return null;
     final value = await SmfFileSystem.readYaml(pubspecPath);
-    if (value is! Map<Object?, Object?>) return null;
+    if (value is! Map<String, Object?>) return null;
     final rawVersion = value['version'];
     if (rawVersion is! String) return null;
     final versionValue = rawVersion.split('+').first;
@@ -64,7 +70,7 @@ final class RepositoryInitializer {
   static Future<String> _detectFlutterPackageName(String root) async {
     final pubspecPath = p.join(root, 'pubspec.yaml');
     final value = await SmfFileSystem.readYaml(pubspecPath);
-    final name = value is Map<Object?, Object?> ? value['name'] : null;
+    final name = value is Map<String, Object?> ? value['name'] : null;
     if (name is! String || name.trim().isEmpty) {
       throw SmfError(
         'Could not read a package name from $pubspecPath. Pass --app-id.',
@@ -130,7 +136,7 @@ final class RepositoryInitializer {
       final value = await SmfFileSystem.readYaml(
         p.join(directory, SmfPaths.configFileName),
       );
-      final otherAppId = value is Map<Object?, Object?> ? value['app_id'] : null;
+      final otherAppId = value is Map<String, Object?> ? value['app_id'] : null;
       if (otherAppId == appId) {
         throw SmfError(
           'app_id "$appId" is already used by '

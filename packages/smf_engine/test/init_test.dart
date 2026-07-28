@@ -5,6 +5,27 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'when initializer option maps are exposed, they should reject mutation',
+    () {
+      final options = InitOptions(
+        appRoot: '/tmp/app',
+        platformVersions: <Platform, String>{Platform.ios: '1.0.0'},
+        platformVersionDetectors: <Platform, Future<String?> Function(String appRoot)>{
+          Platform.ios: (_) async => '1.0.0',
+        },
+      );
+
+      expect(
+        <void Function()>[
+          options.platformVersions.clear,
+          options.platformVersionDetectors.clear,
+        ],
+        everyElement(throwsUnsupportedError),
+      );
+    },
+  );
+
   test('initializer supports a CLI-only repository without a workflow', () async {
     final root = await Directory.systemTemp.createTemp('smf-init-manual-');
     addTearDown(() => root.delete(recursive: true));

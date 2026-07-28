@@ -36,12 +36,24 @@ final class SmfFileSystem {
       await FileSystemEntity.type(filePath) != FileSystemEntityType.notFound;
 
   static Object? _normalizeYaml(Object? value) => switch (value) {
-    YamlMap() => <String, Object?>{
-      for (final MapEntry<Object?, Object?> entry in value.entries) entry.key.toString(): _normalizeYaml(entry.value),
-    },
+    YamlMap() => _normalizeYamlMap(value),
     YamlList() => <Object?>[
       for (final Object? element in value) _normalizeYaml(element),
     ],
     _ => value,
   };
+
+  static Map<String, Object?> _normalizeYamlMap(YamlMap value) {
+    final result = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is! String) {
+        throw FormatException(
+          'YAML mapping keys must be strings; found ${key.runtimeType}.',
+        );
+      }
+      result[key] = _normalizeYaml(entry.value);
+    }
+    return result;
+  }
 }
