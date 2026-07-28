@@ -8,7 +8,7 @@
   "required": ["schema_version", "app_id", "platforms"],
   "properties": {
     "schema_version": {
-      "const": 3,
+      "const": 1,
       "description": "Configuration contract version."
     },
     "app_id": {

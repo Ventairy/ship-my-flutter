@@ -5,9 +5,10 @@ workflow operation failed, or a release must be abandoned.
 
 ## Migrate after upgrading SMF
 
-Install the newer CLI, then run from the Flutter app:
+Upgrade the CLI, then run from the Flutter app:
 
 ```bash
+smf upgrade
 smf migrate
 smf validate
 ```
@@ -26,7 +27,7 @@ or contact a store.
 Review every changed file before committing. If migration fails, do not
 hand-edit manifests or receipts to bypass it. Keep the reported files intact,
 fix the validation error or restore them from Git, and rerun. Use
-[CLI guide: migrate](cli.md#update-after-installing-a-newer-smf-version) to
+[CLI guide: migrate](cli.md#update-repository-files-after-upgrading-smf) to
 select only `--config`, `--github-actions`, or `--registry` for diagnosis.
 
 ## Before merging
@@ -176,8 +177,20 @@ Confirm:
 - repository rules allow the workflow identity to update it; and
 - the store artifact still matches the source/identity.
 
-Fix the GitHub permission/ruleset and rerun. SMF can reuse a valid matching
-artifact.
+Do not delete or edit
+`smf/candidates/<platform>-<version>.intent.json`. It is the committed identity
+of the upload attempt, not a receipt or a file you need to complete.
+
+Fix the GitHub permission/ruleset and rerun the failed candidate job or
+`smf create-release --platform <platform>`. A fresh runner reads the intent,
+looks up that exact build in the store, completes any unfinished testing
+assignment, and replaces the intent with the final receipt. It never selects
+the newest unrelated store build.
+
+The retry is complete only when the intent is gone and
+`smf/candidates/<platform>-<version>.json` is committed on the release branch.
+If SMF reports an identity, fingerprint, or Android checksum mismatch, stop:
+the preserved store artifact is not valid evidence for this release.
 
 ### iOS processing or TestFlight failed
 

@@ -1,3 +1,4 @@
+export 'dtos/candidate_intent.dart';
 export 'dtos/candidate_receipt.dart';
 export 'dtos/changelog_manifest.dart';
 export 'dtos/changelog_release.dart';

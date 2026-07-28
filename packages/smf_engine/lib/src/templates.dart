@@ -153,16 +153,16 @@ jobs:
           phase: release-candidate
           platform: ${{ matrix.platform }}
           smf-path: ${{ env.SMF_PATH }}
-          app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          app-store-connect-auth-key-base64: ${{ secrets.APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
-          ios-certificate-base64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          ios-certificate-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          google-play-service-account-json: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          android-keystore-base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          android-key-alias: ${{ secrets.ANDROID_KEY_ALIAS }}
-          android-keystore-password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          android-key-password: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          app-store-connect-key-id: ${{ secrets.SMF_APP_STORE_CONNECT_KEY_ID }}
+          app-store-connect-issuer-id: ${{ secrets.SMF_APP_STORE_CONNECT_ISSUER_ID }}
+          app-store-connect-auth-key-base64: ${{ secrets.SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
+          ios-certificate-base64: ${{ secrets.SMF_IOS_CERTIFICATE_BASE64 }}
+          ios-certificate-password: ${{ secrets.SMF_IOS_CERTIFICATE_PASSWORD }}
+          google-play-service-account-json: ${{ secrets.SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          android-keystore-base64: ${{ secrets.SMF_ANDROID_KEYSTORE_BASE64 }}
+          android-key-alias: ${{ secrets.SMF_ANDROID_KEY_ALIAS }}
+          android-keystore-password: ${{ secrets.SMF_ANDROID_KEYSTORE_PASSWORD }}
+          android-key-password: ${{ secrets.SMF_ANDROID_KEY_PASSWORD }}
 
   ship:
     name: ship (${{ matrix.platform }})
@@ -186,9 +186,9 @@ jobs:
           phase: ship
           platform: ${{ matrix.platform }}
           smf-path: ${{ env.SMF_PATH }}
-          app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          app-store-connect-auth-key-base64: ${{ secrets.APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
-          google-play-service-account-json: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          app-store-connect-key-id: ${{ secrets.SMF_APP_STORE_CONNECT_KEY_ID }}
+          app-store-connect-issuer-id: ${{ secrets.SMF_APP_STORE_CONNECT_ISSUER_ID }}
+          app-store-connect-auth-key-base64: ${{ secrets.SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
+          google-play-service-account-json: ${{ secrets.SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
 ''';
 }

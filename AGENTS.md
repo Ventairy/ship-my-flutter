@@ -63,7 +63,9 @@ smf_cli -> smf_android -> smf_engine
   `release_trigger_paths` adds repository-relative shared paths.
 - CLI success writes exactly one JSON value to stdout; diagnostics go to
   stderr.
-- Raw secrets are never accepted as command-line values.
+- Credentials may be accepted as command-line values for local convenience,
+  but help and consumer docs must recommend `SMF_*` environment variables for
+  production because process arguments may be observable.
 - `pubspec.yaml` is each package's version source of truth.
 
 ## Development gate

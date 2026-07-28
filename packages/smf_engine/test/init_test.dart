@@ -61,7 +61,7 @@ void main() {
       expect(manifest.ios.baselineSha, baselineSha);
       expect(manifest.ios.pendingRelease, isFalse);
       final config = await SmfState.config(root.path);
-      expect(config.schemaVersion, 3);
+      expect(config.schemaVersion, 1);
       expect(config.appId, 'example');
       expect(config.ios.initialVersion, '3.2.1');
       expect(config.android.enabled, isFalse);
@@ -134,8 +134,12 @@ void main() {
       expect(
         workflow,
         contains(
-          r'ios-certificate-base64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}',
+          r'ios-certificate-base64: ${{ secrets.SMF_IOS_CERTIFICATE_BASE64 }}',
         ),
+      );
+      expect(
+        workflow,
+        isNot(matches(RegExp(r'secrets\.(?!SMF_)'))),
       );
       expect(workflow, isNot(contains('phase: plan')));
       expect(workflow, isNot(contains('phase: candidate')));

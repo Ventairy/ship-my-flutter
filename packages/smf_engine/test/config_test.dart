@@ -6,7 +6,7 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> validConfig() => <String, Object?>{
-  'schema_version': 3,
+  'schema_version': 1,
   'app_id': 'example',
   'target_branch': 'main',
   'platforms': <String, Object?>{
@@ -86,7 +86,7 @@ void main() {
 
     test('treats an omitted platform as unsupported', () {
       final config = SmfState.parseConfig(<String, Object?>{
-        'schema_version': 3,
+        'schema_version': 1,
         'app_id': 'example',
         'platforms': <String, Object?>{
           'android': <String, Object?>{
@@ -439,7 +439,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.message,
             'message',
-            contains('schema_version must be 3'),
+            contains('schema_version must be 1'),
           ),
         ),
       );

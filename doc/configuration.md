@@ -13,7 +13,7 @@ Run `smf validate` after every change.
 ## Complete example
 
 ```yaml
-schema_version: 3
+schema_version: 1
 app_id: my_app
 target_branch: main
 flavor: production
@@ -51,7 +51,7 @@ iOS and Android versions are intentionally independent.
 
 | Field                   | Required/default        | Meaning                                                                |
 | ----------------------- | ----------------------- | ---------------------------------------------------------------------- |
-| `schema_version`        | required, currently `3` | Configuration format                                                   |
+| `schema_version`        | required, currently `1` | Configuration format                                                   |
 | `app_id`                | required, generated     | Stable identity for this app's release resources                       |
 | `target_branch`         | required                | Branch containing normal application work                              |
 | `flavor`                | optional                | One Flutter flavor passed to enabled platform builds                   |
@@ -239,30 +239,6 @@ candidate-only workflow succeeds. A ship-only configuration change can reuse
 an existing candidate after SMF revalidates its source, identity, and store
 artifact.
 
-## Migrate an older configuration
-
-Schema version 3 replaces `testflight`, `testing_track`, `production_track`,
-and the shared `mode` fields. Upgrade an initialized repository with:
-
-```bash
-smf migrate --config
-smf validate
-```
-
-The migration preserves the previous candidate-only, manual App Store release,
-automatic App Store release, and Google Play destination behavior. Because the
-old Apple configuration did not identify whether named TestFlight groups were
-internal or external, migrated groups default to `internal-testing`. Change
-the target to `external-testing` when those existing groups are external.
-
-Migration refreshes the editor schema URL but does not rewrite trusted hook
-source or package dependencies. Repositories using an older monolithic
-`package:smf/smf.dart` hook must add `smf_hooks`, import
-`package:smf_hooks/smf_hooks.dart`, and update `before_create_pr` code to read
-the nullable platform plans from `context.release.ios` and
-`context.release.android`. Follow
-[Typed hooks](hooks.md), then run `dart analyze smf/hooks`.
-
 ## Custom build commands
 
 Usually omit `build_command`. SMF selects:
@@ -354,6 +330,7 @@ SMF creates these only when needed:
 | `changelog.json`                | Review; never edit manually             |
 | `candidates/ios-X.Y.Z.json`     | Match to TestFlight; never edit         |
 | `candidates/android-X.Y.Z.json` | Match to Play `versionCode`; never edit |
+| `candidates/*.intent.json`      | Leave intact during a failed upload     |
 
 Use [How releases work](how-it-works.md) for the integrity boundary and
 [Operations](operations.md) before resolving conflicts or retrying a release.

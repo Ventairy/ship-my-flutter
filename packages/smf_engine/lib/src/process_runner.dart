@@ -20,19 +20,17 @@ final class SystemProcessRunner implements ProcessRunner {
   const SystemProcessRunner({this.parentEnvironment});
 
   static const Set<String> _sensitiveEnvironmentNames = <String>{
+    // Unsupported generic aliases are still scrubbed so an ambient provider
+    // token cannot leak into repository-owned commands.
     'GITHUB_TOKEN',
     'INPUT_GITHUB_TOKEN',
     'SMF_APP_STORE_CONNECT_KEY_ID',
     'SMF_APP_STORE_CONNECT_ISSUER_ID',
     'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
-    'SMF_APP_STORE_CONNECT_AUTH_KEY_PATH',
     'SMF_IOS_CERTIFICATE_BASE64',
-    'SMF_IOS_CERTIFICATE_PATH',
     'SMF_IOS_CERTIFICATE_PASSWORD',
     'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON',
-    'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH',
     'SMF_ANDROID_KEYSTORE_BASE64',
-    'SMF_ANDROID_KEYSTORE_PATH',
     'SMF_ANDROID_KEY_ALIAS',
     'SMF_ANDROID_KEYSTORE_PASSWORD',
     'SMF_ANDROID_KEY_PASSWORD',

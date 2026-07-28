@@ -86,10 +86,12 @@ SMF:
 1. runs the optional `before_build` hook;
 2. temporarily installs Apple signing assets;
 3. builds the IPA with the planned version and next Apple build number;
-4. uploads to App Store Connect;
-5. waits for a valid processed build;
-6. applies TestFlight notes/groups; and
-7. commits `smf/candidates/ios-<version>.json`.
+4. commits the exact pending build identity before upload;
+5. uploads to App Store Connect;
+6. waits for a valid processed build;
+7. applies TestFlight notes/groups; and
+8. replaces the pending state with
+   `smf/candidates/ios-<version>.json`.
 
 ### Android candidate
 
@@ -99,10 +101,12 @@ SMF:
 2. chooses the next available Google Play `versionCode`;
 3. builds an AAB with the planned version and that build number;
 4. signs the AAB with the configured upload key and verifies its certificate;
-5. uploads through a Google Play edit;
-6. assigns the exact `versionCode` to the configured testing track;
-7. validates and commits the edit; and
-8. commits `smf/candidates/android-<version>.json`.
+5. commits the exact pending build identity before upload;
+6. uploads through a Google Play edit;
+7. assigns the exact `versionCode` to the configured testing track;
+8. validates and commits the edit; and
+9. replaces the pending state with
+   `smf/candidates/android-<version>.json`.
 
 The Android candidate uses a testing track, not Internal App Sharing, because
 the track artifact can be promoted without rebuilding.
@@ -124,6 +128,14 @@ Google Play `versionCode`.
 
 Receipts are machine-owned. Editing one destroys the evidence and does not make
 an untested artifact safe.
+
+While an upload is unfinished, SMF may commit
+`candidates/<platform>-<version>.intent.json`. This temporary, machine-owned
+file binds the source, app identity, build number, and artifact digest before
+the store operation starts. A fresh runner uses it to find only that exact
+artifact, finish the testing destination, and replace the intent with the final
+receipt. If nothing was uploaded, SMF can retry the same reserved build
+identity.
 
 ## 5. People approve exact candidates
 

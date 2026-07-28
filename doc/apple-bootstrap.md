@@ -552,11 +552,11 @@ Do not place one app's signing credentials in a sibling app's environment.
 
 | Secret                              | Value                                     |
 | ----------------------------------- | ----------------------------------------- |
-| `APP_STORE_CONNECT_KEY_ID`          | Key ID recorded in step 5                 |
-| `APP_STORE_CONNECT_ISSUER_ID`       | Issuer ID recorded in step 5              |
-| `APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 of the `AuthKey_*.p8`              |
-| `IOS_CERTIFICATE_BASE64`            | Base64 of the `.p12`                      |
-| `IOS_CERTIFICATE_PASSWORD`          | Password chosen when exporting the `.p12` |
+| `SMF_APP_STORE_CONNECT_KEY_ID`          | Key ID recorded in step 5                 |
+| `SMF_APP_STORE_CONNECT_ISSUER_ID`       | Issuer ID recorded in step 5              |
+| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 of the `AuthKey_*.p8`              |
+| `SMF_IOS_CERTIFICATE_BASE64`            | Base64 of the `.p12`                      |
+| `SMF_IOS_CERTIFICATE_PASSWORD`          | Password chosen when exporting the `.p12` |
 
 On a trusted Mac, each command copies one encoded file to the clipboard:
 

@@ -16,6 +16,7 @@ final class FakeGooglePlayApi implements GooglePlayApi {
   final List<String> deletedEdits = <String>[];
   final List<bool> committedReviewStates = <bool>[];
   int editCount = 0;
+  int uploadCount = 0;
   int validateCount = 0;
   bool closed = false;
 
@@ -48,6 +49,7 @@ final class FakeGooglePlayApi implements GooglePlayApi {
     required String editId,
     required String aabPath,
   }) async {
+    uploadCount += 1;
     final bundle = GooglePlayBundle(
       versionCode:
           artifactVersionCodes.fold<int>(

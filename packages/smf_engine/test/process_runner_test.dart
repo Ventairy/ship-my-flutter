@@ -27,18 +27,16 @@ void main() {
             'PATH': '/usr/bin:/bin',
             'GITHUB_TOKEN': 'github-secret',
             'SMF_IOS_CERTIFICATE_PASSWORD': 'certificate-secret',
-            'SMF_APP_STORE_CONNECT_AUTH_KEY_PATH': '/private/key.p8',
           },
         );
         const command =
-            r'printf "%s|%s|%s" "$GITHUB_TOKEN" '
-            r'"$SMF_IOS_CERTIFICATE_PASSWORD" '
-            r'"$SMF_APP_STORE_CONNECT_AUTH_KEY_PATH"';
+            r'printf "%s|%s" "$GITHUB_TOKEN" '
+            r'"$SMF_IOS_CERTIFICATE_PASSWORD"';
         final result = await runner.run('/bin/sh', const <String>[
           '-c',
           command,
         ]);
-        expect(result.stdout, '||');
+        expect(result.stdout, '|');
       },
     );
 

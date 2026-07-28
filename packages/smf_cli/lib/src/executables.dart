@@ -5,6 +5,7 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 import 'package:smf_android/smf_android.dart' as android;
 import 'package:smf_apple/smf_apple.dart' as apple;
+import 'package:smf_cli/src/upgrade.dart';
 import 'package:smf_engine/smf_engine.dart';
 
 final class ExecutableIo {
@@ -13,6 +14,8 @@ final class ExecutableIo {
     required this.workingDirectory,
     required this.writeOutput,
     required this.writeError,
+    this.upgradeService,
+    this.checkForUpdates = false,
   });
 
   factory ExecutableIo.system() => ExecutableIo(
@@ -20,12 +23,16 @@ final class ExecutableIo {
     workingDirectory: dart_io.Directory.current.path,
     writeOutput: dart_io.stdout.writeln,
     writeError: dart_io.stderr.writeln,
+    upgradeService: SmfUpgradeService.system(),
+    checkForUpdates: true,
   );
 
   final Map<String, String> environment;
   final String workingDirectory;
   final void Function(Object? value) writeOutput;
   final void Function(Object? value) writeError;
+  final SmfUpgradeService? upgradeService;
+  final bool checkForUpdates;
 }
 
 /// Dispatches SMF command-line operations.
@@ -39,6 +46,7 @@ Usage: smf <command> [options]
 
 Commands:
   init              Initialize SMF in a Flutter repository.
+  upgrade           Upgrade the installed SMF CLI to the latest version.
   migrate           Update files created by an older SMF CLI to the installed format.
   validate          Validate repository configuration.
   create-release    Create a release PR and its store candidates.
@@ -53,19 +61,64 @@ Commands:
     final resolvedIo = io ?? ExecutableIo.system();
     if (arguments.isEmpty || arguments.first == '--help' || arguments.first == '-h') {
       resolvedIo.writeOutput(_topLevelUsage);
-      return arguments.isEmpty ? 64 : 0;
+      final exitCode = arguments.isEmpty ? 64 : 0;
+      await _writeUpdateNotice(resolvedIo);
+      return exitCode;
     }
     final command = arguments.first;
     final options = arguments.sublist(1);
-    return switch (command) {
-      'init' => runInit(options, io: resolvedIo),
-      'migrate' => runMigrate(options, io: resolvedIo),
-      'validate' => runValidate(options, io: resolvedIo),
-      'create-release' => runCreateRelease(options, io: resolvedIo),
-      'ship' => runShip(options, io: resolvedIo),
-      'action' => runAction(options, io: resolvedIo),
-      _ => _unknownCommand(command, resolvedIo),
-    };
+    final int exitCode;
+    switch (command) {
+      case 'init':
+        exitCode = await runInit(options, io: resolvedIo);
+      case 'upgrade':
+        exitCode = await runUpgrade(options, io: resolvedIo);
+      case 'migrate':
+        exitCode = await runMigrate(options, io: resolvedIo);
+      case 'validate':
+        exitCode = await runValidate(options, io: resolvedIo);
+      case 'create-release':
+        exitCode = await runCreateRelease(options, io: resolvedIo);
+      case 'ship':
+        exitCode = await runShip(options, io: resolvedIo);
+      case 'action':
+        exitCode = await runAction(options, io: resolvedIo);
+      default:
+        exitCode = _unknownCommand(command, resolvedIo);
+    }
+    if (command != 'upgrade' && command != 'action') {
+      await _writeUpdateNotice(resolvedIo);
+    }
+    return exitCode;
+  }
+
+  static Future<void> _writeUpdateNotice(ExecutableIo io) async {
+    if (!io.checkForUpdates ||
+        _environmentFlag(io.environment, 'CI') ||
+        _environmentFlag(io.environment, 'SMF_NO_UPDATE_CHECK')) {
+      return;
+    }
+    final service = io.upgradeService;
+    if (service == null) return;
+    try {
+      final version = await service.newerVersion();
+      if (version != null) {
+        io.writeError(
+          'SMF $version is available; this installation is '
+          '$smfCliVersion. Run `smf upgrade` to update.',
+        );
+      }
+    } on Object {
+      // Update notices must never change or delay the requested operation.
+    }
+  }
+
+  static bool _environmentFlag(
+    Map<String, String> environment,
+    String name,
+  ) {
+    final value = environment[name]?.trim().toLowerCase();
+    return value == '1' || value == 'true' || value == 'yes';
   }
 
   static int _unknownCommand(String command, ExecutableIo io) {
@@ -82,18 +135,24 @@ Commands:
       help: 'Show this command help.',
     );
 
-  static String _usage(String name, String description, ArgParser parser) =>
-      '''
+  static String _usage(String name, String description, ArgParser parser) {
+    final credentialGuidance = parser.options.containsKey('github-token')
+        ? '''
+
+Credentials can be passed as command options or SMF_* environment variables.
+Environment variables are safer because command arguments may be observable.
+'''
+        : '';
+    return '''
 Usage: smf ${name.replaceAll('_', '-')} [options]
 
 $description
 
 Options:
 ${parser.usage}
-
-Secrets are accepted through SMF_* environment variables or the
-documented *_PATH variables, never as command-line values.
+$credentialGuidance
 ''';
+  }
 
   static Future<int> _runExecutable({
     required String name,
@@ -176,36 +235,156 @@ documented *_PATH variables, never as command-line values.
     return directory;
   }
 
-  static String? _environmentValue(Map<String, String> environment, List<String> names) {
-    for (final name in names) {
-      final value = environment[name]?.trim();
-      if (value != null && value.isNotEmpty) return value;
-    }
-    return null;
+  static String? _environmentValue(
+    Map<String, String> environment,
+    String name,
+  ) {
+    final value = environment[name]?.trim();
+    return value == null || value.isEmpty ? null : value;
   }
 
-  static Future<String?> _token(ArgResults arguments, ExecutableIo io) async {
-    final path = arguments.option('github-token-file')?.trim();
-    final environmentToken = _environmentValue(io.environment, const <String>[
-      'SMF_GITHUB_TOKEN',
-      'GITHUB_TOKEN',
-      'INPUT_GITHUB_TOKEN',
-    ]);
-    if (path != null && path.isNotEmpty && environmentToken != null) {
-      throw const SmfError(
-        'Set only one GitHub token source: --github-token-file or an environment '
-            'variable.',
+  static String? _credentialValue({
+    required ArgResults arguments,
+    required Map<String, String> environment,
+    required String option,
+    required String environmentName,
+  }) {
+    final argumentValue = arguments.option(option)?.trim();
+    final environmentValue = _environmentValue(
+      environment,
+      environmentName,
+    );
+    if (argumentValue != null && argumentValue.isNotEmpty && environmentValue != null) {
+      throw SmfError(
+        'Set only one credential source: --$option or $environmentName.',
         'CONFLICTING_CREDENTIAL',
       );
     }
-    if (path == null || path.isEmpty) return environmentToken;
-    final value = (await dart_io.File(path).readAsString()).trim();
-    SmfError.check(
-      value.isNotEmpty,
-      'The GitHub token file is empty.',
-      'INVALID_CREDENTIAL',
-    );
-    return value;
+    if (argumentValue != null && argumentValue.isEmpty) {
+      throw SmfError(
+        '--$option must not be empty.',
+        'INVALID_CREDENTIAL',
+      );
+    }
+    return argumentValue ?? environmentValue;
+  }
+
+  static Map<String, String> _credentialEnvironment(
+    ArgResults arguments,
+    Map<String, String> environment, {
+    required bool includeSigning,
+  }) {
+    final result = Map<String, String>.of(environment);
+    for (final entry in <String, String>{
+      'app-store-connect-key-id': 'SMF_APP_STORE_CONNECT_KEY_ID',
+      'app-store-connect-issuer-id': 'SMF_APP_STORE_CONNECT_ISSUER_ID',
+      'app-store-connect-auth-key-base64': 'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
+      'google-play-service-account-json': 'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON',
+      if (includeSigning) ...<String, String>{
+        'ios-certificate-base64': 'SMF_IOS_CERTIFICATE_BASE64',
+        'ios-certificate-password': 'SMF_IOS_CERTIFICATE_PASSWORD',
+        'android-keystore-base64': 'SMF_ANDROID_KEYSTORE_BASE64',
+        'android-key-alias': 'SMF_ANDROID_KEY_ALIAS',
+        'android-keystore-password': 'SMF_ANDROID_KEYSTORE_PASSWORD',
+        'android-key-password': 'SMF_ANDROID_KEY_PASSWORD',
+      },
+    }.entries) {
+      final value = _credentialValue(
+        arguments: arguments,
+        environment: environment,
+        option: entry.key,
+        environmentName: entry.value,
+      );
+      if (value != null) result[entry.value] = value;
+    }
+    return result;
+  }
+
+  static String? _token(ArgResults arguments, ExecutableIo io) => _credentialValue(
+    arguments: arguments,
+    environment: io.environment,
+    option: 'github-token',
+    environmentName: 'SMF_GITHUB_TOKEN',
+  );
+
+  static ArgParser _addStoreCredentialOptions(
+    ArgParser parser, {
+    required bool includeSigning,
+  }) {
+    parser
+      ..addOption(
+        'app-store-connect-key-id',
+        valueHelp: 'value',
+        help:
+            'App Store Connect API key ID. Alternatively set '
+            'SMF_APP_STORE_CONNECT_KEY_ID.',
+      )
+      ..addOption(
+        'app-store-connect-issuer-id',
+        valueHelp: 'value',
+        help:
+            'App Store Connect issuer ID. Alternatively set '
+            'SMF_APP_STORE_CONNECT_ISSUER_ID.',
+      )
+      ..addOption(
+        'app-store-connect-auth-key-base64',
+        valueHelp: 'base64',
+        help:
+            'Base64 App Store Connect .p8 key. Alternatively set '
+            'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64.',
+      )
+      ..addOption(
+        'google-play-service-account-json',
+        valueHelp: 'json',
+        help:
+            'Complete Google Play service-account JSON. Alternatively set '
+            'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.',
+      );
+    if (!includeSigning) return parser;
+    parser
+      ..addOption(
+        'ios-certificate-base64',
+        valueHelp: 'base64',
+        help:
+            'Base64 Apple Distribution .p12. Alternatively set '
+            'SMF_IOS_CERTIFICATE_BASE64.',
+      )
+      ..addOption(
+        'ios-certificate-password',
+        valueHelp: 'value',
+        help:
+            'Apple Distribution .p12 password. Alternatively set '
+            'SMF_IOS_CERTIFICATE_PASSWORD.',
+      )
+      ..addOption(
+        'android-keystore-base64',
+        valueHelp: 'base64',
+        help:
+            'Base64 Android upload keystore. Alternatively set '
+            'SMF_ANDROID_KEYSTORE_BASE64.',
+      )
+      ..addOption(
+        'android-key-alias',
+        valueHelp: 'value',
+        help:
+            'Android upload-key alias. Alternatively set '
+            'SMF_ANDROID_KEY_ALIAS.',
+      )
+      ..addOption(
+        'android-keystore-password',
+        valueHelp: 'value',
+        help:
+            'Android upload-keystore password. Alternatively set '
+            'SMF_ANDROID_KEYSTORE_PASSWORD.',
+      )
+      ..addOption(
+        'android-key-password',
+        valueHelp: 'value',
+        help:
+            'Android upload-key password. Alternatively set '
+            'SMF_ANDROID_KEY_PASSWORD.',
+      );
+    return parser;
   }
 
   static Future<String?> _repository(
@@ -217,7 +396,7 @@ documented *_PATH variables, never as command-line values.
     if (override != null) return override.trim();
     final environmentRepository = _environmentValue(
       io.environment,
-      const <String>['GITHUB_REPOSITORY'],
+      'SMF_GITHUB_REPOSITORY',
     );
     if (environmentRepository != null || !inferFromGit) {
       return environmentRepository;
@@ -251,7 +430,7 @@ documented *_PATH variables, never as command-line values.
     ExecutableIo io, {
     bool inferRepositoryFromGit = false,
   }) async {
-    final token = await _token(arguments, io);
+    final token = _token(arguments, io);
     final repository = await _repository(
       arguments,
       io,
@@ -259,7 +438,7 @@ documented *_PATH variables, never as command-line values.
     );
     if (repository == null && inferRepositoryFromGit) {
       throw const SmfError(
-        'Could not infer a GitHub repository from GITHUB_REPOSITORY or the '
+        'Could not infer a GitHub repository from SMF_GITHUB_REPOSITORY or the '
             'current Git origin remote. Pass --repository owner/name.',
         'GITHUB_REPOSITORY_REQUIRED',
       );
@@ -267,7 +446,8 @@ documented *_PATH variables, never as command-line values.
     if (token == null && repository == null) return null;
     if (token == null) {
       throw const SmfError(
-        'A GitHub token is required. Set SMF_GITHUB_TOKEN or GITHUB_TOKEN.',
+        'A GitHub token is required. Set --github-token or '
+            'SMF_GITHUB_TOKEN.',
         'GITHUB_TOKEN_REQUIRED',
       );
     }
@@ -293,7 +473,9 @@ documented *_PATH variables, never as command-line values.
     );
     if (context == null) {
       throw const SmfError(
-        'GitHub credentials are required for this operation.',
+        'GitHub credentials are required. Set --github-token or '
+            'SMF_GITHUB_TOKEN, and provide --repository or '
+            'SMF_GITHUB_REPOSITORY when it cannot be inferred from Git.',
         'GITHUB_CREDENTIALS_REQUIRED',
       );
     }
@@ -315,17 +497,17 @@ documented *_PATH variables, never as command-line values.
       valueHelp: 'owner/name',
       help: inferRepositoryFromGit
           ? 'Override the GitHub repository that owns the release. Without '
-                'this option, SMF reads GITHUB_REPOSITORY and then the current '
-                'Git origin remote.'
+                'this option, SMF reads SMF_GITHUB_REPOSITORY and then the '
+                'current Git origin remote.'
           : 'GitHub repository that owns the release. Defaults to '
-                'GITHUB_REPOSITORY.',
+                'SMF_GITHUB_REPOSITORY.',
     )
     ..addOption(
-      'github-token-file',
-      valueHelp: 'path',
+      'github-token',
+      valueHelp: 'value',
       help:
-          'Read the GitHub token from a protected file instead of an '
-          'SMF_GITHUB_TOKEN or GITHUB_TOKEN environment variable.',
+          'GitHub token used for release state and repository writes. '
+          'Alternatively set SMF_GITHUB_TOKEN.',
     );
 
   static Future<int> runInit(List<String> arguments, {ExecutableIo? io}) {
@@ -450,6 +632,23 @@ documented *_PATH variables, never as command-line values.
     );
   }
 
+  static Future<int> runUpgrade(List<String> arguments, {ExecutableIo? io}) {
+    final parser = _options();
+    return _runExecutable(
+      name: 'upgrade',
+      description:
+          'Replace this installed SMF CLI with the latest version published '
+          'on pub.dev.',
+      arguments: arguments,
+      parser: parser,
+      io: io,
+      operation: (_, io) async {
+        final service = io.upgradeService ?? SmfUpgradeService.system();
+        return service.upgrade();
+      },
+    );
+  }
+
   static Future<int> runMigrate(List<String> arguments, {ExecutableIo? io}) {
     final parser = _options()
       ..addOption(
@@ -491,8 +690,8 @@ documented *_PATH variables, never as command-line values.
       description:
           'Update SMF files created by an older CLI to the format required by '
           'the currently installed CLI, such as when configuration fields or '
-          'generated workflows change. Install the newer SMF CLI first, then '
-          'run this command.',
+          'generated workflows change. Run smf upgrade first, then run this '
+          'command.',
       arguments: arguments,
       parser: parser,
       io: io,
@@ -539,22 +738,26 @@ documented *_PATH variables, never as command-line values.
     List<String> arguments, {
     ExecutableIo? io,
   }) {
-    final parser = _githubOptions(inferRepositoryFromGit: true)
-      ..addOption(
-        'platform',
-        valueHelp: 'ios|android',
-        allowed: Platform.values.map((platform) => platform.value),
-        help:
-            'Create only this platform candidate after preparing the release. '
-            'Omit it to create every candidate selected by the changes.',
-      )
-      ..addFlag(
-        'prepare-only',
-        negatable: false,
-        help:
-            'Prepare and push the release PR without building candidates. Use '
-            'this when candidate platforms run on separate machines.',
-      );
+    final parser =
+        _addStoreCredentialOptions(
+            _githubOptions(inferRepositoryFromGit: true),
+            includeSigning: true,
+          )
+          ..addOption(
+            'platform',
+            valueHelp: 'ios|android',
+            allowed: Platform.values.map((platform) => platform.value),
+            help:
+                'Create only this platform candidate after preparing the release. '
+                'Omit it to create every candidate selected by the changes.',
+          )
+          ..addFlag(
+            'prepare-only',
+            negatable: false,
+            help:
+                'Prepare and push the release PR without building candidates. Use '
+                'this when candidate platforms run on separate machines.',
+          );
     return _runExecutable(
       name: 'create_release',
       description:
@@ -567,6 +770,11 @@ documented *_PATH variables, never as command-line values.
       operation: (arguments, io) async {
         final workingDirectory = _workingDirectory(io);
         final smfPath = _smfPath(arguments);
+        final credentialEnvironment = _credentialEnvironment(
+          arguments,
+          io.environment,
+          includeSigning: true,
+        );
         final github = await _requiredGitHub(
           arguments,
           io,
@@ -621,7 +829,7 @@ documented *_PATH variables, never as command-line values.
                 workingDirectory: workingDirectory,
                 smfPath: smfPath,
                 github: github,
-                environment: io.environment,
+                environment: credentialEnvironment,
               ),
             );
           }
@@ -642,15 +850,18 @@ documented *_PATH variables, never as command-line values.
     List<String> arguments, {
     ExecutableIo? io,
   }) {
-    final parser = _githubOptions(inferRepositoryFromGit: true)
-      ..addOption(
-        'platform',
-        valueHelp: 'ios|android',
-        allowed: Platform.values.map((platform) => platform.value),
-        help:
-            'Ship only this pending platform. Omit it to ship every platform '
-            'in the created release.',
-      );
+    final parser =
+        _addStoreCredentialOptions(
+          _githubOptions(inferRepositoryFromGit: true),
+          includeSigning: false,
+        )..addOption(
+          'platform',
+          valueHelp: 'ios|android',
+          allowed: Platform.values.map((platform) => platform.value),
+          help:
+              'Ship only this pending platform. Omit it to ship every platform '
+              'in the created release.',
+        );
     return _runExecutable(
       name: 'ship',
       description:
@@ -662,6 +873,11 @@ documented *_PATH variables, never as command-line values.
       operation: (arguments, io) async {
         final workingDirectory = _workingDirectory(io);
         final smfPath = _smfPath(arguments);
+        final credentialEnvironment = _credentialEnvironment(
+          arguments,
+          io.environment,
+          includeSigning: false,
+        );
         final github = await _requiredGitHub(
           arguments,
           io,
@@ -672,7 +888,7 @@ documented *_PATH variables, never as command-line values.
           workingDirectory: workingDirectory,
           smfPath: smfPath,
           github: github,
-          environment: io.environment,
+          environment: credentialEnvironment,
           selectedPlatform: selected == null ? null : Platform.parse(selected),
         );
         return <String, Object?>{'releases': releases};

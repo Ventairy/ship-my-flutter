@@ -251,11 +251,11 @@ Add:
 
 | Secret                             | Value                             |
 | ---------------------------------- | --------------------------------- |
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete downloaded JSON document |
-| `ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore            |
-| `ANDROID_KEY_ALIAS`                | Upload-key alias                  |
-| `ANDROID_KEYSTORE_PASSWORD`        | Keystore password                 |
-| `ANDROID_KEY_PASSWORD`             | Key password                      |
+| `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete downloaded JSON document |
+| `SMF_ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore            |
+| `SMF_ANDROID_KEY_ALIAS`                | Upload-key alias                  |
+| `SMF_ANDROID_KEYSTORE_PASSWORD`        | Keystore password                 |
+| `SMF_ANDROID_KEY_PASSWORD`             | Key password                      |
 
 The generated candidate and ship jobs use that environment. Do not place one
 app's Play or upload-key credentials in a sibling app's environment.

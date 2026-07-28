@@ -13,22 +13,15 @@ final class AndroidCredentialProvider {
   /// Creates a provider using the current process environment.
   factory AndroidCredentialProvider.system() => AndroidCredentialProvider(environment: io.Platform.environment);
 
-  /// Environment containing secret values or file paths.
+  /// Environment containing credential values.
   final Map<String, String> environment;
 
-  /// Loads one service-account JSON source.
+  /// Loads the service-account JSON.
   Future<GooglePlayCredentials> googlePlayCredentials() async {
-    final source = _optional('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON');
-    final path = _optional('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH');
-    if (source != null && path != null) {
-      throw const SmfError(
-        'Set only one Google Play service-account JSON source.',
-        'CONFLICTING_CREDENTIAL',
-      );
-    }
-    final value = path == null
-        ? source ?? _required('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')
-        : (await io.File(path).readAsString()).trim();
+    final value = _required(
+      'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON',
+      'google-play-service-account-json',
+    );
     try {
       final json = jsonDecode(value);
       SmfError.check(
@@ -53,17 +46,10 @@ final class AndroidCredentialProvider {
 
   /// Loads one upload-keystore source and its passwords.
   Future<AndroidSigningCredentials> signingCredentials() async {
-    final encoded = _optional('SMF_ANDROID_KEYSTORE_BASE64');
-    final path = _optional('SMF_ANDROID_KEYSTORE_PATH');
-    if (encoded != null && path != null) {
-      throw const SmfError(
-        'Set only one Android upload-keystore source.',
-        'CONFLICTING_CREDENTIAL',
-      );
-    }
-    final keystoreBase64 = path == null
-        ? encoded ?? _required('SMF_ANDROID_KEYSTORE_BASE64')
-        : base64Encode(await io.File(path).readAsBytes());
+    final keystoreBase64 = _required(
+      'SMF_ANDROID_KEYSTORE_BASE64',
+      'android-keystore-base64',
+    );
     try {
       SmfError.check(
         base64Decode(keystoreBase64).isNotEmpty,
@@ -79,17 +65,23 @@ final class AndroidCredentialProvider {
     }
     return AndroidSigningCredentials(
       keystoreBase64: keystoreBase64,
-      keyAlias: _required('SMF_ANDROID_KEY_ALIAS'),
-      keystorePassword: _required('SMF_ANDROID_KEYSTORE_PASSWORD'),
-      keyPassword: _required('SMF_ANDROID_KEY_PASSWORD'),
+      keyAlias: _required('SMF_ANDROID_KEY_ALIAS', 'android-key-alias'),
+      keystorePassword: _required(
+        'SMF_ANDROID_KEYSTORE_PASSWORD',
+        'android-keystore-password',
+      ),
+      keyPassword: _required(
+        'SMF_ANDROID_KEY_PASSWORD',
+        'android-key-password',
+      ),
     );
   }
 
-  String _required(String name) {
+  String _required(String name, String option) {
     final value = _optional(name);
     if (value == null) {
       throw SmfError(
-        'Missing required secret $name.',
+        'Missing required credential. Set --$option or $name.',
         'MISSING_CREDENTIAL',
       );
     }
