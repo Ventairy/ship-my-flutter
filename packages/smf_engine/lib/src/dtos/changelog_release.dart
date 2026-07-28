@@ -21,7 +21,6 @@ abstract class ChangelogRelease with _$ChangelogRelease {
 
   /// Decodes typed release fields without changelog-domain validation.
   ///
-  /// Use `validateChangelog` when reading user repository state.
-  factory ChangelogRelease.fromJson(Map<String, Object?> json) =>
-      _$ChangelogReleaseFromJson(json);
+  /// Use `SmfState.parseChangelog` when reading repository state.
+  factory ChangelogRelease.fromJson(Map<String, Object?> json) => _$ChangelogReleaseFromJson(json);
 }

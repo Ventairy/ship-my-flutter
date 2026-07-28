@@ -14,13 +14,12 @@ abstract class ReleasePlan with _$ReleasePlan {
     required Platform platform,
     required String currentVersion,
     required String nextVersion,
-    required Bump bump,
+    required VersionBump versionBump,
     required String baseSha,
     required String headSha,
     required List<ConventionalChange> changes,
   }) = _ReleasePlan;
 
   /// Decodes a release plan from JSON.
-  factory ReleasePlan.fromJson(Map<String, Object?> json) =>
-      _$ReleasePlanFromJson(json);
+  factory ReleasePlan.fromJson(Map<String, Object?> json) => _$ReleasePlanFromJson(json);
 }

@@ -18,8 +18,8 @@ void main() {
     addTearDown(client.close);
 
     await client.commitEdit(
-      'dev.example.app',
-      'edit-1',
+      packageName: 'dev.example.app',
+      editId: 'edit-1',
       changesNotSentForReview: false,
     );
 
@@ -52,8 +52,8 @@ void main() {
 
     await expectLater(
       client.commitEdit(
-        'dev.example.app',
-        'edit-1',
+        packageName: 'dev.example.app',
+        editId: 'edit-1',
         changesNotSentForReview: false,
       ),
       throwsA(

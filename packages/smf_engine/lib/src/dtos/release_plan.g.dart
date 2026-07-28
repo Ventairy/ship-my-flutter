@@ -17,7 +17,10 @@ _ReleasePlan _$ReleasePlanFromJson(Map<String, dynamic> json) => $checkedCreate(
       ),
       currentVersion: $checkedConvert('currentVersion', (v) => v as String),
       nextVersion: $checkedConvert('nextVersion', (v) => v as String),
-      bump: $checkedConvert('bump', (v) => $enumDecode(_$BumpEnumMap, v)),
+      versionBump: $checkedConvert(
+        'versionBump',
+        (v) => $enumDecode(_$VersionBumpEnumMap, v),
+      ),
       baseSha: $checkedConvert('baseSha', (v) => v as String),
       headSha: $checkedConvert('headSha', (v) => v as String),
       changes: $checkedConvert(
@@ -36,7 +39,7 @@ Map<String, dynamic> _$ReleasePlanToJson(_ReleasePlan instance) =>
       'platform': _$PlatformEnumMap[instance.platform]!,
       'currentVersion': instance.currentVersion,
       'nextVersion': instance.nextVersion,
-      'bump': _$BumpEnumMap[instance.bump]!,
+      'versionBump': _$VersionBumpEnumMap[instance.versionBump]!,
       'baseSha': instance.baseSha,
       'headSha': instance.headSha,
       'changes': instance.changes.map((e) => e.toJson()).toList(),
@@ -44,8 +47,8 @@ Map<String, dynamic> _$ReleasePlanToJson(_ReleasePlan instance) =>
 
 const _$PlatformEnumMap = {Platform.ios: 'ios', Platform.android: 'android'};
 
-const _$BumpEnumMap = {
-  Bump.patch: 'patch',
-  Bump.minor: 'minor',
-  Bump.major: 'major',
+const _$VersionBumpEnumMap = {
+  VersionBump.patch: 'patch',
+  VersionBump.minor: 'minor',
+  VersionBump.major: 'major',
 };

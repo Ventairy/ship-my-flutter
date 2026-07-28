@@ -4,16 +4,16 @@ import 'package:smf_apple/src/models/apple_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
 
 /// Inputs and injectable adapters for promoting an iOS candidate.
-final class PromotionOptions {
+final class ApplePromotionOptions {
   /// Creates promotion options.
-  const PromotionOptions({
+  const ApplePromotionOptions({
     required this.workingDirectory,
     required this.appleCredentials,
     required this.github,
     this.smfPath,
     this.client,
     this.githubApi,
-    this.resolveBundleIdentifier = resolveBundleId,
+    this.resolveBundleIdentifier = AppleProject.resolveBundleId,
   });
 
   /// Directory from which SMF discovers the target app.
@@ -35,5 +35,10 @@ final class PromotionOptions {
   final GitHubApi? githubApi;
 
   /// Xcode bundle-identifier resolver.
-  final ResolveBundleId resolveBundleIdentifier;
+  final Future<String> Function(
+    String appRoot,
+    IosConfig config, {
+    String? flavor,
+  })
+  resolveBundleIdentifier;
 }

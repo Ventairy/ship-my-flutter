@@ -5,9 +5,9 @@ import 'package:smf_apple/src/models/signing_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
 
 /// Inputs and injectable adapters for creating an iOS candidate.
-final class CandidateOptions {
+final class AppleCandidateOptions {
   /// Creates candidate options.
-  const CandidateOptions({
+  const AppleCandidateOptions({
     required this.workingDirectory,
     required this.appleCredentials,
     required this.signingCredentials,
@@ -15,7 +15,7 @@ final class CandidateOptions {
     this.github,
     this.commitReceipt = true,
     this.client,
-    this.dependencies = const CandidateDependencies(),
+    this.dependencies = const AppleCandidateDependencies(),
   });
 
   /// Directory from which SMF discovers the target app.
@@ -28,7 +28,7 @@ final class CandidateOptions {
   final AppleCredentials appleCredentials;
 
   /// Distribution signing credentials.
-  final SigningCredentials signingCredentials;
+  final AppleSigningCredentials signingCredentials;
 
   /// Optional GitHub context used to commit candidate evidence.
   final GitHubContext? github;
@@ -40,5 +40,5 @@ final class CandidateOptions {
   final AppStoreConnectApi? client;
 
   /// Candidate-build operation overrides.
-  final CandidateDependencies dependencies;
+  final AppleCandidateDependencies dependencies;
 }

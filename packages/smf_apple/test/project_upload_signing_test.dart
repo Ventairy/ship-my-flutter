@@ -13,7 +13,8 @@ const profilePlist = '''
 <plist version="1.0">
 <dict>
   <key>Name</key><string>Example App Store</string>
-  <key>UUID</key><string>PROFILE-UUID</string>
+  <key>UUID</key><string>12345678-1234-1234-1234-123456789ABC</string>
+  <key>ExpirationDate</key><date>2099-01-01T00:00:00Z</date>
   <key>TeamIdentifier</key><array><string>TEAM123</string></array>
   <key>Entitlements</key>
   <dict>
@@ -25,11 +26,78 @@ const profilePlist = '''
 ''';
 
 void main() {
+  test('detects the iOS marketing version from project settings', () async {
+    final root = await Directory.systemTemp.createTemp('smf-project-');
+    addTearDown(() => root.delete(recursive: true));
+    final project = Directory(
+      p.join(root.path, 'ios', 'Runner.xcodeproj'),
+    );
+    await project.create(recursive: true);
+    await File(p.join(project.path, 'project.pbxproj')).writeAsString('''
+MARKETING_VERSION = 2.4.1;
+MARKETING_VERSION = 2.4.1;
+''');
+    await Directory(
+      p.join(root.path, 'ios', 'Runner'),
+    ).create(recursive: true);
+    await File(
+      p.join(root.path, 'ios', 'Runner', 'Info.plist'),
+    ).writeAsString('''
+<key>CFBundleShortVersionString</key>
+<string>1.0.0</string>
+''');
+
+    expect(await AppleProject.detectVersion(root.path), '2.4.1');
+  });
+
+  test('falls back to a literal Info.plist version', () async {
+    final root = await Directory.systemTemp.createTemp('smf-project-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(
+      p.join(root.path, 'ios', 'Runner'),
+    ).create(recursive: true);
+    await File(
+      p.join(root.path, 'ios', 'Runner', 'Info.plist'),
+    ).writeAsString('''
+<key>CFBundleShortVersionString</key>
+<string>3.2.0</string>
+''');
+
+    expect(await AppleProject.detectVersion(root.path), '3.2.0');
+  });
+
+  test('rejects conflicting iOS marketing versions', () async {
+    final root = await Directory.systemTemp.createTemp('smf-project-');
+    addTearDown(() => root.delete(recursive: true));
+    final project = Directory(
+      p.join(root.path, 'ios', 'Runner.xcodeproj'),
+    );
+    await project.create(recursive: true);
+    await File(p.join(project.path, 'project.pbxproj')).writeAsString('''
+MARKETING_VERSION = 1.0.0;
+MARKETING_VERSION = 2.0.0;
+''');
+
+    await expectLater(
+      AppleProject.detectVersion(root.path),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          'IOS_VERSION_AMBIGUOUS',
+        ),
+      ),
+    );
+  });
+
   test('detects the bundle identifier from Xcode build settings', () async {
     final root = await Directory.systemTemp.createTemp('smf-project-');
     addTearDown(() => root.delete(recursive: true));
     await Directory(
       p.join(root.path, 'ios', 'Runner.xcworkspace'),
+    ).create(recursive: true);
+    await Directory(
+      p.join(root.path, 'ios', 'Dependency.xcworkspace'),
     ).create(recursive: true);
     final runner = RecordingProcessRunner(
       handler: (_) async => const RunResult(
@@ -39,7 +107,7 @@ void main() {
       ),
     );
     expect(
-      await resolveBundleId(
+      await AppleProject.resolveBundleId(
         root.path,
         const IosConfig(),
         processRunner: runner,
@@ -48,6 +116,10 @@ void main() {
       'dev.example.app',
     );
     expect(runner.invocations.single.arguments, contains('-workspace'));
+    expect(
+      runner.invocations.single.arguments,
+      contains(p.join(root.path, 'ios', 'Runner.xcworkspace')),
+    );
   });
 
   test('uses the global Flutter flavor as the Xcode scheme', () async {
@@ -64,7 +136,7 @@ void main() {
       ),
     );
 
-    await resolveBundleId(
+    await AppleProject.resolveBundleId(
       root.path,
       const IosConfig(),
       flavor: 'production',
@@ -75,6 +147,188 @@ void main() {
     expect(
       runner.invocations.single.arguments,
       containsAllInOrder(<String>['-scheme', 'production']),
+    );
+  });
+
+  test('discovers signed app and extension bundle identifiers', () async {
+    final root = await Directory.systemTemp.createTemp('smf-targets-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(
+      p.join(root.path, 'ios', 'Runner.xcworkspace'),
+    ).create(recursive: true);
+    final runner = RecordingProcessRunner(
+      handler: (_) async => RunResult(
+        stdout: jsonEncode(<Object?>[
+          <String, Object?>{
+            'target': 'Runner',
+            'buildSettings': <String, Object?>{
+              'CODE_SIGNING_ALLOWED': 'YES',
+              'PRODUCT_BUNDLE_IDENTIFIER': 'dev.example.app',
+              'WRAPPER_EXTENSION': 'app',
+            },
+          },
+          <String, Object?>{
+            'target': 'ShareExtension',
+            'buildSettings': <String, Object?>{
+              'CODE_SIGNING_ALLOWED': 'YES',
+              'PRODUCT_BUNDLE_IDENTIFIER': 'dev.example.app.ShareExtension',
+              'WRAPPER_EXTENSION': 'appex',
+            },
+          },
+          <String, Object?>{
+            'target': 'RunnerTests',
+            'buildSettings': <String, Object?>{
+              'CODE_SIGNING_ALLOWED': 'YES',
+              'PRODUCT_BUNDLE_IDENTIFIER': 'dev.example.app.Tests',
+              'WRAPPER_EXTENSION': 'xctest',
+            },
+          },
+          <String, Object?>{
+            'target': 'Pods-Runner',
+            'buildSettings': <String, Object?>{
+              'CODE_SIGNING_ALLOWED': 'NO',
+              'PRODUCT_BUNDLE_IDENTIFIER': 'org.cocoapods.Runner',
+              'WRAPPER_EXTENSION': 'framework',
+            },
+          },
+        ]),
+        stderr: '',
+        exitCode: 0,
+      ),
+    );
+
+    expect(
+      await AppleProject.resolveSigningBundleIds(
+        root.path,
+        mainBundleId: 'dev.example.app',
+        flavor: 'production',
+        processRunner: runner,
+        isMacOS: true,
+      ),
+      <String>{
+        'dev.example.app',
+        'dev.example.app.ShareExtension',
+      },
+    );
+    expect(
+      runner.invocations.single.arguments,
+      containsAllInOrder(<String>[
+        '-scheme',
+        'production',
+        '-showBuildSettings',
+        '-json',
+      ]),
+    );
+  });
+
+  test('rejects a configured bundle ID that does not match Xcode', () async {
+    final root = await Directory.systemTemp.createTemp('smf-targets-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(
+      p.join(root.path, 'ios', 'Runner.xcworkspace'),
+    ).create(recursive: true);
+    final runner = RecordingProcessRunner(
+      handler: (_) async => RunResult(
+        stdout: jsonEncode(<Object?>[
+          <String, Object?>{
+            'target': 'Runner',
+            'buildSettings': <String, Object?>{
+              'PRODUCT_BUNDLE_IDENTIFIER': 'dev.example.actual',
+              'WRAPPER_EXTENSION': 'app',
+            },
+          },
+        ]),
+        stderr: '',
+        exitCode: 0,
+      ),
+    );
+
+    await expectLater(
+      AppleProject.resolveSigningBundleIds(
+        root.path,
+        mainBundleId: 'dev.example.configured',
+        processRunner: runner,
+        isMacOS: true,
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          'BUNDLE_ID_MISMATCH',
+        ),
+      ),
+    );
+  });
+
+  test('rejects an unresolved signed extension bundle ID', () async {
+    final root = await Directory.systemTemp.createTemp('smf-targets-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(
+      p.join(root.path, 'ios', 'Runner.xcworkspace'),
+    ).create(recursive: true);
+    final runner = RecordingProcessRunner(
+      handler: (_) async => RunResult(
+        stdout: jsonEncode(<Object?>[
+          <String, Object?>{
+            'target': 'Runner',
+            'buildSettings': <String, Object?>{
+              'PRODUCT_BUNDLE_IDENTIFIER': 'dev.example.app',
+              'WRAPPER_EXTENSION': 'app',
+            },
+          },
+          <String, Object?>{
+            'target': 'ShareExtension',
+            'buildSettings': <String, Object?>{
+              'PRODUCT_BUNDLE_IDENTIFIER': r'$(PRODUCT_BUNDLE_IDENTIFIER)',
+              'WRAPPER_EXTENSION': 'appex',
+            },
+          },
+        ]),
+        stderr: '',
+        exitCode: 0,
+      ),
+    );
+
+    await expectLater(
+      AppleProject.resolveSigningBundleIds(
+        root.path,
+        mainBundleId: 'dev.example.app',
+        processRunner: runner,
+        isMacOS: true,
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          'XCODE_BUNDLE_ID_INVALID',
+        ),
+      ),
+    );
+  });
+
+  test('rejects ambiguous nonstandard Xcode workspaces', () async {
+    final root = await Directory.systemTemp.createTemp('smf-targets-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(
+      p.join(root.path, 'ios', 'Customer.xcworkspace'),
+    ).create(recursive: true);
+    await Directory(
+      p.join(root.path, 'ios', 'Driver.xcworkspace'),
+    ).create(recursive: true);
+
+    await expectLater(
+      AppleProject.resolveSigningBundleIds(
+        root.path,
+        mainBundleId: 'dev.example.app',
+        isMacOS: true,
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          'XCODE_PROJECT_AMBIGUOUS',
+        ),
+      ),
     );
   });
 
@@ -89,7 +343,7 @@ void main() {
       await File(ipa).writeAsBytes(const <int>[1, 2, 3]);
       final runner = RecordingProcessRunner();
       expect(
-        await runIosBuildCommand(
+        await AppleBuild.run(
           projectRoot: root.path,
           command: 'fvm dart run release:build_ios',
           ipaOutputPath: 'build/ios/ipa',
@@ -152,7 +406,7 @@ void main() {
     final project = await Directory(p.join(root.path, 'app')).create();
 
     expect(
-      await resolveIosBuildCommand(project.path),
+      await AppleBuild.resolveCommand(project.path),
       'fvm flutter build ipa --release',
     );
   });
@@ -164,7 +418,7 @@ void main() {
     final project = await Directory(p.join(root.path, 'app')).create();
 
     expect(
-      await resolveIosBuildCommand(project.path),
+      await AppleBuild.resolveCommand(project.path),
       'flutter build ipa --release',
     );
   });
@@ -177,7 +431,7 @@ void main() {
     ).writeAsString('{"flutter":"3.44.0"}\n');
 
     expect(
-      await resolveIosBuildCommand(
+      await AppleBuild.resolveCommand(
         root.path,
         configuredCommand: 'melos run build:ios',
       ),
@@ -195,7 +449,7 @@ printf '%s\n' "$@" > "$SMF_IPA_OUTPUT_PATH.args"
 printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
 ''');
 
-    final ipa = await runIosBuildCommand(
+    final ipa = await AppleBuild.run(
       projectRoot: root.path,
       command: '/bin/sh build.sh',
       ipaOutputPath: 'build/app.ipa',
@@ -225,7 +479,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
     await File(ipa).create(recursive: true);
 
     expect(
-      await findIpa(root.path, ipaOutputPath: 'artifacts/example.ipa'),
+      await AppleBuild.findArtifact(root.path, ipaOutputPath: 'artifacts/example.ipa'),
       ipa,
     );
   });
@@ -242,7 +496,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
     await Link(p.join(root.path, 'example.ipa')).create(externalIpa);
 
     await expectLater(
-      findIpa(root.path, ipaOutputPath: 'example.ipa'),
+      AppleBuild.findArtifact(root.path, ipaOutputPath: 'example.ipa'),
       throwsA(
         isA<SmfError>().having(
           (error) => error.code,
@@ -273,8 +527,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
               exitCode: 0,
             );
           }
-          if (invocation.executable == 'security' &&
-              invocation.arguments.first == 'cms') {
+          if (invocation.executable == 'security' && invocation.arguments.first == 'cms') {
             return const RunResult(
               stdout: profilePlist,
               stderr: '',
@@ -284,11 +537,15 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
           return const RunResult(stdout: '', stderr: '', exitCode: 0);
         },
       );
-      final session = await installSigningAssets(
-        SigningCredentials(
-          certificateBase64: base64Encode(const <int>[1, 2, 3]),
-          certificatePassword: 'password',
-          provisioningProfiles: base64Encode(const <int>[4, 5, 6]),
+      final session = await AppleSigning.install(
+        AppleResolvedSigningAssets(
+          credentials: AppleSigningCredentials(
+            certificateBase64: base64Encode(const <int>[1, 2, 3]),
+            certificatePassword: 'password',
+          ),
+          profilesByBundleId: <String, String>{
+            'dev.example.app': base64Encode(const <int>[4, 5, 6]),
+          },
         ),
         'dev.example.app',
         processRunner: runner,
@@ -315,9 +572,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       expect(await File(keychainPath).exists(), isFalse);
       expect(
         runner.invocations.any(
-          (value) =>
-              value.executable == 'security' &&
-              value.arguments.first == 'delete-keychain',
+          (value) => value.executable == 'security' && value.arguments.first == 'delete-keychain',
         ),
         isTrue,
       );
@@ -333,8 +588,7 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
     final home = await Directory(p.join(root.path, 'home')).create();
     final runner = RecordingProcessRunner(
       handler: (invocation) async {
-        if (invocation.executable == 'security' &&
-            invocation.arguments.first == 'list-keychains') {
+        if (invocation.executable == 'security' && invocation.arguments.first == 'list-keychains') {
           return const RunResult(stdout: '', stderr: '', exitCode: 0);
         }
         return const RunResult(stdout: '', stderr: '', exitCode: 0);
@@ -342,11 +596,13 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
     );
 
     await expectLater(
-      installSigningAssets(
-        const SigningCredentials(
-          certificateBase64: 'not-base64',
-          certificatePassword: 'password',
-          provisioningProfiles: 'unused',
+      AppleSigning.install(
+        AppleResolvedSigningAssets(
+          credentials: const AppleSigningCredentials(
+            certificateBase64: 'not-base64',
+            certificatePassword: 'password',
+          ),
+          profilesByBundleId: <String, String>{'dev.example.app': 'unused'},
         ),
         'dev.example.app',
         processRunner: runner,
@@ -363,11 +619,15 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       ),
     );
     await expectLater(
-      installSigningAssets(
-        SigningCredentials(
-          certificateBase64: base64Encode(const <int>[1, 2, 3]),
-          certificatePassword: 'password',
-          provisioningProfiles: '{not-json',
+      AppleSigning.install(
+        AppleResolvedSigningAssets(
+          credentials: AppleSigningCredentials(
+            certificateBase64: base64Encode(const <int>[1, 2, 3]),
+            certificatePassword: 'password',
+          ),
+          profilesByBundleId: const <String, String>{
+            'dev.example.app': 'not-base64',
+          },
         ),
         'dev.example.app',
         processRunner: runner,
@@ -393,9 +653,9 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       final ipa = p.join(root.path, 'example.ipa');
       await File(ipa).writeAsBytes(const <int>[1, 2, 3]);
       final runner = RecordingProcessRunner();
-      await uploadIpa(
-        ipa,
-        const AppleCredentials(
+      await AppleBuild.upload(
+        ipaPath: ipa,
+        credentials: const AppleCredentials(
           keyId: 'KEY123',
           issuerId: 'issuer',
           privateKey: 'private-key',
@@ -435,9 +695,9 @@ printf 'ipa' > "$SMF_IPA_OUTPUT_PATH"
       await File(ipa).writeAsBytes(const <int>[1, 2, 3]);
 
       await expectLater(
-        uploadIpa(
-          ipa,
-          const AppleCredentials(
+        AppleBuild.upload(
+          ipaPath: ipa,
+          credentials: const AppleCredentials(
             keyId: '../../outside',
             issuerId: 'issuer',
             privateKey: 'private-key',

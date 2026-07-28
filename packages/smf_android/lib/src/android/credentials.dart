@@ -11,33 +11,34 @@ final class AndroidCredentialProvider {
   const AndroidCredentialProvider({required this.environment});
 
   /// Creates a provider using the current process environment.
-  factory AndroidCredentialProvider.system() =>
-      AndroidCredentialProvider(environment: io.Platform.environment);
+  factory AndroidCredentialProvider.system() => AndroidCredentialProvider(environment: io.Platform.environment);
 
   /// Environment containing secret values or file paths.
   final Map<String, String> environment;
 
   /// Loads one service-account JSON source.
   Future<GooglePlayCredentials> googlePlayCredentials() async {
-    final encoded = _optional('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64');
+    final source = _optional('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON');
     final path = _optional('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH');
-    if (encoded != null && path != null) {
+    if (source != null && path != null) {
       throw const SmfError(
         'Set only one Google Play service-account JSON source.',
         'CONFLICTING_CREDENTIAL',
       );
     }
     final value = path == null
-        ? _decodeBase64(
-            encoded ?? _required('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64'),
-            'Google Play service-account JSON',
-          )
+        ? source ?? _required('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')
         : (await io.File(path).readAsString()).trim();
     try {
       final json = jsonDecode(value);
-      invariant(
-        json is Map<Object?, Object?> && json['type'] == 'service_account',
-        'Google Play credentials must be a service-account JSON document.',
+      SmfError.check(
+        json is Map<Object?, Object?> &&
+            json['type'] == 'service_account' &&
+            _isNonEmptyString(json['client_id']) &&
+            _isNonEmptyString(json['client_email']) &&
+            _isNonEmptyString(json['private_key']),
+        'Google Play credentials must be a complete service-account JSON '
+            'document.',
         'INVALID_CREDENTIAL',
       );
     } on FormatException catch (error) {
@@ -64,7 +65,7 @@ final class AndroidCredentialProvider {
         ? encoded ?? _required('SMF_ANDROID_KEYSTORE_BASE64')
         : base64Encode(await io.File(path).readAsBytes());
     try {
-      invariant(
+      SmfError.check(
         base64Decode(keystoreBase64).isNotEmpty,
         'Android upload keystore decoded to an empty file.',
         'INVALID_CREDENTIAL',
@@ -99,36 +100,8 @@ final class AndroidCredentialProvider {
     final value = environment[name]?.trim();
     return value == null || value.isEmpty ? null : value;
   }
-}
 
-/// Loads Google Play credentials from [environment].
-Future<GooglePlayCredentials> googlePlayCredentialsFromEnvironment([
-  Map<String, String>? environment,
-]) => AndroidCredentialProvider(
-  environment: environment ?? io.Platform.environment,
-).googlePlayCredentials();
-
-/// Loads Android upload-key credentials from [environment].
-Future<AndroidSigningCredentials> androidSigningCredentialsFromEnvironment([
-  Map<String, String>? environment,
-]) => AndroidCredentialProvider(
-  environment: environment ?? io.Platform.environment,
-).signingCredentials();
-
-String _decodeBase64(String value, String label) {
-  try {
-    final decoded = utf8.decode(base64Decode(value)).trim();
-    invariant(
-      decoded.isNotEmpty,
-      '$label decoded to an empty value.',
-      'INVALID_CREDENTIAL',
-    );
-    return decoded;
-  } on FormatException catch (error) {
-    throw SmfError(
-      '$label is not valid Base64-encoded UTF-8.',
-      'INVALID_CREDENTIAL',
-      cause: error,
-    );
+  static bool _isNonEmptyString(Object? value) {
+    return value is String && value.trim().isNotEmpty;
   }
 }

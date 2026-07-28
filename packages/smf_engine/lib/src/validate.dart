@@ -5,61 +5,84 @@ import 'package:path/path.dart' as p;
 import 'package:smf_engine/src/config.dart';
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/serialization.dart';
 
-Future<String?> _findWorkspaceLockfile(
-  String repositoryRoot,
-  String projectRoot,
-) async {
-  var directory = projectRoot;
-  while (directory == repositoryRoot || p.isWithin(repositoryRoot, directory)) {
-    final lockfile = p.join(directory, 'pubspec.lock');
-    if (await fileExists(lockfile)) return lockfile;
-    if (directory == repositoryRoot) break;
-    directory = p.dirname(directory);
-  }
-  return null;
-}
+/// Validates repository state required by release operations.
+final class RepositoryValidator {
+  const RepositoryValidator._();
 
-Future<void> validateRepository(String workingDirectory) async {
-  final paths = resolveSmfPaths(workingDirectory);
-  final (config, manifest, changelog, _) = await (
-    loadConfig(paths.directory),
-    loadManifest(paths.directory),
-    loadChangelog(paths.directory),
-    loadStoreReleaseNotes(paths.directory),
-  ).wait;
-  invariant(
-    await fileExists(paths.config),
-    '${p.relative(paths.config, from: paths.repositoryRoot)} is missing.',
-    'STATE_PATH_MISSING',
-  );
-  invariant(
-    !(await Link(paths.config).exists()),
-    '${p.relative(paths.config, from: paths.repositoryRoot)} must not be a '
-        'symbolic link.',
-    'STATE_PATH_SYMLINK',
-  );
-  for (final statePath in <String>[
-    paths.manifest,
-    paths.changelog,
-    paths.storeReleaseNotes,
-    paths.candidates,
-  ]) {
-    if (!(await fileExists(statePath))) continue;
-    invariant(
-      !(await Link(statePath).exists()),
-      '${p.relative(statePath, from: paths.repositoryRoot)} must not be a '
-          'symbolic link.',
-      'STATE_PATH_SYMLINK',
+  /// Validates the SMF app resolved from [workingDirectory].
+  static Future<void> validate(String workingDirectory) async {
+    final paths = SmfPaths.resolve(workingDirectory);
+    final config = await SmfState.config(paths.directory);
+    final manifest = await SmfState.manifest(paths.directory);
+    final changelog = await SmfState.changelog(paths.directory);
+    await SmfState.storeReleaseNotes(paths.directory);
+    await _validateStatePaths(paths);
+    await _validateUniqueAppId(paths, config);
+
+    if (config.enabledPlatforms.isNotEmpty) {
+      await _validateFlutterProject(paths);
+    }
+    for (final platform in config.enabledPlatforms) {
+      await _validatePlatformProject(paths: paths, platform: platform);
+      _validateReleaseState(
+        platform: platform,
+        manifest: manifest,
+        changelog: changelog,
+      );
+    }
+    SmfError.check(changelog.schemaVersion == 1, 'Unsupported changelog schema.');
+  }
+
+  static Future<void> _validateStatePaths(SmfPaths paths) async {
+    SmfError.check(
+      await SmfFileSystem.exists(paths.config),
+      '${p.relative(paths.config, from: paths.repositoryRoot)} is missing.',
+      'STATE_PATH_MISSING',
     );
+    for (final statePath in <String>[
+      paths.config,
+      paths.manifest,
+      paths.changelog,
+      paths.storeReleaseNotes,
+      paths.candidates,
+    ]) {
+      if (!(await SmfFileSystem.exists(statePath))) continue;
+      SmfError.check(
+        !(await Link(statePath).exists()),
+        '${p.relative(statePath, from: paths.repositoryRoot)} must not be a '
+            'symbolic link.',
+        'STATE_PATH_SYMLINK',
+      );
+    }
   }
 
-  if (config.ios.enabled) {
+  static Future<void> _validateUniqueAppId(
+    SmfPaths paths,
+    SmfConfig config,
+  ) async {
+    for (final directory in SmfPaths.discover(paths.repositoryRoot)) {
+      if (p.equals(directory, paths.directory)) continue;
+      final value = await SmfFileSystem.readYaml(
+        p.join(directory, SmfPaths.configFileName),
+      );
+      final siblingAppId = value is Map<Object?, Object?> ? value['app_id'] : null;
+      SmfError.check(
+        siblingAppId != config.appId,
+        'app_id "${config.appId}" is also used by '
+            '${p.relative(p.dirname(directory), from: paths.repositoryRoot)}.',
+        'APP_ID_CONFLICT',
+      );
+    }
+  }
+
+  static Future<void> _validateFlutterProject(SmfPaths paths) async {
     final repositoryRoot = paths.repositoryRoot;
     final projectRoot = paths.appRoot;
-    invariant(
+    SmfError.check(
       await Directory(projectRoot).exists(),
       'The Flutter app directory does not exist.',
       'APP_PATH_NOT_FOUND',
@@ -68,27 +91,29 @@ Future<void> validateRepository(String workingDirectory) async {
       Directory(repositoryRoot).resolveSymbolicLinks(),
       Directory(projectRoot).resolveSymbolicLinks(),
     ).wait;
-    invariant(
-      projectRealPath == repositoryRealPath ||
-          p.isWithin(repositoryRealPath, projectRealPath),
+    SmfError.check(
+      projectRealPath == repositoryRealPath || p.isWithin(repositoryRealPath, projectRealPath),
       'The Flutter app directory resolves outside the repository.',
       'APP_PATH_ESCAPE',
     );
-    invariant(
-      await fileExists(p.join(projectRoot, 'pubspec.yaml')),
+    SmfError.check(
+      await SmfFileSystem.exists(p.join(projectRoot, 'pubspec.yaml')),
       'No pubspec.yaml exists in the Flutter app directory.',
       'PUBSPEC_NOT_FOUND',
     );
-    final lockfile = await _findWorkspaceLockfile(repositoryRoot, projectRoot);
-    invariant(
+    final lockfile = await _findWorkspaceLockfile(
+      repositoryRoot: repositoryRoot,
+      projectRoot: projectRoot,
+    );
+    SmfError.check(
       lockfile != null,
       'No committed pubspec.lock exists at the Flutter project or workspace '
           'root.',
       'LOCKFILE_NOT_FOUND',
     );
     final relativeLockfile = p.relative(lockfile!, from: repositoryRoot);
-    invariant(
-      (await git(repositoryRoot, <String>[
+    SmfError.check(
+      (await GitClient(root: repositoryRoot).run(<String>[
         'ls-files',
         '--error-unmatch',
         relativeLockfile,
@@ -96,30 +121,62 @@ Future<void> validateRepository(String workingDirectory) async {
       '$relativeLockfile must be committed before release builds.',
       'LOCKFILE_UNTRACKED',
     );
-    final iosPath = p.join(projectRoot, 'ios');
-    invariant(
-      await Directory(iosPath).exists(),
-      'No ios directory exists in the Flutter app.',
-      'IOS_PROJECT_NOT_FOUND',
+  }
+
+  static Future<void> _validatePlatformProject({
+    required SmfPaths paths,
+    required Platform platform,
+  }) async {
+    final platformPath = p.join(paths.appRoot, platform.value);
+    SmfError.check(
+      await Directory(platformPath).exists(),
+      'No ${platform.value} directory exists in the Flutter app.',
+      '${platform.value.toUpperCase()}_PROJECT_NOT_FOUND',
     );
-    final iosRealPath = await Directory(iosPath).resolveSymbolicLinks();
-    invariant(
-      p.isWithin(projectRealPath, iosRealPath),
-      'The ios directory resolves outside the Flutter project.',
-      'IOS_PATH_ESCAPE',
+    final projectRealPath = await Directory(
+      paths.appRoot,
+    ).resolveSymbolicLinks();
+    final platformRealPath = await Directory(
+      platformPath,
+    ).resolveSymbolicLinks();
+    SmfError.check(
+      p.isWithin(projectRealPath, platformRealPath),
+      'The ${platform.value} directory resolves outside the Flutter project.',
+      '${platform.value.toUpperCase()}_PATH_ESCAPE',
     );
   }
 
-  invariant(
-    manifest.ios.version.isNotEmpty,
-    'The iOS manifest version is empty.',
-  );
-  if (manifest.ios.pendingRelease) {
-    invariant(
-      changelog.iosReleases.containsKey(manifest.ios.version),
-      'The pending iOS version ${manifest.ios.version} has no changelog entry.',
-      'PENDING_CHANGELOG_MISSING',
+  static void _validateReleaseState({
+    required Platform platform,
+    required SmfManifest manifest,
+    required ChangelogManifest changelog,
+  }) {
+    final state = manifest.forPlatform(platform);
+    SmfError.check(
+      state.version.isNotEmpty,
+      'The ${platform.displayName} manifest version is empty.',
     );
+    if (state.pendingRelease) {
+      SmfError.check(
+        changelog.releasesFor(platform).containsKey(state.version),
+        'The pending ${platform.displayName} version ${state.version} has no '
+            'changelog entry.',
+        'PENDING_CHANGELOG_MISSING',
+      );
+    }
   }
-  invariant(changelog.schemaVersion == 1, 'Unsupported changelog schema.');
+
+  static Future<String?> _findWorkspaceLockfile({
+    required String repositoryRoot,
+    required String projectRoot,
+  }) async {
+    var directory = projectRoot;
+    while (directory == repositoryRoot || p.isWithin(repositoryRoot, directory)) {
+      final lockfile = p.join(directory, 'pubspec.lock');
+      if (await SmfFileSystem.exists(lockfile)) return lockfile;
+      if (directory == repositoryRoot) break;
+      directory = p.dirname(directory);
+    }
+    return null;
+  }
 }

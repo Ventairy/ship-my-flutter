@@ -16,7 +16,6 @@ abstract class PlatformManifest with _$PlatformManifest {
 
   /// Decodes typed platform state without repository-domain validation.
   ///
-  /// Use `validateManifest` when reading user repository state.
-  factory PlatformManifest.fromJson(Map<String, Object?> json) =>
-      _$PlatformManifestFromJson(json);
+  /// Use `SmfState.parseManifest` when reading repository state.
+  factory PlatformManifest.fromJson(Map<String, Object?> json) => _$PlatformManifestFromJson(json);
 }

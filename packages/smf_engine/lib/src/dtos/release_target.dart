@@ -16,6 +16,5 @@ abstract class ReleaseTarget with _$ReleaseTarget {
   }) = _ReleaseTarget;
 
   /// Decodes a release target from JSON.
-  factory ReleaseTarget.fromJson(Map<String, Object?> json) =>
-      _$ReleaseTargetFromJson(json);
+  factory ReleaseTarget.fromJson(Map<String, Object?> json) => _$ReleaseTargetFromJson(json);
 }

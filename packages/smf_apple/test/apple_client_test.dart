@@ -7,8 +7,7 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 final class ClientFixture {
-  ClientFixture(List<http.Response> responses)
-    : _responses = List<http.Response>.of(responses) {
+  ClientFixture(List<http.Response> responses) : _responses = List<http.Response>.of(responses) {
     httpClient = MockClient((request) async {
       requests.add(request);
       if (_responses.isEmpty) {
@@ -24,13 +23,27 @@ final class ClientFixture {
       ),
       httpClient: httpClient,
       tokenProvider: () async => 'test-token',
+      delay: (duration) async => delays.add(duration),
     );
   }
 
   final List<http.Response> _responses;
   final List<http.Request> requests = <http.Request>[];
+  final List<Duration> delays = <Duration>[];
   late final MockClient httpClient;
   late final AppStoreConnectClient client;
+}
+
+final class TrackingClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) => throw UnimplementedError();
+
+  @override
+  void close() {
+    closed = true;
+  }
 }
 
 http.Response response(Object? body, [int status = 200]) => http.Response(
@@ -39,12 +52,26 @@ http.Response response(Object? body, [int status = 200]) => http.Response(
   headers: const <String, String>{'content-type': 'application/json'},
 );
 
-Map<String, Object?> requestBody(http.Request request) =>
-    jsonDecode(request.body) as Map<String, Object?>;
+Map<String, Object?> requestBody(http.Request request) => jsonDecode(request.body) as Map<String, Object?>;
 
 void main() {
   group('App Store Connect client', () {
+    test('closes its HTTP transport', () {
+      final transport = TrackingClient();
+      AppStoreConnectClient(
+        const AppleCredentials(
+          keyId: 'KEY123',
+          issuerId: 'issuer',
+          privateKey: 'unused',
+        ),
+        httpClient: transport,
+      ).close();
+
+      expect(transport.closed, isTrue);
+    });
+
     test('maps transport failures to a typed API failure', () async {
+      var attempts = 0;
       final client = AppStoreConnectClient(
         const AppleCredentials(
           keyId: 'KEY123',
@@ -52,10 +79,13 @@ void main() {
           privateKey: 'unused',
         ),
         httpClient: MockClient(
-          (request) async =>
-              throw http.ClientException('connection failed', request.url),
+          (request) async {
+            attempts++;
+            throw http.ClientException('connection failed', request.url);
+          },
         ),
         tokenProvider: () async => 'test-token',
+        delay: (_) async {},
       );
 
       await expectLater(
@@ -68,6 +98,7 @@ void main() {
           ),
         ),
       );
+      expect(attempts, 3);
     });
 
     test('maps malformed JSON to a typed response failure', () async {
@@ -92,20 +123,37 @@ void main() {
       () async {
         final fixture = ClientFixture(<http.Response>[
           response(<String, Object?>{
-            'data': <String, Object?>{
-              'type': 'builds',
-              'id': 'build-1',
-              'attributes': <String, Object?>{
-                'version': '1',
-                'processingState': 'VALID',
-                'uploadedDate': 42,
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'preReleaseVersions',
+                'id': 'pre-1',
+                'attributes': <String, Object?>{
+                  'version': '1.2.0',
+                  'platform': 'IOS',
+                },
               },
-            },
+            ],
+          }),
+          response(<String, Object?>{
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'builds',
+                'id': 'build-1',
+                'attributes': <String, Object?>{
+                  'version': '1',
+                  'processingState': 'VALID',
+                  'uploadedDate': 42,
+                },
+              },
+            ],
           }),
         ]);
 
         await expectLater(
-          fixture.client.getBuild('build-1'),
+          fixture.client.buildsForVersion(
+            appId: 'app-1',
+            version: '1.2.0',
+          ),
           throwsA(
             isA<SmfError>().having(
               (error) => error.code,
@@ -158,6 +206,202 @@ void main() {
       );
     });
 
+    test('lists Apple signing resources with exact relationships', () async {
+      final fixture = ClientFixture(<http.Response>[
+        response(<String, Object?>{
+          'data': <Object?>[
+            <String, Object?>{
+              'type': 'certificates',
+              'id': 'certificate-1',
+              'attributes': <String, Object?>{
+                'certificateType': 'DISTRIBUTION',
+                'displayName': 'Apple Distribution: Example',
+                'serialNumber': 'AABBCCDD',
+                'certificateContent': 'AQID',
+                'expirationDate': '2027-07-27T12:00:00Z',
+                'activated': true,
+              },
+            },
+          ],
+        }),
+        response(<String, Object?>{
+          'data': <Object?>[
+            <String, Object?>{
+              'type': 'bundleIds',
+              'id': 'bundle-1',
+              'attributes': <String, Object?>{
+                'identifier': 'dev.example.app',
+                'platform': 'IOS',
+              },
+            },
+          ],
+        }),
+        response(<String, Object?>{
+          'data': <Object?>[
+            <String, Object?>{
+              'type': 'profiles',
+              'id': 'profile-1',
+              'attributes': <String, Object?>{
+                'name': 'Example App Store',
+                'profileType': 'IOS_APP_STORE',
+                'profileState': 'ACTIVE',
+                'profileContent': 'BAUG',
+                'uuid': 'PROFILE-UUID',
+                'createdDate': '2026-07-27T12:00:00Z',
+                'expirationDate': '2027-07-27T12:00:00Z',
+              },
+              'relationships': <String, Object?>{
+                'bundleId': <String, Object?>{
+                  'data': <String, Object?>{
+                    'type': 'bundleIds',
+                    'id': 'bundle-1',
+                  },
+                },
+                'certificates': <String, Object?>{
+                  'data': <Object?>[
+                    <String, Object?>{
+                      'type': 'certificates',
+                      'id': 'certificate-1',
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        }),
+      ]);
+
+      final certificates = await fixture.client.listSigningCertificates();
+      final bundleIds = await fixture.client.listIosBundleIds();
+      final profiles = await fixture.client.listAppStoreProfiles();
+
+      expect(certificates.single.id, 'certificate-1');
+      expect(certificates.single.certificateType, 'DISTRIBUTION');
+      expect(bundleIds.single.identifier, 'dev.example.app');
+      expect(profiles.single.bundleIdId, 'bundle-1');
+      expect(profiles.single.certificateIds, <String>['certificate-1']);
+      expect(
+        fixture.requests[2].url.query,
+        contains('filter%5BprofileType%5D=IOS_APP_STORE'),
+      );
+    });
+
+    test(
+      'creates one App Store profile for an exact bundle and certificate',
+      () async {
+        final fixture = ClientFixture(<http.Response>[
+          response(
+            <String, Object?>{
+              'data': <String, Object?>{
+                'type': 'profiles',
+                'id': 'profile-1',
+                'attributes': <String, Object?>{
+                  'name': 'SMF App Store dev.example.app AABBCCDD',
+                  'profileType': 'IOS_APP_STORE',
+                  'profileState': 'ACTIVE',
+                  'profileContent': 'BAUG',
+                  'uuid': 'PROFILE-UUID',
+                  'createdDate': '2026-07-27T12:00:00Z',
+                  'expirationDate': '2027-07-27T12:00:00Z',
+                },
+                'relationships': <String, Object?>{
+                  'bundleId': <String, Object?>{
+                    'data': <String, Object?>{
+                      'type': 'bundleIds',
+                      'id': 'bundle-1',
+                    },
+                  },
+                  'certificates': <String, Object?>{
+                    'data': <Object?>[
+                      <String, Object?>{
+                        'type': 'certificates',
+                        'id': 'certificate-1',
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+            201,
+          ),
+        ]);
+
+        final profile = await fixture.client.createAppStoreProfile(
+          name: 'SMF App Store dev.example.app AABBCCDD',
+          bundleIdId: 'bundle-1',
+          certificateId: 'certificate-1',
+        );
+
+        expect(profile.id, 'profile-1');
+        final body = requestBody(fixture.requests.single);
+        final data = body['data']! as Map<String, Object?>;
+        expect(data['attributes'], <String, Object?>{
+          'name': 'SMF App Store dev.example.app AABBCCDD',
+          'profileType': 'IOS_APP_STORE',
+        });
+        expect(jsonEncode(data['relationships']), contains('certificate-1'));
+      },
+    );
+
+    test('retries transient GET failures', () async {
+      final fixture = ClientFixture(<http.Response>[
+        http.Response(
+          jsonEncode(<String, Object?>{
+            'errors': <Object?>[
+              <String, Object?>{'detail': 'Try again'},
+            ],
+          }),
+          429,
+          headers: const <String, String>{'retry-after': '7'},
+        ),
+        response(<String, Object?>{
+          'data': <Object?>[
+            <String, Object?>{
+              'type': 'apps',
+              'id': 'app-1',
+              'attributes': <String, Object?>{
+                'name': 'Example',
+                'bundleId': 'dev.example.app',
+                'sku': 'example',
+                'primaryLocale': 'en-US',
+              },
+            },
+          ],
+        }),
+      ]);
+
+      expect((await fixture.client.findApp('dev.example.app')).id, 'app-1');
+      expect(fixture.requests, hasLength(2));
+      expect(fixture.delays, <Duration>[const Duration(seconds: 7)]);
+    });
+
+    test('does not retry a profile-creation mutation', () async {
+      final fixture = ClientFixture(<http.Response>[
+        response(<String, Object?>{
+          'errors': <Object?>[
+            <String, Object?>{'detail': 'Try again'},
+          ],
+        }, 503),
+        response(<String, Object?>{'data': <String, Object?>{}}, 201),
+      ]);
+
+      await expectLater(
+        fixture.client.createAppStoreProfile(
+          name: 'SMF App Store dev.example.app AABBCCDD',
+          bundleIdId: 'bundle-1',
+          certificateId: 'certificate-1',
+        ),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'APP_STORE_CONNECT_API',
+          ),
+        ),
+      );
+      expect(fixture.requests, hasLength(1));
+    });
+
     test('calculates the next integer build number', () async {
       final fixture = ClientFixture(<http.Response>[
         response(<String, Object?>{
@@ -193,7 +437,13 @@ void main() {
           ],
         }),
       ]);
-      expect(await fixture.client.nextBuildNumber('app-1', '1.2.0'), '13');
+      expect(
+        await fixture.client.nextBuildNumber(
+          appId: 'app-1',
+          version: '1.2.0',
+        ),
+        '13',
+      );
     });
 
     test('follows collection pagination and rejects another origin', () async {
@@ -280,10 +530,10 @@ void main() {
         }),
       ]);
       final build = await valid.client.waitForBuild(
-        'app-1',
-        '1.2.0',
-        '13',
-        5,
+        appId: 'app-1',
+        version: '1.2.0',
+        buildNumber: '13',
+        timeoutMinutes: 5,
         interval: Duration.zero,
       );
       expect(build.id, 'build-13');
@@ -316,10 +566,10 @@ void main() {
       ]);
       await expectLater(
         invalid.client.waitForBuild(
-          'app-1',
-          '1.2.0',
-          '13',
-          5,
+          appId: 'app-1',
+          version: '1.2.0',
+          buildNumber: '13',
+          timeoutMinutes: 5,
           interval: Duration.zero,
         ),
         throwsA(
@@ -348,7 +598,11 @@ void main() {
         }),
         response(null, 204),
       ]);
-      await existing.client.setBetaBuildLocalization('build-1', 'en-US', 'New');
+      await existing.client.setBetaBuildLocalization(
+        buildId: 'build-1',
+        locale: 'en-US',
+        whatsNew: 'New',
+      );
       expect(
         requestBody(existing.requests[1])['data'],
         containsPair('attributes', <String, Object?>{'whatsNew': 'New'}),
@@ -358,7 +612,11 @@ void main() {
         response(<String, Object?>{'data': <Object?>[]}),
         response(null, 204),
       ]);
-      await created.client.setBetaBuildLocalization('build-1', 'pt-BR', 'Novo');
+      await created.client.setBetaBuildLocalization(
+        buildId: 'build-1',
+        locale: 'pt-BR',
+        whatsNew: 'Novo',
+      );
       final data = requestBody(created.requests[1])['data'];
       expect(data, isA<Map<String, Object?>>());
       expect(
@@ -377,12 +635,18 @@ void main() {
             <String, Object?>{
               'type': 'betaGroups',
               'id': 'internal',
-              'attributes': <String, Object?>{'name': 'Internal'},
+              'attributes': <String, Object?>{
+                'name': 'Internal',
+                'isInternalGroup': true,
+              },
             },
             <String, Object?>{
               'type': 'betaGroups',
-              'id': 'external',
-              'attributes': <String, Object?>{'name': 'External'},
+              'id': 'internal-2',
+              'attributes': <String, Object?>{
+                'name': 'Internal 2',
+                'isInternalGroup': true,
+              },
             },
           ],
         }),
@@ -394,16 +658,135 @@ void main() {
         response(<String, Object?>{'data': <Object?>[]}),
         response(null, 204),
       ]);
-      await fixture.client.addBuildToGroups('app-1', 'build-1', const <String>[
-        'Internal',
-        'External',
-      ]);
+      await fixture.client.addBuildToGroups(
+        appId: 'app-1',
+        buildId: 'build-1',
+        names: const <String>['Internal', 'Internal 2'],
+        internal: true,
+      );
       expect(fixture.requests, hasLength(4));
       expect(
         fixture.requests.last.url.path,
-        '/v1/betaGroups/external/relationships/builds',
+        '/v1/betaGroups/internal-2/relationships/builds',
       );
     });
+
+    test('rejects a TestFlight group from the wrong audience', () async {
+      final fixture = ClientFixture(<http.Response>[
+        response(<String, Object?>{
+          'data': <Object?>[
+            <String, Object?>{
+              'type': 'betaGroups',
+              'id': 'external',
+              'attributes': <String, Object?>{
+                'name': 'Public Beta',
+                'isInternalGroup': false,
+              },
+            },
+          ],
+        }),
+      ]);
+
+      await expectLater(
+        fixture.client.addBuildToGroups(
+          appId: 'app-1',
+          buildId: 'build-1',
+          names: const <String>['Public Beta'],
+          internal: true,
+        ),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.code,
+            'code',
+            'BETA_GROUP_AUDIENCE_MISMATCH',
+          ),
+        ),
+      );
+    });
+
+    test('submits a build for Beta App Review idempotently', () async {
+      final existing = ClientFixture(<http.Response>[
+        response(<String, Object?>{
+          'data': <Object?>[
+            <String, Object?>{
+              'type': 'betaAppReviewSubmissions',
+              'id': 'beta-review-1',
+              'attributes': <String, Object?>{
+                'betaReviewState': 'APPROVED',
+              },
+            },
+          ],
+        }),
+      ]);
+
+      expect(
+        await existing.client.submitBuildForBetaReview('build-1'),
+        'beta-review-1',
+      );
+      expect(existing.requests, hasLength(1));
+
+      final created = ClientFixture(<http.Response>[
+        response(<String, Object?>{'data': <Object?>[]}),
+        response(<String, Object?>{
+          'data': <String, Object?>{
+            'type': 'betaAppReviewSubmissions',
+            'id': 'beta-review-2',
+            'attributes': <String, Object?>{
+              'betaReviewState': 'WAITING_FOR_REVIEW',
+            },
+          },
+        }, 201),
+      ]);
+
+      expect(
+        await created.client.submitBuildForBetaReview('build-2'),
+        'beta-review-2',
+      );
+      expect(
+        requestBody(created.requests.last)['data'],
+        containsPair(
+          'relationships',
+          <String, Object?>{
+            'build': <String, Object?>{
+              'data': <String, Object?>{
+                'type': 'builds',
+                'id': 'build-2',
+              },
+            },
+          },
+        ),
+      );
+    });
+
+    test(
+      'when Beta App Review rejected a build, it should require a new build instead of resubmitting it',
+      () async {
+        final fixture = ClientFixture(<http.Response>[
+          response(<String, Object?>{
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'betaAppReviewSubmissions',
+                'id': 'beta-review-1',
+                'attributes': <String, Object?>{
+                  'betaReviewState': 'REJECTED',
+                },
+              },
+            ],
+          }),
+        ]);
+
+        await expectLater(
+          fixture.client.submitBuildForBetaReview('build-1'),
+          throwsA(
+            isA<SmfError>().having(
+              (error) => error.code,
+              'code',
+              'BETA_REVIEW_REJECTED',
+            ),
+          ),
+        );
+      },
+    );
 
     test(
       'creates a version, attaches a build, and updates release policy',
@@ -417,7 +800,7 @@ void main() {
               'attributes': <String, Object?>{
                 'platform': 'IOS',
                 'versionString': '2.0.0',
-                'appStoreState': 'PREPARE_FOR_SUBMISSION',
+                'appVersionState': 'PREPARE_FOR_SUBMISSION',
                 'releaseType': 'MANUAL',
               },
             },
@@ -425,8 +808,8 @@ void main() {
           response(null, 204),
         ]);
         final version = await create.client.findOrCreateAppStoreVersion(
-          'app-1',
-          '2.0.0',
+          appId: 'app-1',
+          version: '2.0.0',
           releaseAutomatically: false,
         );
         expect(requestBody(create.requests[1]), <String, Object?>{
@@ -444,7 +827,10 @@ void main() {
             },
           },
         });
-        await create.client.attachBuildToVersion(version.id, 'build-1');
+        await create.client.attachBuildToVersion(
+          appStoreVersionId: version.id,
+          buildId: 'build-1',
+        );
         expect(version.id, 'version-1');
         expect(requestBody(create.requests.last), <String, Object?>{
           'data': <String, Object?>{'type': 'builds', 'id': 'build-1'},
@@ -459,7 +845,7 @@ void main() {
                 'attributes': <String, Object?>{
                   'platform': 'IOS',
                   'versionString': '2.0.0',
-                  'appStoreState': 'PREPARE_FOR_SUBMISSION',
+                  'appVersionState': 'PREPARE_FOR_SUBMISSION',
                   'releaseType': 'MANUAL',
                 },
               },
@@ -472,18 +858,21 @@ void main() {
               'attributes': <String, Object?>{
                 'platform': 'IOS',
                 'versionString': '2.0.0',
-                'appStoreState': 'PREPARE_FOR_SUBMISSION',
+                'appVersionState': 'PREPARE_FOR_SUBMISSION',
                 'releaseType': 'AFTER_APPROVAL',
               },
             },
           }),
         ]);
         final updated = await update.client.findOrCreateAppStoreVersion(
-          'app-1',
-          '2.0.0',
+          appId: 'app-1',
+          version: '2.0.0',
           releaseAutomatically: true,
         );
-        expect(updated.attributes.releaseType, 'AFTER_APPROVAL');
+        expect(
+          updated.attributes.releaseType,
+          AppStoreReleaseType.afterApproval,
+        );
         expect(requestBody(update.requests.last), <String, Object?>{
           'data': <String, Object?>{
             'type': 'appStoreVersions',
@@ -510,7 +899,11 @@ void main() {
         }),
         response(null, 204),
       ]);
-      await notes.client.setAppStoreReleaseNotes('version-1', 'en-US', 'Ready');
+      await notes.client.setAppStoreReleaseNotes(
+        appStoreVersionId: 'version-1',
+        locale: 'en-US',
+        whatsNew: 'Ready',
+      );
       expect(
         notes.requests.last.url.path,
         '/v1/appStoreVersionLocalizations/store-loc-1',
@@ -529,11 +922,13 @@ void main() {
         response(null, 204),
       ]);
       expect(
-        await review.client.submitVersionForReview('app-1', 'version-1'),
+        await review.client.submitVersionForReview(
+          appId: 'app-1',
+          appStoreVersionId: 'version-1',
+        ),
         'submission-1',
       );
-      final finalData =
-          requestBody(review.requests.last)['data']! as Map<String, Object?>;
+      final finalData = requestBody(review.requests.last)['data']! as Map<String, Object?>;
       expect(finalData['attributes'], <String, Object?>{'submitted': true});
     });
 
@@ -558,11 +953,127 @@ void main() {
         }),
       ]);
       expect(
-        await fixture.client.submitVersionForReview('app-1', 'version-1'),
+        await fixture.client.submitVersionForReview(
+          appId: 'app-1',
+          appStoreVersionId: 'version-1',
+        ),
         'submission-1',
       );
       expect(fixture.requests, hasLength(1));
     });
+
+    test(
+      'when a review submission is ready but not submitted, it should submit the existing review',
+      () async {
+        final fixture = ClientFixture(<http.Response>[
+          response(<String, Object?>{
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'reviewSubmissions',
+                'id': 'submission-1',
+                'attributes': <String, Object?>{'state': 'READY_FOR_REVIEW'},
+                'relationships': <String, Object?>{
+                  'appStoreVersionForReview': <String, Object?>{
+                    'data': <String, Object?>{
+                      'type': 'appStoreVersions',
+                      'id': 'version-1',
+                    },
+                  },
+                },
+              },
+            ],
+          }),
+          response(null, 204),
+        ]);
+
+        await fixture.client.submitVersionForReview(
+          appId: 'app-1',
+          appStoreVersionId: 'version-1',
+        );
+
+        expect(
+          requestBody(fixture.requests.last)['data'],
+          containsPair(
+            'attributes',
+            <String, Object?>{'submitted': true},
+          ),
+        );
+      },
+    );
+
+    test(
+      'when Apple completed review for the same version, it should reuse the completed submission',
+      () async {
+        final fixture = ClientFixture(<http.Response>[
+          response(<String, Object?>{
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'reviewSubmissions',
+                'id': 'submission-1',
+                'attributes': <String, Object?>{'state': 'COMPLETE'},
+                'relationships': <String, Object?>{
+                  'appStoreVersionForReview': <String, Object?>{
+                    'data': <String, Object?>{
+                      'type': 'appStoreVersions',
+                      'id': 'version-1',
+                    },
+                  },
+                },
+              },
+            ],
+          }),
+        ]);
+
+        expect(
+          await fixture.client.submitVersionForReview(
+            appId: 'app-1',
+            appStoreVersionId: 'version-1',
+          ),
+          'submission-1',
+        );
+      },
+    );
+
+    test(
+      'when App Review reports unresolved issues, it should stop before creating another submission',
+      () async {
+        final fixture = ClientFixture(<http.Response>[
+          response(<String, Object?>{
+            'data': <Object?>[
+              <String, Object?>{
+                'type': 'reviewSubmissions',
+                'id': 'submission-1',
+                'attributes': <String, Object?>{
+                  'state': 'UNRESOLVED_ISSUES',
+                },
+                'relationships': <String, Object?>{
+                  'appStoreVersionForReview': <String, Object?>{
+                    'data': <String, Object?>{
+                      'type': 'appStoreVersions',
+                      'id': 'version-1',
+                    },
+                  },
+                },
+              },
+            ],
+          }),
+        ]);
+
+        await expectLater(
+          fixture.client.submitVersionForReview(
+            appId: 'app-1',
+            appStoreVersionId: 'version-1',
+          ),
+          throwsA(
+            isA<SmfError>().having(
+              (error) => error.code,
+              'code',
+              'APP_REVIEW_UNRESOLVED',
+            ),
+          ),
+        );
+      },
+    );
 
     test('surfaces structured Apple errors without credentials', () async {
       final fixture = ClientFixture(<http.Response>[

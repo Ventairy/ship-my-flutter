@@ -8,19 +8,34 @@
   "group-pull-request-title-pattern": "chore: release ${branch}",
   "packages": {
     "packages/smf_hooks": {
-      "component": "smf_hooks"
+      "component": "smf_hooks",
+      "include-paths": [
+        "packages/smf_hooks"
+      ]
     },
     "packages/smf_engine": {
-      "component": "smf_engine"
+      "component": "smf_engine",
+      "include-paths": [
+        "packages/smf_engine"
+      ]
     },
     "packages/smf_apple": {
-      "component": "smf_apple"
+      "component": "smf_apple",
+      "include-paths": [
+        "packages/smf_apple"
+      ]
     },
     "packages/smf_android": {
-      "component": "smf_android"
+      "component": "smf_android",
+      "include-paths": [
+        "packages/smf_android"
+      ]
     },
     "packages/smf_cli": {
-      "component": "smf_cli"
+      "component": "smf_cli",
+      "include-paths": [
+        "packages/smf_cli"
+      ]
     }
   }
 }

@@ -19,7 +19,8 @@ dependencies:
   googleapis_auth: ^2.3.3
   http: ^1.5.0
   path: ^1.9.1
-  smf_engine: ^0.1.0
+  # The unpublished 0.1 workspace and first stable 1.x releases share this API.
+  smf_engine: ">=0.1.0 <2.0.0"
 
 dev_dependencies:
   test: 1.30.0

@@ -13,6 +13,5 @@ abstract class GitHubRelease with _$GitHubRelease {
   }) = _GitHubRelease;
 
   /// Decodes a release from GitHub JSON.
-  factory GitHubRelease.fromJson(Map<String, Object?> json) =>
-      _$GitHubReleaseFromJson(json);
+  factory GitHubRelease.fromJson(Map<String, Object?> json) => _$GitHubReleaseFromJson(json);
 }

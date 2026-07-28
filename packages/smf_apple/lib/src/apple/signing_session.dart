@@ -4,15 +4,16 @@ import 'package:smf_apple/src/apple/installed_profile.dart';
 ///
 /// This deliberately avoids generated value semantics because it contains a
 /// temporary keychain password that must never appear in diagnostics.
-final class SigningSession {
+final class AppleSigningSession {
   /// Creates a signing session.
-  const SigningSession({
+  AppleSigningSession({
     required this.keychainPath,
     required this.keychainPassword,
-    required this.profiles,
+    required List<AppleInstalledProfile> profiles,
     required this.exportOptionsPath,
     required Future<void> Function() cleanup,
-  }) : _cleanup = cleanup;
+  }) : profiles = List<AppleInstalledProfile>.unmodifiable(profiles),
+       _cleanup = cleanup;
 
   /// Temporary keychain path.
   final String keychainPath;
@@ -21,7 +22,7 @@ final class SigningSession {
   final String keychainPassword;
 
   /// Provisioning profiles installed by this session.
-  final List<InstalledProfile> profiles;
+  final List<AppleInstalledProfile> profiles;
 
   /// Generated Xcode export-options path.
   final String exportOptionsPath;

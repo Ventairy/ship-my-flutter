@@ -16,11 +16,16 @@ The workspace includes `very_good_analysis` 10.1.0 exactly. That is the newest
 stable preset compatible with the Dart 3.10 floor and keeps every CI SDK on the
 same lint rules.
 
+Use the current stable Dart SDK for formatting. CI still analyzes and tests on
+Dart 3.10, but does not ask that older SDK to enforce a formatter whose output
+can differ from stable.
+
 ```bash
 dart pub get
 dart run melos run generate --no-select
 git diff --exit-code -- packages
-dart format --output=none --set-exit-if-changed .
+dart run tool/check_dart_format.dart
+dart run tool/check_markdown_links.dart
 dart analyze --fatal-infos
 dart run melos run test --no-select
 dart run melos run publish:dry-run --no-select

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppStoreVersionAttributes {
 
- String get platform; String get versionString; String get appStoreState; String get releaseType;
+ ApplePlatform get platform; String get versionString; AppVersionState get appVersionState; AppStoreReleaseType get releaseType;
 /// Create a copy of AppStoreVersionAttributes
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $AppStoreVersionAttributesCopyWith<AppStoreVersionAttributes> get copyWith => _$
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStoreVersionAttributes&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.versionString, versionString) || other.versionString == versionString)&&(identical(other.appStoreState, appStoreState) || other.appStoreState == appStoreState)&&(identical(other.releaseType, releaseType) || other.releaseType == releaseType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStoreVersionAttributes&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.versionString, versionString) || other.versionString == versionString)&&(identical(other.appVersionState, appVersionState) || other.appVersionState == appVersionState)&&(identical(other.releaseType, releaseType) || other.releaseType == releaseType));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,platform,versionString,appStoreState,releaseType);
+int get hashCode => Object.hash(runtimeType,platform,versionString,appVersionState,releaseType);
 
 @override
 String toString() {
-  return 'AppStoreVersionAttributes(platform: $platform, versionString: $versionString, appStoreState: $appStoreState, releaseType: $releaseType)';
+  return 'AppStoreVersionAttributes(platform: $platform, versionString: $versionString, appVersionState: $appVersionState, releaseType: $releaseType)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $AppStoreVersionAttributesCopyWith<$Res>  {
   factory $AppStoreVersionAttributesCopyWith(AppStoreVersionAttributes value, $Res Function(AppStoreVersionAttributes) _then) = _$AppStoreVersionAttributesCopyWithImpl;
 @useResult
 $Res call({
- String platform, String versionString, String appStoreState, String releaseType
+ ApplePlatform platform, String versionString, AppVersionState appVersionState, AppStoreReleaseType releaseType
 });
 
 
@@ -65,13 +65,13 @@ class _$AppStoreVersionAttributesCopyWithImpl<$Res>
 
 /// Create a copy of AppStoreVersionAttributes
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? platform = null,Object? versionString = null,Object? appStoreState = null,Object? releaseType = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? platform = null,Object? versionString = null,Object? appVersionState = null,Object? releaseType = null,}) {
   return _then(_self.copyWith(
 platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as String,versionString: null == versionString ? _self.versionString : versionString // ignore: cast_nullable_to_non_nullable
-as String,appStoreState: null == appStoreState ? _self.appStoreState : appStoreState // ignore: cast_nullable_to_non_nullable
-as String,releaseType: null == releaseType ? _self.releaseType : releaseType // ignore: cast_nullable_to_non_nullable
-as String,
+as ApplePlatform,versionString: null == versionString ? _self.versionString : versionString // ignore: cast_nullable_to_non_nullable
+as String,appVersionState: null == appVersionState ? _self.appVersionState : appVersionState // ignore: cast_nullable_to_non_nullable
+as AppVersionState,releaseType: null == releaseType ? _self.releaseType : releaseType // ignore: cast_nullable_to_non_nullable
+as AppStoreReleaseType,
   ));
 }
 
@@ -156,10 +156,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String platform,  String versionString,  String appStoreState,  String releaseType)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ApplePlatform platform,  String versionString,  AppVersionState appVersionState,  AppStoreReleaseType releaseType)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppStoreVersionAttributes() when $default != null:
-return $default(_that.platform,_that.versionString,_that.appStoreState,_that.releaseType);case _:
+return $default(_that.platform,_that.versionString,_that.appVersionState,_that.releaseType);case _:
   return orElse();
 
 }
@@ -177,10 +177,10 @@ return $default(_that.platform,_that.versionString,_that.appStoreState,_that.rel
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String platform,  String versionString,  String appStoreState,  String releaseType)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ApplePlatform platform,  String versionString,  AppVersionState appVersionState,  AppStoreReleaseType releaseType)  $default,) {final _that = this;
 switch (_that) {
 case _AppStoreVersionAttributes():
-return $default(_that.platform,_that.versionString,_that.appStoreState,_that.releaseType);case _:
+return $default(_that.platform,_that.versionString,_that.appVersionState,_that.releaseType);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +197,10 @@ return $default(_that.platform,_that.versionString,_that.appStoreState,_that.rel
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String platform,  String versionString,  String appStoreState,  String releaseType)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ApplePlatform platform,  String versionString,  AppVersionState appVersionState,  AppStoreReleaseType releaseType)?  $default,) {final _that = this;
 switch (_that) {
 case _AppStoreVersionAttributes() when $default != null:
-return $default(_that.platform,_that.versionString,_that.appStoreState,_that.releaseType);case _:
+return $default(_that.platform,_that.versionString,_that.appVersionState,_that.releaseType);case _:
   return null;
 
 }
@@ -212,13 +212,13 @@ return $default(_that.platform,_that.versionString,_that.appStoreState,_that.rel
 
 @JsonSerializable(checked: true)
 class _AppStoreVersionAttributes implements AppStoreVersionAttributes {
-  const _AppStoreVersionAttributes({required this.platform, required this.versionString, required this.appStoreState, required this.releaseType});
+  const _AppStoreVersionAttributes({required this.platform, required this.versionString, required this.appVersionState, required this.releaseType});
   factory _AppStoreVersionAttributes.fromJson(Map<String, dynamic> json) => _$AppStoreVersionAttributesFromJson(json);
 
-@override final  String platform;
+@override final  ApplePlatform platform;
 @override final  String versionString;
-@override final  String appStoreState;
-@override final  String releaseType;
+@override final  AppVersionState appVersionState;
+@override final  AppStoreReleaseType releaseType;
 
 /// Create a copy of AppStoreVersionAttributes
 /// with the given fields replaced by the non-null parameter values.
@@ -233,16 +233,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStoreVersionAttributes&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.versionString, versionString) || other.versionString == versionString)&&(identical(other.appStoreState, appStoreState) || other.appStoreState == appStoreState)&&(identical(other.releaseType, releaseType) || other.releaseType == releaseType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStoreVersionAttributes&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.versionString, versionString) || other.versionString == versionString)&&(identical(other.appVersionState, appVersionState) || other.appVersionState == appVersionState)&&(identical(other.releaseType, releaseType) || other.releaseType == releaseType));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,platform,versionString,appStoreState,releaseType);
+int get hashCode => Object.hash(runtimeType,platform,versionString,appVersionState,releaseType);
 
 @override
 String toString() {
-  return 'AppStoreVersionAttributes(platform: $platform, versionString: $versionString, appStoreState: $appStoreState, releaseType: $releaseType)';
+  return 'AppStoreVersionAttributes(platform: $platform, versionString: $versionString, appVersionState: $appVersionState, releaseType: $releaseType)';
 }
 
 
@@ -253,7 +253,7 @@ abstract mixin class _$AppStoreVersionAttributesCopyWith<$Res> implements $AppSt
   factory _$AppStoreVersionAttributesCopyWith(_AppStoreVersionAttributes value, $Res Function(_AppStoreVersionAttributes) _then) = __$AppStoreVersionAttributesCopyWithImpl;
 @override @useResult
 $Res call({
- String platform, String versionString, String appStoreState, String releaseType
+ ApplePlatform platform, String versionString, AppVersionState appVersionState, AppStoreReleaseType releaseType
 });
 
 
@@ -270,13 +270,13 @@ class __$AppStoreVersionAttributesCopyWithImpl<$Res>
 
 /// Create a copy of AppStoreVersionAttributes
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? platform = null,Object? versionString = null,Object? appStoreState = null,Object? releaseType = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? platform = null,Object? versionString = null,Object? appVersionState = null,Object? releaseType = null,}) {
   return _then(_AppStoreVersionAttributes(
 platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as String,versionString: null == versionString ? _self.versionString : versionString // ignore: cast_nullable_to_non_nullable
-as String,appStoreState: null == appStoreState ? _self.appStoreState : appStoreState // ignore: cast_nullable_to_non_nullable
-as String,releaseType: null == releaseType ? _self.releaseType : releaseType // ignore: cast_nullable_to_non_nullable
-as String,
+as ApplePlatform,versionString: null == versionString ? _self.versionString : versionString // ignore: cast_nullable_to_non_nullable
+as String,appVersionState: null == appVersionState ? _self.appVersionState : appVersionState // ignore: cast_nullable_to_non_nullable
+as AppVersionState,releaseType: null == releaseType ? _self.releaseType : releaseType // ignore: cast_nullable_to_non_nullable
+as AppStoreReleaseType,
   ));
 }
 

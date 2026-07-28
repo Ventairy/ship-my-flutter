@@ -5,7 +5,8 @@ The Dart workspace contains five independently versioned pub.dev packages:
 
 Release Please owns their package versions, package changelogs, immutable
 component tags, and GitHub Releases. It opens one combined manifest release PR
-but releases only the packages with relevant Conventional Commits.
+but releases only the packages with relevant Conventional Commits under that
+package's directory.
 
 | Package | Immutable tag |
 | --- | --- |
@@ -32,14 +33,22 @@ workspace dependency-cascade plugin, so review internal constraints explicitly:
 - a new `smf_engine` API may require compatible adapter and CLI releases;
 - a new adapter API may require a compatible CLI release.
 
+The initial `>=0.1.0 <2.0.0` internal ranges are intentional: the unpublished
+workspace versions and first stable `1.x` packages expose the same reviewed
+APIs. Before any `2.0.0` internal package release, update every affected
+dependent constraint and implementation in the same change so those dependent
+packages receive their own release.
+
 Before merging:
 
 1. Review every proposed version and package changelog.
 2. Confirm internal dependency constraints admit the proposed versions.
 3. Run the complete gate from `CONTRIBUTING.md`.
-4. Test `smf_cli` from a clean Flutter fixture and test affected libraries
+4. Run `pana --exit-code-threshold 0 packages/<package>` for each releasable
+   package whose internal SMF dependencies already exist on pub.dev.
+5. Test `smf_cli` from a clean Flutter fixture and test affected libraries
    through hosted or path dependencies.
-5. Confirm the exact release branch passed all hosted gates.
+6. Confirm the exact release branch passed all hosted gates.
 
 Merging creates one immutable component tag and GitHub Release per affected
 package. Never create, reuse, or move those tags manually.
@@ -47,13 +56,18 @@ package. Never create, reuse, or move those tags manually.
 ## pub.dev bootstrap and trusted publishing
 
 Automated publishing cannot create a new pub.dev package. Bootstrap each
-package manually from its exact immutable component tag:
+package manually from its exact immutable component tag, in dependency order:
+`smf_hooks`, `smf_engine`, `smf_apple`/`smf_android`, then `smf_cli`.
 
 1. Check out the tag in a clean worktree.
 2. Repeat the complete gate and inspect that package's archive.
-3. Run `dart pub publish` from `packages/<package>`.
-4. Verify the published version and archive on pub.dev.
-5. Verify a clean consumer can install the intended surface:
+3. Run `pana --exit-code-threshold 0 packages/<package>`. During first
+   bootstrap, do this only after every internal dependency is visible on
+   pub.dev.
+4. Run `dart pub publish` from `packages/<package>`.
+5. Verify the published version, archive, analysis, and documentation on
+   pub.dev before continuing to a dependent package.
+6. Verify a clean consumer can install the intended surface:
    `dart install smf_cli`, `dart pub add --dev smf_hooks`, or the relevant
    custom-automation library.
 

@@ -7,8 +7,7 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 void main() {
-  final enabled =
-      io.Platform.environment['SMF_RUN_ANDROID_SIGNING_INTEGRATION'] == 'true';
+  final enabled = io.Platform.environment['SMF_RUN_ANDROID_SIGNING_INTEGRATION'] == 'true';
 
   test(
     'builds a real Flutter AAB with the temporary upload keystore',
@@ -61,10 +60,10 @@ void main() {
         keystorePassword: 'changeit',
         keyPassword: 'changeit',
       );
-      final signing = await installAndroidSigning(credentials);
+      final signing = await AndroidSigningSession.install(credentials);
       addTearDown(signing.cleanup);
 
-      final artifact = await runAndroidBuildCommand(
+      final artifact = await AndroidBuild.run(
         projectRoot: app,
         command: 'flutter build appbundle --release',
         aabOutputPath: 'build/app/outputs/bundle/release',
@@ -77,9 +76,7 @@ void main() {
 
       expect(await io.File(artifact).exists(), isTrue);
     },
-    skip: enabled
-        ? false
-        : 'Set SMF_RUN_ANDROID_SIGNING_INTEGRATION=true to run.',
+    skip: enabled ? false : 'Set SMF_RUN_ANDROID_SIGNING_INTEGRATION=true to run.',
     timeout: const Timeout(Duration(minutes: 10)),
   );
 }

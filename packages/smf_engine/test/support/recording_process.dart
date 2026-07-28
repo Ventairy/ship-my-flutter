@@ -30,7 +30,6 @@ final class RecordingProcessRunner implements ProcessRunner {
       options: options,
     );
     invocations.add(invocation);
-    return handler?.call(invocation) ??
-        const RunResult(stdout: '', stderr: '', exitCode: 0);
+    return handler?.call(invocation) ?? const RunResult(stdout: '', stderr: '', exitCode: 0);
   }
 }

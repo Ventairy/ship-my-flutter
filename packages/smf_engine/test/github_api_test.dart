@@ -12,8 +12,7 @@ void main() {
       final api = GitHubRestApi(
         context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
         client: MockClient(
-          (request) async =>
-              throw http.ClientException('connection failed', request.url),
+          (request) async => throw http.ClientException('connection failed', request.url),
         ),
       );
 

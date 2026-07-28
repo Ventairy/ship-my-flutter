@@ -48,14 +48,19 @@ smf_cli -> smf_android -> smf_engine
 
 - Platforms own separate versions, changelogs, tags, candidates, and store
   notes. Never introduce one global app version.
-- Every platform shares the `smf/release` branch/PR. App release tags are
-  `<platform>-v<version>`.
+- Every platform for one app shares `smf/<app-id>/release`; sibling apps have
+  independent branches and PRs. App release tags are
+  `<app-id>/<platform>-v<version>`.
 - Candidate promotion verifies the exact recorded build, source fingerprint,
   bundle/app identity, version, and processing state. It never rebuilds.
 - Identity or fingerprint mismatch is a hard failure.
-- Store `upload` is the safe initializer default.
+- A release candidate with no `ship` target is the safe initializer default.
 - Configuration and release state live under the Flutter app's `smf/`
   directory. Secrets never do.
+- `app_id` is stable persisted identity. It namespaces workflows, branches,
+  tags, GitHub Releases, concurrency, and GitHub Environments.
+- A nested app always observes commits under its own directory.
+  `release_trigger_paths` adds repository-relative shared paths.
 - CLI success writes exactly one JSON value to stdout; diagnostics go to
   stderr.
 - Raw secrets are never accepted as command-line values.
@@ -63,13 +68,15 @@ smf_cli -> smf_android -> smf_engine
 
 ## Development gate
 
-Use Dart 3.10 or newer:
+Use Dart 3.10 or newer. The current stable Dart SDK is the canonical formatter;
+CI uses Dart 3.10 as a compatibility lane without enforcing its older formatter:
 
 ```bash
 dart pub get
 dart run melos run generate --no-select
 git diff --exit-code -- packages
-dart format --output=none --set-exit-if-changed .
+dart run tool/check_dart_format.dart
+dart run tool/check_markdown_links.dart
 dart analyze --fatal-infos
 dart run melos run test --no-select
 dart run melos run publish:dry-run --no-select
@@ -161,20 +168,23 @@ Put maintainer material in the root files that own it:
 - `CONTRIBUTING.md`: development setup and contributor validation;
 - `RELEASING.md`: package and Action publication.
 
-`doc/README.md` is the canonical user-guide index. Every user-facing guide must
-state the prerequisites, exact commands or UI paths, expected result, relevant
-side effects, verification, recovery, and links to the next related guide.
-Write for a first-time user who does not know the repository architecture or
-Apple terminology. Prefer one canonical explanation and cross-link it instead
-of duplicating partial procedures.
+The root `README.md` is the canonical user-guide index and the repository's
+single documentation front door. Do not add another index README under `doc/`.
+Every focused user-facing guide must state the prerequisites, exact commands or
+UI paths, expected result, relevant side effects, verification, recovery, and
+links to the next related guide. Write for a first-time user who does not know
+the repository architecture or Apple terminology. Prefer one canonical
+explanation and cross-link it instead of duplicating partial procedures.
 
 Keep these user surfaces synchronized:
 
-- `README.md`: concise product overview and route into `doc/README.md`;
+- `README.md`: product overview, quick start, user-guide index, package
+  selection, guarantees, and common questions;
 - `doc/getting-started.md`: shortest safe setup path;
 - `doc/apple-bootstrap.md`: beginner Apple and App Store Connect setup;
 - `doc/android-bootstrap.md`: beginner Android and Google Play setup;
-- `doc/configuration.md`: configuration and typed hooks;
+- `doc/configuration.md`: configuration fields and commit routing;
+- `doc/hooks.md`: typed hook setup, behavior, verification, and recovery;
 - `doc/how-it-works.md`: user-visible release lifecycle and state;
 - `doc/operations.md`: review, delivery, retry, and recovery;
 - `doc/cli.md`: commands, runners, credentials, outputs, and side effects;

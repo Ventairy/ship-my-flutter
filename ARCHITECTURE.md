@@ -48,15 +48,16 @@ Planning runs for every enabled platform on the target branch:
 
 1. Resolve the platform’s latest tag/baseline.
 2. Parse Conventional Commits for that platform.
-3. Select the highest bump or platform/global `Release-As`.
-4. Apply all pending plans to one `smf/release` branch.
+3. Select the highest platform-applicable Conventional Commit bump.
+4. Apply all pending plans to the app's `smf/<app-id>/release` branch.
 5. Run one typed `before_create_pr` hook containing all plans.
 6. Create or update one PR.
 
 The branch is merged with the latest target branch rather than recreated, so
 user-owned notes and candidate receipts survive refreshes.
 
-On `smf/release`, orchestration emits a deterministic candidate matrix. The
+On `smf/<app-id>/release`, orchestration emits a deterministic candidate
+matrix. The
 workflow uses `max-parallel: 1` because each platform commits a receipt to the
 same branch.
 
@@ -93,7 +94,7 @@ On the target branch, each pending untagged platform:
 1. loads its receipt;
 2. recomputes source/app identity;
 3. validates the exact store artifact/testing destination;
-4. applies platform delivery mode without rebuilding; and
+4. applies the platform's optional ship target without rebuilding; and
 5. creates/reuses `<platform>-v<version>` GitHub Release.
 
 Apple reuses the exact processed build. Android reuses the exact AAB

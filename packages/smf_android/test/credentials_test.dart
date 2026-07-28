@@ -7,17 +7,18 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('loads Google Play and Android secrets from Base64 values', () async {
-    final serviceAccount = jsonEncode(<String, Object?>{
-      'type': 'service_account',
-      'client_email': 'smf@example.invalid',
-      'private_key': 'secret',
-    });
+  test('loads pasted Google Play JSON and Base64 Android secrets', () async {
+    const serviceAccount = '''
+{
+  "type": "service_account",
+  "client_id": "1234567890",
+  "client_email": "smf@example.invalid",
+  "private_key": "secret"
+}
+''';
     final provider = AndroidCredentialProvider(
       environment: <String, String>{
-        'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64': base64Encode(
-          utf8.encode(serviceAccount),
-        ),
+        'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON': serviceAccount,
         'SMF_ANDROID_KEYSTORE_BASE64': base64Encode(<int>[1, 2, 3]),
         'SMF_ANDROID_KEY_ALIAS': 'upload',
         'SMF_ANDROID_KEYSTORE_PASSWORD': 'store-secret',
@@ -44,7 +45,12 @@ void main() {
     final serviceAccountPath = p.join(root.path, 'service-account.json');
     final keystorePath = p.join(root.path, 'upload.jks');
     await File(serviceAccountPath).writeAsString(
-      '{"type":"service_account"}',
+      jsonEncode(<String, String>{
+        'type': 'service_account',
+        'client_id': '1234567890',
+        'client_email': 'smf@example.invalid',
+        'private_key': 'secret',
+      }),
     );
     await File(keystorePath).writeAsBytes(<int>[4, 5, 6]);
 
@@ -70,9 +76,12 @@ void main() {
       AndroidCredentialProvider(
         environment: <String, String>{
           'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH': serviceAccountPath,
-          'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64': base64Encode(
-            utf8.encode('{"type":"service_account"}'),
-          ),
+          'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON': jsonEncode(<String, String>{
+            'type': 'service_account',
+            'client_id': '1234567890',
+            'client_email': 'smf@example.invalid',
+            'private_key': 'secret',
+          }),
         },
       ).googlePlayCredentials(),
       throwsA(
@@ -88,14 +97,14 @@ void main() {
   test('rejects malformed or non-service-account Google credentials', () async {
     for (final source in <String>[
       'not-json',
+      '[]',
       '{"type":"authorized_user"}',
+      '{"type":"service_account"}',
     ]) {
       await expectLater(
         AndroidCredentialProvider(
           environment: <String, String>{
-            'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64': base64Encode(
-              utf8.encode(source),
-            ),
+            'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON': source,
           },
         ).googlePlayCredentials(),
         throwsA(

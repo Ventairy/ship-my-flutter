@@ -29,6 +29,10 @@ _PromotionResult _$PromotionResultFromJson(Map<String, dynamic> json) =>
           'reviewSubmissionId',
           (v) => v as String?,
         ),
+        betaReviewSubmissionId: $checkedConvert(
+          'betaReviewSubmissionId',
+          (v) => v as String?,
+        ),
       );
       return val;
     });
@@ -43,6 +47,7 @@ Map<String, dynamic> _$PromotionResultToJson(_PromotionResult instance) =>
       'platform': _$PlatformEnumMap[instance.platform]!,
       'appStoreVersionId': ?instance.appStoreVersionId,
       'reviewSubmissionId': ?instance.reviewSubmissionId,
+      'betaReviewSubmissionId': ?instance.betaReviewSubmissionId,
     };
 
 const _$PlatformEnumMap = {Platform.ios: 'ios', Platform.android: 'android'};

@@ -2,7 +2,8 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> validConfig() => <String, Object?>{
-  'schema_version': 1,
+  'schema_version': 3,
+  'app_id': 'example',
   'target_branch': 'main',
   'platforms': <String, Object?>{
     'ios': <String, Object?>{
@@ -10,17 +11,19 @@ Map<String, Object?> validConfig() => <String, Object?>{
       'initial_version': '1.0.0',
       'build_command': 'flutter build ipa --release',
       'ipa_output_path': 'build/ios/ipa',
-      'testflight': <String, Object?>{
-        'groups': <Object?>[],
-        'wait_timeout_minutes': 45,
+      'app_store': <String, Object?>{
+        'release_candidate': <String, Object?>{
+          'target': 'internal-testing',
+          'groups': <Object?>[],
+          'wait_timeout_minutes': 45,
+        },
+        'ship': <String, Object?>{'target': 'production'},
       },
-      'app_store': <String, Object?>{'mode': 'auto'},
     },
   },
 };
 
-String repeated(String value, int count) =>
-    List<String>.filled(count, value).join();
+String repeated(String value, int count) => List<String>.filled(count, value).join();
 
 Map<String, Object?> iosConfig(Map<String, Object?> config) {
   final platforms = config['platforms']! as Map<String, Object?>;
@@ -30,20 +33,59 @@ Map<String, Object?> iosConfig(Map<String, Object?> config) {
 void main() {
   group('configuration', () {
     test('accepts the minimal generated configuration', () {
-      expect(validateConfig(validConfig()).ios.enabled, isTrue);
+      expect(SmfState.parseConfig(validConfig()).ios.enabled, isTrue);
+    });
+
+    test('accepts safe release trigger paths and removes duplicates', () {
+      final config = validConfig()
+        ..['release_trigger_paths'] = <Object?>[
+          'packages/shared/**',
+          'packages/shared/**',
+          'tool/release.dart',
+        ];
+
+      expect(SmfState.parseConfig(config).releaseTriggerPaths, <String>[
+        'packages/shared/**',
+        'tool/release.dart',
+      ]);
+    });
+
+    test('rejects release trigger paths that escape the repository', () {
+      final config = validConfig()..['release_trigger_paths'] = <Object?>['../shared'];
+
+      expect(
+        () => SmfState.parseConfig(config),
+        throwsA(isA<SmfError>()),
+      );
+    });
+
+    test('treats an omitted platform as unsupported', () {
+      final config = SmfState.parseConfig(<String, Object?>{
+        'schema_version': 3,
+        'app_id': 'example',
+        'platforms': <String, Object?>{
+          'android': <String, Object?>{
+            'enabled': true,
+            'initial_version': '1.0.0',
+          },
+        },
+      });
+
+      expect(config.ios.enabled, isFalse);
+      expect(config.android.enabled, isTrue);
     });
 
     test('accepts one optional global Flutter flavor', () {
       final config = validConfig()..['flavor'] = 'production';
 
-      expect(validateConfig(config).flavor, 'production');
+      expect(SmfState.parseConfig(config).flavor, 'production');
     });
 
     test('rejects the removed release branch prefix', () {
       final config = validConfig()..['release_branch_prefix'] = 'releases';
 
       expect(
-        () => validateConfig(config),
+        () => SmfState.parseConfig(config),
         throwsA(
           isA<SmfError>().having(
             (error) => error.message,
@@ -58,7 +100,7 @@ void main() {
       final config = validConfig();
       iosConfig(config)['initial_version'] = '1.0.0-beta.1';
 
-      expect(() => validateConfig(config), throwsA(isA<SmfError>()));
+      expect(() => SmfState.parseConfig(config), throwsA(isA<SmfError>()));
     });
 
     test('rejects the removed iOS scheme field', () {
@@ -66,7 +108,7 @@ void main() {
       iosConfig(config)['scheme'] = 'production';
 
       expect(
-        () => validateConfig(config),
+        () => SmfState.parseConfig(config),
         throwsA(
           isA<SmfError>().having(
             (error) => error.message,
@@ -85,7 +127,7 @@ void main() {
           ..remove('build_command')
           ..remove('ipa_output_path');
 
-        final ios = validateConfig(config).ios;
+        final ios = SmfState.parseConfig(config).ios;
 
         expect(ios.buildCommand, isNull);
         expect(ios.ipaOutputPath, 'build/ios/ipa');
@@ -108,15 +150,14 @@ void main() {
         },
         () {
           final config = validConfig();
-          final testflight =
-              iosConfig(config)['testflight']! as Map<String, Object?>;
-          testflight['unexpected'] = true;
+          final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
+          final candidate = appStore['release_candidate']! as Map<String, Object?>;
+          candidate['unexpected'] = true;
           return config;
         },
         () {
           final config = validConfig();
-          final appStore =
-              iosConfig(config)['app_store']! as Map<String, Object?>;
+          final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
           appStore['unexpected'] = true;
           return config;
         },
@@ -124,7 +165,7 @@ void main() {
 
       for (final createConfig in cases) {
         expect(
-          () => validateConfig(createConfig()),
+          () => SmfState.parseConfig(createConfig()),
           throwsA(
             isA<SmfError>().having(
               (error) => error.message,
@@ -136,58 +177,123 @@ void main() {
       }
     });
 
-    test('defaults omitted App Store behavior to upload only', () {
+    test('defaults to internal testing and no configured ship target', () {
       final config = validConfig();
       iosConfig(config).remove('app_store');
-      final appStore = validateConfig(config).ios.appStore;
-      expect(appStore.mode, ReleaseMode.upload);
+      final appStore = SmfState.parseConfig(config).ios.appStore;
+      expect(
+        appStore.releaseCandidate.target,
+        AppleReleaseCandidateTarget.internalTesting,
+      );
+      expect(appStore.releaseCandidate.groups, isEmpty);
+      expect(appStore.ship, isNull);
     });
 
     test('rejects IPA paths that escape the Flutter app', () {
       final config = validConfig();
       iosConfig(config)['ipa_output_path'] = '../outside/app.ipa';
-      expect(() => validateConfig(config), throwsA(isA<SmfError>()));
+      expect(() => SmfState.parseConfig(config), throwsA(isA<SmfError>()));
     });
 
-    test('rejects unsupported App Store modes', () {
+    test('rejects unsupported App Store release-candidate targets', () {
       final config = validConfig();
       final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
-      appStore['mode'] = 'publish-now';
+      final candidate = appStore['release_candidate']! as Map<String, Object?>;
+      candidate['target'] = 'private-testing';
       expect(
-        () => validateConfig(config),
+        () => SmfState.parseConfig(config),
         throwsA(
           isA<SmfError>().having(
             (error) => error.message,
             'message',
-            contains('auto, review, or upload'),
+            contains('internal-testing or external-testing'),
           ),
         ),
       );
     });
 
-    test('maps every App Store mode to its public enum value', () {
-      for (final entry in <String, ReleaseMode>{
-        'auto': ReleaseMode.automatic,
-        'review': ReleaseMode.review,
-        'upload': ReleaseMode.upload,
+    test('maps every App Store ship target to its public enum value', () {
+      for (final entry in <String, AppleShipTarget>{
+        'external-testing': AppleShipTarget.externalTesting,
+        'submit-for-review': AppleShipTarget.submitForReview,
+        'production': AppleShipTarget.production,
       }.entries) {
         final config = validConfig();
-        final appStore =
-            iosConfig(config)['app_store']! as Map<String, Object?>;
-        appStore['mode'] = entry.key;
+        final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
+        appStore['ship'] = <String, Object?>{
+          'target': entry.key,
+          if (entry.value == AppleShipTarget.externalTesting) 'groups': <Object?>['Public Beta'],
+        };
 
-        expect(validateConfig(config).ios.appStore.mode, entry.value);
+        expect(SmfState.parseConfig(config).ios.appStore.ship?.target, entry.value);
       }
+    });
+
+    test('requires external TestFlight groups beside their phase', () {
+      final candidateConfig = validConfig();
+      final candidateAppStore = iosConfig(candidateConfig)['app_store']! as Map<String, Object?>;
+      candidateAppStore['release_candidate'] = <String, Object?>{
+        'target': 'external-testing',
+      };
+      expect(() => SmfState.parseConfig(candidateConfig), throwsA(isA<SmfError>()));
+
+      final shipConfig = validConfig();
+      final shipAppStore = iosConfig(shipConfig)['app_store']! as Map<String, Object?>;
+      shipAppStore['ship'] = <String, Object?>{
+        'target': 'external-testing',
+      };
+      expect(() => SmfState.parseConfig(shipConfig), throwsA(isA<SmfError>()));
+    });
+
+    test('accepts multiple named Google Play closed-testing tracks', () {
+      final config = validConfig();
+      final platforms = config['platforms']! as Map<String, Object?>;
+      platforms['android'] = <String, Object?>{
+        'enabled': true,
+        'google_play': <String, Object?>{
+          'release_candidate': <String, Object?>{
+            'target': 'closed-testing',
+            'tracks': <Object?>['internal-qa', 'trusted-users'],
+          },
+          'ship': <String, Object?>{
+            'target': 'closed-testing',
+            'tracks': <Object?>['customer-preview'],
+          },
+        },
+      };
+
+      final play = SmfState.parseConfig(config).android.googlePlay;
+
+      expect(play.releaseCandidate.tracks, <String>[
+        'internal-qa',
+        'trusted-users',
+      ]);
+      expect(play.ship?.tracks, <String>['customer-preview']);
+    });
+
+    test('rejects tracks unless the Google Play target is closed testing', () {
+      final config = validConfig();
+      final platforms = config['platforms']! as Map<String, Object?>;
+      platforms['android'] = <String, Object?>{
+        'enabled': true,
+        'google_play': <String, Object?>{
+          'release_candidate': <String, Object?>{
+            'target': 'internal-testing',
+            'tracks': <Object?>['qa'],
+          },
+        },
+      };
+
+      expect(() => SmfState.parseConfig(config), throwsA(isA<SmfError>()));
     });
 
     test('rejects removed App Store release policy fields', () {
       for (final field in <String>['release_type', 'earliest_release_date']) {
         final config = validConfig();
-        final appStore =
-            iosConfig(config)['app_store']! as Map<String, Object?>;
+        final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
         appStore[field] = 'removed';
         expect(
-          () => validateConfig(config),
+          () => SmfState.parseConfig(config),
           throwsA(
             isA<SmfError>().having(
               (error) => error.message,
@@ -203,7 +309,7 @@ void main() {
       final config = validConfig();
       iosConfig(config)['build_command'] = 'fvm dart run release:build_ios';
 
-      final parsed = validateConfig(config);
+      final parsed = SmfState.parseConfig(config);
 
       expect(parsed.ios.buildCommand, contains('release:build_ios'));
     });
@@ -212,7 +318,7 @@ void main() {
       for (final field in <String>['app_path', 'hooks']) {
         final config = validConfig()..[field] = <String, Object?>{};
         expect(
-          () => validateConfig(config),
+          () => SmfState.parseConfig(config),
           throwsA(
             isA<SmfError>().having(
               (error) => error.message,
@@ -242,7 +348,7 @@ void main() {
           final config = validConfig();
           iosConfig(config)['build_command'] = command;
           expect(
-            () => validateConfig(config),
+            () => SmfState.parseConfig(config),
             throwsA(
               isA<SmfError>().having(
                 (error) => error.message,
@@ -266,7 +372,7 @@ void main() {
             r'--dart-define=LABEL=release\;candidate';
 
         expect(
-          validateConfig(config).ios.buildCommand,
+          SmfState.parseConfig(config).ios.buildCommand,
           contains(r'release\;candidate'),
         );
       },
@@ -285,7 +391,7 @@ void main() {
         final config = validConfig();
         iosConfig(config)['build_command'] = 'flutter build ipa $flag';
         expect(
-          () => validateConfig(config),
+          () => SmfState.parseConfig(config),
           throwsA(
             isA<SmfError>().having(
               (error) => error.message,
@@ -303,12 +409,12 @@ void main() {
         ..['schemaVersion'] = 1;
 
       expect(
-        () => validateConfig(config),
+        () => SmfState.parseConfig(config),
         throwsA(
           isA<SmfError>().having(
             (error) => error.message,
             'message',
-            contains('schema_version must be 1'),
+            contains('schema_version must be 3'),
           ),
         ),
       );
@@ -316,7 +422,7 @@ void main() {
 
     test('rejects iOS prerelease versions', () {
       expect(
-        () => validateManifest(<String, Object?>{
+        () => SmfState.parseManifest(<String, Object?>{
           'schemaVersion': 1,
           'platforms': <String, Object?>{
             'ios': <String, Object?>{
@@ -338,7 +444,7 @@ void main() {
 
     test('validates changelog identity and nonempty localized notes', () {
       expect(
-        () => validateChangelog(<String, Object?>{
+        () => SmfState.parseChangelog(<String, Object?>{
           'schemaVersion': 1,
           'platforms': <String, Object?>{
             'ios': <String, Object?>{
@@ -356,7 +462,7 @@ void main() {
                       'description': 'Fix launch',
                       'body': null,
                       'breaking': false,
-                      'bump': 'patch',
+                      'versionBump': 'patch',
                       'platforms': <Object?>['ios'],
                     },
                   ],
@@ -374,12 +480,54 @@ void main() {
         ),
       );
       expect(
-        () => validateStoreReleaseNotes(<String, Object?>{
+        () => SmfState.parseStoreReleaseNotes(<String, Object?>{
           'ios': <String, Object?>{
             '1.2.3': <String, Object?>{'en-US': ''},
           },
         }),
         throwsA(isA<SmfError>()),
+      );
+    });
+
+    test('enforces platform-specific store release note limits', () {
+      expect(
+        () => SmfState.parseStoreReleaseNotes(<String, Object?>{
+          'android': <String, Object?>{
+            '1.2.3': <String, Object?>{'en-US': repeated('a', 500)},
+          },
+          'ios': <String, Object?>{
+            '1.2.3': <String, Object?>{'en-US': repeated('a', 4000)},
+          },
+        }),
+        returnsNormally,
+      );
+      expect(
+        () => SmfState.parseStoreReleaseNotes(<String, Object?>{
+          'android': <String, Object?>{
+            '1.2.3': <String, Object?>{'en-US': repeated('a', 501)},
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains('android.1.2.3.en-US must be at most 500 characters'),
+          ),
+        ),
+      );
+      expect(
+        () => SmfState.parseStoreReleaseNotes(<String, Object?>{
+          'ios': <String, Object?>{
+            '1.2.3': <String, Object?>{'en-US': repeated('a', 4001)},
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains('ios.1.2.3.en-US must be at most 4000 characters'),
+          ),
+        ),
       );
     });
   });

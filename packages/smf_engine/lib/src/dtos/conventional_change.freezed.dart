@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ConventionalChange {
 
- String get sha; String get type; String? get scope; String get description; String? get body; bool get breaking; Bump? get bump; List<Platform> get platforms;@JsonKey(includeIfNull: false) String? get releaseAs;
+ String get sha; String get type; String? get scope; String get description; String? get body; bool get breaking; VersionBump? get versionBump; List<Platform> get platforms;
 /// Create a copy of ConventionalChange
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $ConventionalChangeCopyWith<ConventionalChange> get copyWith => _$ConventionalCh
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ConventionalChange&&(identical(other.sha, sha) || other.sha == sha)&&(identical(other.type, type) || other.type == type)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.description, description) || other.description == description)&&(identical(other.body, body) || other.body == body)&&(identical(other.breaking, breaking) || other.breaking == breaking)&&(identical(other.bump, bump) || other.bump == bump)&&const DeepCollectionEquality().equals(other.platforms, platforms)&&(identical(other.releaseAs, releaseAs) || other.releaseAs == releaseAs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ConventionalChange&&(identical(other.sha, sha) || other.sha == sha)&&(identical(other.type, type) || other.type == type)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.description, description) || other.description == description)&&(identical(other.body, body) || other.body == body)&&(identical(other.breaking, breaking) || other.breaking == breaking)&&(identical(other.versionBump, versionBump) || other.versionBump == versionBump)&&const DeepCollectionEquality().equals(other.platforms, platforms));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,sha,type,scope,description,body,breaking,bump,const DeepCollectionEquality().hash(platforms),releaseAs);
+int get hashCode => Object.hash(runtimeType,sha,type,scope,description,body,breaking,versionBump,const DeepCollectionEquality().hash(platforms));
 
 @override
 String toString() {
-  return 'ConventionalChange(sha: $sha, type: $type, scope: $scope, description: $description, body: $body, breaking: $breaking, bump: $bump, platforms: $platforms, releaseAs: $releaseAs)';
+  return 'ConventionalChange(sha: $sha, type: $type, scope: $scope, description: $description, body: $body, breaking: $breaking, versionBump: $versionBump, platforms: $platforms)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $ConventionalChangeCopyWith<$Res>  {
   factory $ConventionalChangeCopyWith(ConventionalChange value, $Res Function(ConventionalChange) _then) = _$ConventionalChangeCopyWithImpl;
 @useResult
 $Res call({
- String sha, String type, String? scope, String description, String? body, bool breaking, Bump? bump, List<Platform> platforms,@JsonKey(includeIfNull: false) String? releaseAs
+ String sha, String type, String? scope, String description, String? body, bool breaking, VersionBump? versionBump, List<Platform> platforms
 });
 
 
@@ -65,7 +65,7 @@ class _$ConventionalChangeCopyWithImpl<$Res>
 
 /// Create a copy of ConventionalChange
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? sha = null,Object? type = null,Object? scope = freezed,Object? description = null,Object? body = freezed,Object? breaking = null,Object? bump = freezed,Object? platforms = null,Object? releaseAs = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? sha = null,Object? type = null,Object? scope = freezed,Object? description = null,Object? body = freezed,Object? breaking = null,Object? versionBump = freezed,Object? platforms = null,}) {
   return _then(_self.copyWith(
 sha: null == sha ? _self.sha : sha // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
@@ -73,10 +73,9 @@ as String,scope: freezed == scope ? _self.scope : scope // ignore: cast_nullable
 as String?,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String,body: freezed == body ? _self.body : body // ignore: cast_nullable_to_non_nullable
 as String?,breaking: null == breaking ? _self.breaking : breaking // ignore: cast_nullable_to_non_nullable
-as bool,bump: freezed == bump ? _self.bump : bump // ignore: cast_nullable_to_non_nullable
-as Bump?,platforms: null == platforms ? _self.platforms : platforms // ignore: cast_nullable_to_non_nullable
-as List<Platform>,releaseAs: freezed == releaseAs ? _self.releaseAs : releaseAs // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool,versionBump: freezed == versionBump ? _self.versionBump : versionBump // ignore: cast_nullable_to_non_nullable
+as VersionBump?,platforms: null == platforms ? _self.platforms : platforms // ignore: cast_nullable_to_non_nullable
+as List<Platform>,
   ));
 }
 
@@ -161,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String sha,  String type,  String? scope,  String description,  String? body,  bool breaking,  Bump? bump,  List<Platform> platforms, @JsonKey(includeIfNull: false)  String? releaseAs)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String sha,  String type,  String? scope,  String description,  String? body,  bool breaking,  VersionBump? versionBump,  List<Platform> platforms)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ConventionalChange() when $default != null:
-return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_that.breaking,_that.bump,_that.platforms,_that.releaseAs);case _:
+return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_that.breaking,_that.versionBump,_that.platforms);case _:
   return orElse();
 
 }
@@ -182,10 +181,10 @@ return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String sha,  String type,  String? scope,  String description,  String? body,  bool breaking,  Bump? bump,  List<Platform> platforms, @JsonKey(includeIfNull: false)  String? releaseAs)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String sha,  String type,  String? scope,  String description,  String? body,  bool breaking,  VersionBump? versionBump,  List<Platform> platforms)  $default,) {final _that = this;
 switch (_that) {
 case _ConventionalChange():
-return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_that.breaking,_that.bump,_that.platforms,_that.releaseAs);case _:
+return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_that.breaking,_that.versionBump,_that.platforms);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +201,10 @@ return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String sha,  String type,  String? scope,  String description,  String? body,  bool breaking,  Bump? bump,  List<Platform> platforms, @JsonKey(includeIfNull: false)  String? releaseAs)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String sha,  String type,  String? scope,  String description,  String? body,  bool breaking,  VersionBump? versionBump,  List<Platform> platforms)?  $default,) {final _that = this;
 switch (_that) {
 case _ConventionalChange() when $default != null:
-return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_that.breaking,_that.bump,_that.platforms,_that.releaseAs);case _:
+return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_that.breaking,_that.versionBump,_that.platforms);case _:
   return null;
 
 }
@@ -217,7 +216,7 @@ return $default(_that.sha,_that.type,_that.scope,_that.description,_that.body,_t
 
 @JsonSerializable(checked: true, explicitToJson: true)
 class _ConventionalChange implements ConventionalChange {
-  const _ConventionalChange({required this.sha, required this.type, required this.scope, required this.description, required this.body, required this.breaking, required this.bump, required final  List<Platform> platforms, @JsonKey(includeIfNull: false) this.releaseAs}): _platforms = platforms;
+  const _ConventionalChange({required this.sha, required this.type, required this.scope, required this.description, required this.body, required this.breaking, required this.versionBump, required final  List<Platform> platforms}): _platforms = platforms;
   factory _ConventionalChange.fromJson(Map<String, dynamic> json) => _$ConventionalChangeFromJson(json);
 
 @override final  String sha;
@@ -226,7 +225,7 @@ class _ConventionalChange implements ConventionalChange {
 @override final  String description;
 @override final  String? body;
 @override final  bool breaking;
-@override final  Bump? bump;
+@override final  VersionBump? versionBump;
  final  List<Platform> _platforms;
 @override List<Platform> get platforms {
   if (_platforms is EqualUnmodifiableListView) return _platforms;
@@ -234,7 +233,6 @@ class _ConventionalChange implements ConventionalChange {
   return EqualUnmodifiableListView(_platforms);
 }
 
-@override@JsonKey(includeIfNull: false) final  String? releaseAs;
 
 /// Create a copy of ConventionalChange
 /// with the given fields replaced by the non-null parameter values.
@@ -249,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ConventionalChange&&(identical(other.sha, sha) || other.sha == sha)&&(identical(other.type, type) || other.type == type)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.description, description) || other.description == description)&&(identical(other.body, body) || other.body == body)&&(identical(other.breaking, breaking) || other.breaking == breaking)&&(identical(other.bump, bump) || other.bump == bump)&&const DeepCollectionEquality().equals(other._platforms, _platforms)&&(identical(other.releaseAs, releaseAs) || other.releaseAs == releaseAs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ConventionalChange&&(identical(other.sha, sha) || other.sha == sha)&&(identical(other.type, type) || other.type == type)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.description, description) || other.description == description)&&(identical(other.body, body) || other.body == body)&&(identical(other.breaking, breaking) || other.breaking == breaking)&&(identical(other.versionBump, versionBump) || other.versionBump == versionBump)&&const DeepCollectionEquality().equals(other._platforms, _platforms));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,sha,type,scope,description,body,breaking,bump,const DeepCollectionEquality().hash(_platforms),releaseAs);
+int get hashCode => Object.hash(runtimeType,sha,type,scope,description,body,breaking,versionBump,const DeepCollectionEquality().hash(_platforms));
 
 @override
 String toString() {
-  return 'ConventionalChange(sha: $sha, type: $type, scope: $scope, description: $description, body: $body, breaking: $breaking, bump: $bump, platforms: $platforms, releaseAs: $releaseAs)';
+  return 'ConventionalChange(sha: $sha, type: $type, scope: $scope, description: $description, body: $body, breaking: $breaking, versionBump: $versionBump, platforms: $platforms)';
 }
 
 
@@ -269,7 +267,7 @@ abstract mixin class _$ConventionalChangeCopyWith<$Res> implements $Conventional
   factory _$ConventionalChangeCopyWith(_ConventionalChange value, $Res Function(_ConventionalChange) _then) = __$ConventionalChangeCopyWithImpl;
 @override @useResult
 $Res call({
- String sha, String type, String? scope, String description, String? body, bool breaking, Bump? bump, List<Platform> platforms,@JsonKey(includeIfNull: false) String? releaseAs
+ String sha, String type, String? scope, String description, String? body, bool breaking, VersionBump? versionBump, List<Platform> platforms
 });
 
 
@@ -286,7 +284,7 @@ class __$ConventionalChangeCopyWithImpl<$Res>
 
 /// Create a copy of ConventionalChange
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? sha = null,Object? type = null,Object? scope = freezed,Object? description = null,Object? body = freezed,Object? breaking = null,Object? bump = freezed,Object? platforms = null,Object? releaseAs = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? sha = null,Object? type = null,Object? scope = freezed,Object? description = null,Object? body = freezed,Object? breaking = null,Object? versionBump = freezed,Object? platforms = null,}) {
   return _then(_ConventionalChange(
 sha: null == sha ? _self.sha : sha // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
@@ -294,10 +292,9 @@ as String,scope: freezed == scope ? _self.scope : scope // ignore: cast_nullable
 as String?,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String,body: freezed == body ? _self.body : body // ignore: cast_nullable_to_non_nullable
 as String?,breaking: null == breaking ? _self.breaking : breaking // ignore: cast_nullable_to_non_nullable
-as bool,bump: freezed == bump ? _self.bump : bump // ignore: cast_nullable_to_non_nullable
-as Bump?,platforms: null == platforms ? _self._platforms : platforms // ignore: cast_nullable_to_non_nullable
-as List<Platform>,releaseAs: freezed == releaseAs ? _self.releaseAs : releaseAs // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool,versionBump: freezed == versionBump ? _self.versionBump : versionBump // ignore: cast_nullable_to_non_nullable
+as VersionBump?,platforms: null == platforms ? _self._platforms : platforms // ignore: cast_nullable_to_non_nullable
+as List<Platform>,
   ));
 }
 

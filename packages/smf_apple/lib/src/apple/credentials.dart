@@ -5,24 +5,23 @@ import 'package:smf_apple/src/models/apple_credentials.dart';
 import 'package:smf_apple/src/models/signing_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
 
-final class CredentialProvider {
-  const CredentialProvider({required this.environment});
+final class AppleCredentialProvider {
+  const AppleCredentialProvider({required this.environment});
 
-  factory CredentialProvider.system() =>
-      CredentialProvider(environment: io.Platform.environment);
+  factory AppleCredentialProvider.system() => AppleCredentialProvider(environment: io.Platform.environment);
 
   final Map<String, String> environment;
 
   Future<AppleCredentials> appleCredentials() async {
     final privateKeyBase64 = _optional(const <String>[
-      'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
+      'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
     ]);
     final privateKeyPath = _optional(const <String>[
-      'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
+      'SMF_APP_STORE_CONNECT_AUTH_KEY_PATH',
     ]);
     if (privateKeyBase64 != null && privateKeyPath != null) {
       throw const SmfError(
-        'Set only one App Store Connect private-key source.',
+        'Set only one App Store Connect auth-key source.',
         'CONFLICTING_CREDENTIAL',
       );
     }
@@ -30,14 +29,14 @@ final class CredentialProvider {
         ? _decodeBase64(
             privateKeyBase64 ??
                 _required(const <String>[
-                  'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
+                  'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
                 ]),
-            'App Store Connect private key',
+            'App Store Connect auth key',
           )
         : (await io.File(privateKeyPath).readAsString()).trim();
-    invariant(
+    SmfError.check(
       privateKey.isNotEmpty,
-      'App Store Connect private key is empty.',
+      'App Store Connect auth key is empty.',
       'INVALID_CREDENTIAL',
     );
     return AppleCredentials(
@@ -47,23 +46,17 @@ final class CredentialProvider {
     );
   }
 
-  Future<SigningCredentials> signingCredentials() async {
+  Future<AppleSigningCredentials> signingCredentials() async {
     final certificateBase64 = await _base64Value(
       base64Names: const <String>['SMF_IOS_CERTIFICATE_BASE64'],
       pathNames: const <String>['SMF_IOS_CERTIFICATE_PATH'],
       label: 'iOS distribution certificate',
     );
-    final provisioningProfiles = await _base64Value(
-      base64Names: const <String>['SMF_IOS_PROVISIONING_PROFILES_BASE64'],
-      pathNames: const <String>['SMF_IOS_PROVISIONING_PROFILES_PATH'],
-      label: 'iOS provisioning profiles',
-    );
-    return SigningCredentials(
+    return AppleSigningCredentials(
       certificateBase64: certificateBase64,
       certificatePassword: _required(const <String>[
         'SMF_IOS_CERTIFICATE_PASSWORD',
       ]),
-      provisioningProfiles: provisioningProfiles,
     );
   }
 
@@ -101,34 +94,22 @@ final class CredentialProvider {
     }
     return null;
   }
-}
 
-Future<AppleCredentials> appleCredentialsFromEnvironment([
-  Map<String, String>? environment,
-]) => CredentialProvider(
-  environment: environment ?? io.Platform.environment,
-).appleCredentials();
-
-Future<SigningCredentials> signingCredentialsFromEnvironment([
-  Map<String, String>? environment,
-]) => CredentialProvider(
-  environment: environment ?? io.Platform.environment,
-).signingCredentials();
-
-String _decodeBase64(String value, String name) {
-  try {
-    final decoded = utf8.decode(base64Decode(value)).trim();
-    invariant(
-      decoded.isNotEmpty,
-      '$name decoded to an empty value.',
-      'INVALID_CREDENTIAL',
-    );
-    return decoded;
-  } on FormatException catch (error) {
-    throw SmfError(
-      '$name is not valid Base64-encoded UTF-8.',
-      'INVALID_CREDENTIAL',
-      cause: error,
-    );
+  static String _decodeBase64(String value, String name) {
+    try {
+      final decoded = utf8.decode(base64Decode(value)).trim();
+      SmfError.check(
+        decoded.isNotEmpty,
+        '$name decoded to an empty value.',
+        'INVALID_CREDENTIAL',
+      );
+      return decoded;
+    } on FormatException catch (error) {
+      throw SmfError(
+        '$name is not valid Base64-encoded UTF-8.',
+        'INVALID_CREDENTIAL',
+        cause: error,
+      );
+    }
   }
 }

@@ -6,8 +6,10 @@ that exact `versionCode` toward production.”
 
 It assumes you have never used Play Console. Complete the steps in order.
 
-The first live run uses `google_play.mode: upload`. It uploads to the configured
-testing track but does not change production.
+Keep the generated `release_candidate` and leave `google_play.ship` omitted for
+the first live run. Read
+[Google Play targets](configuration.md#google-play-targets) before choosing
+what SMF should do after the release PR is merged.
 
 > [!IMPORTANT]
 > Store identity, declarations, signing keys, tester access, and production
@@ -23,7 +25,7 @@ By the end, you will have:
 3. an upload keystore held by your team;
 4. an internal testing tester list;
 5. a Google Cloud service account with limited Play Console permissions;
-6. five GitHub Actions secrets; and
+6. five secrets in the app's GitHub Environment; and
 7. an Android section in `smf/config.yaml` that matches the Play app.
 
 The service-account JSON, keystore, aliases, and passwords never belong in Git,
@@ -42,8 +44,8 @@ YAML, an issue, a pull request, or a workflow log.
   customers install.
 - **Upload key:** your separate key used to sign the AAB submitted to Google.
   Google checks it before accepting the bundle.
-- **Track:** a delivery channel such as `internal`, a closed test, or
-  `production`.
+- **Track:** a delivery channel such as `internal-testing`, `closed-testing`,
+  or `production`.
 - **Service account:** a non-human Google identity used by GitHub Actions to
   call the Google Play Developer API.
 
@@ -54,7 +56,7 @@ You need:
 - a verified Google Play developer account for the correct owner;
 - permission to create/manage the app and invite users;
 - access to Google Cloud Console;
-- permission to add GitHub Actions repository secrets;
+- permission to create a GitHub Environment and add its secrets;
 - the production package name;
 - a working Flutter Android project; and
 - an approved password manager or secret manager.
@@ -133,8 +135,13 @@ keytool -genkeypair \
   -validity 10000
 ```
 
+Do not upload the keystore or a certificate file to Play Console. The first AAB
+that SMF signs with this key and uploads as a release candidate registers the
+key's public certificate with Google Play. Subsequent AABs must use the same
+key.
+
 Choose a strong keystore password and key password, then store all four values
-in the team’s secret manager:
+in your secret manager:
 
 - `upload-keystore.jks`
 - alias
@@ -148,7 +155,7 @@ explains the two keys, enrollment, certificate download, and upload-key reset.
 
 ## 4. Create the internal testing audience
 
-SMF uploads to the `internal` track by default, but it does not decide who your
+SMF uploads to `internal-testing` by default, but it does not decide who your
 testers are.
 
 1. In the app, open **Test and release → Testing → Internal testing**.
@@ -195,53 +202,63 @@ the current setup in the
    - **View app information and download bulk reports (read-only)**;
    - **Release apps to testing tracks**.
 6. Grant **Release to production, exclude devices, and use Play App Signing**
-   only if you will later use `mode: review` or `mode: auto`.
+   only if the chosen Android
+   [ship target](configuration.md#google-play-targets) requires production
+   access.
 7. Do not grant financial, orders, user-management, or global Admin access.
-8. Send/accept the invitation.
+8. Select **Invite user**. Do not wait for a person to accept it; Google's
+   service-account flow says API access is available after this step.
 
 SMF does not edit tester lists, so it does not need the permission to manage
 testing tracks and tester lists. Google describes the current release
 permissions in [Publish your app](https://support.google.com/googleplay/android-developer/answer/9859751)
 and [Users and permissions](https://support.google.com/googleplay/android-developer/answer/9844686).
 
-## 7. Encode the two files
+## 7. Prepare the two secret values
+
+For the service account, open `service-account.json` in a text editor and copy
+the complete document, including the opening and closing braces. Do not edit or
+Base64-encode it.
+
+The upload keystore is binary, so encode only that file.
 
 On macOS:
 
 ```bash
-base64 -i service-account.json | pbcopy
 base64 -i upload-keystore.jks | pbcopy
 ```
 
 On Linux:
 
 ```bash
-base64 -w 0 service-account.json
 base64 -w 0 upload-keystore.jks
 ```
 
 Base64 is not encryption. Delete unprotected working copies after the GitHub
 secrets are verified and the originals are stored safely.
 
-## 8. Add the five GitHub Actions secrets
+## 8. Add the five GitHub Environment secrets
 
-Open the Flutter repository:
+Read `app_id` from the Flutter app's `smf/config.yaml`. Open the Flutter
+repository:
 
-**Settings → Secrets and variables → Actions → New repository secret**
+**Settings → Environments → `smf-<app-id>` → Environment secrets**
+
+Create `smf-<app-id>` if it does not exist, replacing `<app-id>` with the exact
+configured value.
 
 Add:
 
-| Secret | Value |
-| --- | --- |
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` | Base64 service-account JSON |
-| `ANDROID_KEYSTORE_BASE64` | Base64 upload keystore |
-| `ANDROID_KEY_ALIAS` | Upload-key alias |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_PASSWORD` | Key password |
+| Secret                             | Value                             |
+| ---------------------------------- | --------------------------------- |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete downloaded JSON document |
+| `ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore            |
+| `ANDROID_KEY_ALIAS`                | Upload-key alias                  |
+| `ANDROID_KEYSTORE_PASSWORD`        | Keystore password                 |
+| `ANDROID_KEY_PASSWORD`             | Key password                      |
 
-Use repository or organization secrets according to your organization’s
-policy. Environment-protected secrets are also valid if the generated jobs are
-configured to use that environment.
+The generated candidate and ship jobs use that environment. Do not place one
+app's Play or upload-key credentials in a sibling app's environment.
 
 ## 9. Configure Android in SMF
 
@@ -252,14 +269,13 @@ platforms:
   android:
     enabled: true
     initial_version: 1.0.0
-    package_name: com.example.myapp
+    package_name: com.example.myapp # Replace with your package name
     google_play:
-      testing_track: internal
-      production_track: production
-      mode: upload
+      release_candidate:
+        target: internal-testing
 ```
 
-Keep `mode: upload` for the first live run.
+Keep `ship` option for google play omitted for the first live run.
 
 If `package_name` is omitted, SMF can detect a literal `applicationId` in a
 simple Gradle file. Set it explicitly for flavors or computed IDs.
@@ -272,17 +288,12 @@ smf validate
 
 ## 10. Decide how production will work later
 
-After the internal-testing candidate is installed and approved:
-
-- `upload` leaves production untouched.
-- `review` moves the exact `versionCode` to production, but requires
-  **Managed publishing** to be enabled in Play Console so a person controls the
-  final publish after Google approval.
-- `auto` moves the exact `versionCode` to production and allows normal Play
-  publication after review.
-
-Do not use `review` unless you have confirmed Managed Publishing is enabled.
-Google explains that control in
+After the internal-testing candidate is installed and approved, choose the
+ship destination using
+[Google Play targets](configuration.md#google-play-targets). If production
+must wait after Google approves it, enable and verify **Managed publishing** in
+Play Console before adding `ship.target: production`. SMF cannot toggle or
+bypass that app-wide setting. Google explains the control in
 [Managed publishing](https://support.google.com/googleplay/android-developer/answer/9859654).
 
 SMF will not replace a production track that contains an unfinished release.
@@ -294,14 +305,23 @@ Before returning to [Getting Started](getting-started.md):
 
 - the Play app uses the exact production package name;
 - Play App Signing is enabled;
-- the upload keystore matches Play’s registered upload certificate;
+- for an existing app, the upload keystore matches Play's registered upload
+  certificate; for a new app, the configured keystore is the one that will sign
+  the first AAB;
 - at least one internal tester has opted in;
 - the Android Publisher API is enabled;
 - the service account is invited with only the required permissions;
-- all five GitHub secrets exist;
-- `google_play.mode` is still `upload`; and
+- all needed secrets exist under GitHub environment `smf-<app-id>`;
+- `google_play.ship` is still omitted; and
 - `smf validate` succeeds.
 
-Never test a credential by printing it. Trigger the upload-only candidate and
-use the [recovery guide](operations.md#retry-and-recovery) if Google rejects
+`smf validate` checks the local repository and configuration only. It cannot
+read the GitHub Environment secrets, authenticate to Play, or verify the upload
+key. The first candidate job performs those credential, permission, package,
+and signing checks.
+
+Never test a credential by printing it. Trigger the candidate-only workflow. On
+a new app, its first accepted AAB registers the upload certificate; confirm it
+under **App integrity** / **Play App Signing** before the next release. Use the
+[recovery guide](operations.md#retry-and-recovery) if Google rejects
 authentication, permission, signing, or package identity.

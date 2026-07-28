@@ -8,10 +8,8 @@ import 'support/recording_process.dart';
 
 final class FakeGitHubApi implements GitHubApi {
   final List<GitHubPullRequest> pulls = <GitHubPullRequest>[];
-  final List<({int number, String title})> updates =
-      <({int number, String title})>[];
-  final List<({String head, String base, String title})> creates =
-      <({String head, String base, String title})>[];
+  final List<({int number, String title})> updates = <({int number, String title})>[];
+  final List<({String head, String base, String title})> creates = <({String head, String base, String title})>[];
   bool hasPendingLabel = false;
 
   @override
@@ -85,49 +83,52 @@ void main() {
       await root.delete(recursive: true);
       await origin.delete(recursive: true);
     });
-    await git(origin.path, const <String>['init', '--bare']);
+    await GitClient(root: origin.path).run(const <String>['init', '--bare']);
     await Directory(p.join(root.path, 'ios')).create();
     await File(
       p.join(root.path, 'pubspec.yaml'),
     ).writeAsString('name: example\nversion: 1.0.0+1\n');
     await File(p.join(root.path, 'app.txt')).writeAsString('baseline\n');
-    await git(root.path, const <String>['init', '-b', 'main']);
-    await git(root.path, const <String>['config', 'user.name', 'Test']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+    await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+    await GitClient(root: root.path).run(const <String>[
       'config',
       'user.email',
       'test@example.com',
     ]);
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-    await initialize(
-      InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
+    await RepositoryInitializer.initialize(
+      InitOptions(appRoot: root.path, iosBundleId: 'dev.example.app'),
     );
-    final paths = resolveSmfPaths(root.path);
+    final paths = SmfPaths.resolve(root.path);
     await File(paths.beforeCreatePrHook).parent.create(recursive: true);
     await File(
       paths.beforeCreatePrHook,
     ).writeAsString('Future<void> main() async {}\n');
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'chore: configure releases',
     ]);
-    await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
-    await git(root.path, const <String>['push', '-u', 'origin', 'main']);
+    await GitClient(root: root.path).run(<String>['remote', 'add', 'origin', origin.path]);
+    await GitClient(root: root.path).run(const <String>['push', '-u', 'origin', 'main']);
     await File(p.join(root.path, 'app.txt')).writeAsString('feature\n');
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'feat(ios): add offline mode',
     ]);
-    await git(root.path, const <String>['push', 'origin', 'main']);
-    final plan = await createReleasePlan(
-      root.path,
-      await loadManifest(root.path),
-      Platform.ios,
+    await GitClient(root: root.path).run(const <String>['push', 'origin', 'main']);
+    final releasePlanner = ReleasePlanner.forRepository(
+      repositoryRoot: root.path,
+      appId: 'example',
+    );
+    final plan = await releasePlanner.create(
+      manifest: await SmfState.manifest(root.path),
+      platform: Platform.ios,
     );
     expect(plan, isNotNull);
     final api = FakeGitHubApi();
@@ -136,7 +137,7 @@ void main() {
       repo: 'app',
       token: 'unused',
     );
-    final config = await loadConfig(root.path);
+    final config = await SmfState.config(root.path);
     final hookRunner = RecordingProcessRunner(
       handler: (invocation) async {
         await File(
@@ -144,112 +145,85 @@ void main() {
         ).writeAsString('generated');
         await File(
           invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
-        ).writeAsString('{"schemaVersion":1,"commitChanges":true}');
+        ).writeAsString('{"schemaVersion":1}');
         return const RunResult(stdout: '', stderr: '', exitCode: 0);
       },
     );
 
-    final result = await createOrUpdateReleasePullRequest(
-      root.path,
-      config,
-      <ReleasePlan>[plan!],
-      context,
+    final result = await ReleasePullRequest.createOrUpdate(
+      workingDirectory: root.path,
+      config: config,
+      plans: <ReleasePlan>[plan!],
+      context: context,
       githubApi: api,
       hookProcessRunner: hookRunner,
     );
 
-    expect(result.branch, 'smf/release');
+    expect(result.branch, 'smf/example/release');
     expect(result.pullRequestNumber, 42);
-    expect(api.creates.single.head, 'smf/release');
+    expect(api.creates.single.head, 'smf/example/release');
     expect(api.creates.single.base, 'main');
-    expect(api.creates.single.title, 'chore(release): iOS 1.1.0');
+    expect(api.creates.single.title, 'chore(example): release iOS 1.1.0');
     expect(
-      await git(origin.path, const <String>[
+      await GitClient(root: origin.path).run(const <String>[
         'show',
-        'smf/release:smf/manifest.json',
+        'smf/example/release:smf/manifest.json',
       ]),
       contains('"pendingRelease": true'),
     );
     expect(
-      await git(origin.path, const <String>[
+      await GitClient(root: origin.path).run(const <String>[
         'show',
-        'smf/release:smf/changelog.json',
+        'smf/example/release:smf/changelog.json',
       ]),
       contains('"1.1.0"'),
     );
     expect(
-      await git(origin.path, const <String>[
+      await GitClient(root: origin.path).run(const <String>[
         'show',
-        'smf/release:smf/store-release-notes.json',
+        'smf/example/release:smf/store-release-notes.json',
       ], allowFailure: true),
       isEmpty,
     );
     expect(
-      await git(origin.path, const <String>[
+      await GitClient(root: origin.path).run(const <String>[
         'show',
-        'smf/release:generated-release-notes.txt',
+        'smf/example/release:generated-release-notes.txt',
       ]),
       'generated',
     );
-    expect(await currentBranch(root.path), 'main');
+    expect(await GitClient(root: root.path).currentBranch(), 'main');
 
     await File(p.join(root.path, 'app.txt')).writeAsString('feature and fix\n');
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'fix(ios): correct offline state',
     ]);
-    await git(root.path, const <String>['push', 'origin', 'main']);
-    final refreshedPlan = await createReleasePlan(
-      root.path,
-      await loadManifest(root.path),
-      Platform.ios,
+    await GitClient(root: root.path).run(const <String>['push', 'origin', 'main']);
+    final refreshedPlan = await releasePlanner.create(
+      manifest: await SmfState.manifest(root.path),
+      platform: Platform.ios,
     );
-    await git(root.path, const <String>['config', '--unset-all', 'user.name']);
-    await git(root.path, const <String>['config', '--unset-all', 'user.email']);
-    await createOrUpdateReleasePullRequest(
-      root.path,
-      config,
-      <ReleasePlan>[refreshedPlan!],
-      context,
+    await GitClient(root: root.path).run(const <String>['config', '--unset-all', 'user.name']);
+    await GitClient(root: root.path).run(const <String>['config', '--unset-all', 'user.email']);
+    await ReleasePullRequest.createOrUpdate(
+      workingDirectory: root.path,
+      config: config,
+      plans: <ReleasePlan>[refreshedPlan!],
+      context: context,
       githubApi: api,
       hookProcessRunner: hookRunner,
     );
     expect(api.updates.single.number, 42);
-    expect(api.updates.single.title, 'chore(release): iOS 1.1.0');
     expect(
-      await git(root.path, const <String>['config', 'user.name']),
+      api.updates.single.title,
+      'chore(example): release iOS 1.1.0',
+    );
+    expect(
+      await GitClient(root: root.path).run(const <String>['config', 'user.name']),
       'smf[bot]',
-    );
-
-    final noCommitRunner = RecordingProcessRunner(
-      handler: (invocation) async {
-        await File(
-          p.join(root.path, 'uncommitted-hook-output.txt'),
-        ).writeAsString('uncommitted');
-        await File(
-          invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
-        ).writeAsString('{"schemaVersion":1,"commitChanges":false}');
-        return const RunResult(stdout: '', stderr: '', exitCode: 0);
-      },
-    );
-    await expectLater(
-      createOrUpdateReleasePullRequest(
-        root.path,
-        config,
-        <ReleasePlan>[refreshedPlan],
-        context,
-        githubApi: api,
-        hookProcessRunner: noCommitRunner,
-      ),
-      throwsA(
-        isA<SmfError>().having(
-          (error) => error.code,
-          'code',
-          'CREATE_PR_HOOK_DIRTY_WORKTREE',
-        ),
-      ),
     );
   });
 
@@ -264,10 +238,10 @@ void main() {
         await root.delete(recursive: true);
         await origin.delete(recursive: true);
       });
-      await git(origin.path, const <String>['init', '--bare']);
-      await git(root.path, const <String>['init', '-b', 'main']);
-      await git(root.path, const <String>['config', 'user.name', 'Test']);
-      await git(root.path, const <String>[
+      await GitClient(root: origin.path).run(const <String>['init', '--bare']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+      await GitClient(root: root.path).run(const <String>[
         'config',
         'user.email',
         'test@example.com',
@@ -277,33 +251,36 @@ void main() {
       await Directory(p.join(root.path, 'smf')).create();
       await File(
         p.join(root.path, 'smf', 'config.yaml'),
-      ).writeAsString('schema_version: 1\nplatforms:\n  ios: {}\n');
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-      await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
-      await git(root.path, const <String>['push', '-u', 'origin', 'main']);
+      ).writeAsString(
+        'schema_version: 3\napp_id: example\nplatforms:\n  ios: {}\n',
+      );
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
+      await GitClient(root: root.path).run(<String>['remote', 'add', 'origin', origin.path]);
+      await GitClient(root: root.path).run(const <String>['push', '-u', 'origin', 'main']);
 
-      await git(root.path, const <String>['checkout', '-b', 'smf/release']);
+      await GitClient(root: root.path).run(
+        const <String>['checkout', '-b', 'smf/example/release'],
+      );
       await File(sourcePath).writeAsString('release branch\n');
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>['commit', '-m', 'chore: release']);
-      await git(
-        root.path,
-        const <String>['push', '-u', 'origin', 'smf/release'],
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: release']);
+      await GitClient(root: root.path).run(
+        const <String>['push', '-u', 'origin', 'smf/example/release'],
       );
 
-      await git(root.path, const <String>['checkout', 'main']);
+      await GitClient(root: root.path).run(const <String>['checkout', 'main']);
       await File(sourcePath).writeAsString('target branch\n');
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>['commit', '-m', 'fix: conflict']);
-      await git(root.path, const <String>['push', 'origin', 'main']);
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['commit', '-m', 'fix: conflict']);
+      await GitClient(root: root.path).run(const <String>['push', 'origin', 'main']);
 
-      const config = SmfConfig(ios: IosConfig());
+      const config = SmfConfig(appId: 'example', ios: IosConfig());
       const plan = ReleasePlan(
         platform: Platform.ios,
         currentVersion: '1.0.0',
         nextVersion: '1.0.1',
-        bump: Bump.patch,
+        versionBump: VersionBump.patch,
         baseSha: 'base',
         headSha: 'head',
         changes: <ConventionalChange>[],
@@ -315,11 +292,11 @@ void main() {
       );
 
       await expectLater(
-        createOrUpdateReleasePullRequest(
-          root.path,
-          config,
-          const <ReleasePlan>[plan],
-          context,
+        ReleasePullRequest.createOrUpdate(
+          workingDirectory: root.path,
+          config: config,
+          plans: const <ReleasePlan>[plan],
+          context: context,
           githubApi: FakeGitHubApi(),
         ),
         throwsA(
@@ -330,8 +307,8 @@ void main() {
           ),
         ),
       );
-      expect(await currentBranch(root.path), 'main');
-      expect(await isClean(root.path), isTrue);
+      expect(await GitClient(root: root.path).currentBranch(), 'main');
+      expect(await GitClient(root: root.path).isClean(), isTrue);
     },
   );
 }

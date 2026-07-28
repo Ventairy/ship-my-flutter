@@ -27,18 +27,39 @@ void main() {
             'PATH': '/usr/bin:/bin',
             'GITHUB_TOKEN': 'github-secret',
             'SMF_IOS_CERTIFICATE_PASSWORD': 'certificate-secret',
-            'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH': '/private/key.p8',
+            'SMF_APP_STORE_CONNECT_AUTH_KEY_PATH': '/private/key.p8',
           },
         );
         const command =
             r'printf "%s|%s|%s" "$GITHUB_TOKEN" '
             r'"$SMF_IOS_CERTIFICATE_PASSWORD" '
-            r'"$SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH"';
+            r'"$SMF_APP_STORE_CONNECT_AUTH_KEY_PATH"';
         final result = await runner.run('/bin/sh', const <String>[
           '-c',
           command,
         ]);
         expect(result.stdout, '||');
+      },
+    );
+
+    test(
+      'preserves explicitly supplied project-specific credentials',
+      () async {
+        const runner = SystemProcessRunner(
+          parentEnvironment: <String, String>{
+            'PATH': '/usr/bin:/bin',
+            'CATAQUI_RELEASE_NOTES_TOKEN': 'project-secret',
+            'SMF_IOS_CERTIFICATE_PASSWORD': 'signing-secret',
+          },
+        );
+        const command =
+            r'printf "%s|%s" "$CATAQUI_RELEASE_NOTES_TOKEN" '
+            r'"$SMF_IOS_CERTIFICATE_PASSWORD"';
+        final result = await runner.run('/bin/sh', const <String>[
+          '-c',
+          command,
+        ]);
+        expect(result.stdout, 'project-secret|');
       },
     );
 

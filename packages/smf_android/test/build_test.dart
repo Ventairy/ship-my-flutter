@@ -60,16 +60,16 @@ void main() {
     await app.create(recursive: true);
 
     expect(
-      await resolveAndroidBuildCommand(app.path),
+      await AndroidBuild.resolveCommand(app.path),
       'flutter build appbundle --release',
     );
     await File(p.join(root.path, '.fvmrc')).writeAsString('{}');
     expect(
-      await resolveAndroidBuildCommand(app.path),
+      await AndroidBuild.resolveCommand(app.path),
       'fvm flutter build appbundle --release',
     );
     expect(
-      await resolveAndroidBuildCommand(
+      await AndroidBuild.resolveCommand(
         app.path,
         configuredCommand: 'tool build android',
       ),
@@ -85,16 +85,16 @@ void main() {
     final first = File(p.join(output.path, 'app.aab'));
     await first.writeAsBytes(<int>[1]);
 
-    expect(await findAab(root.path, aabOutputPath: 'build/bundle'), first.path);
+    expect(await AndroidBuild.findArtifact(root.path, aabOutputPath: 'build/bundle'), first.path);
     await File(p.join(output.path, 'other.aab')).writeAsBytes(<int>[2]);
     await expectLater(
-      findAab(root.path, aabOutputPath: 'build/bundle'),
+      AndroidBuild.findArtifact(root.path, aabOutputPath: 'build/bundle'),
       throwsA(
         isA<SmfError>().having((error) => error.code, 'code', 'AAB_COUNT'),
       ),
     );
     await expectLater(
-      findAab(root.path, aabOutputPath: '../outside.aab'),
+      AndroidBuild.findArtifact(root.path, aabOutputPath: '../outside.aab'),
       throwsA(
         isA<SmfError>().having(
           (error) => error.code,
@@ -117,13 +117,13 @@ void main() {
         keyPassword: 'key-secret',
       );
       final runner = RecordingRunner();
-      final signing = await installAndroidSigning(
+      final signing = await AndroidSigningSession.install(
         credentials,
         processRunner: runner,
       );
       addTearDown(signing.cleanup);
 
-      final artifact = await runAndroidBuildCommand(
+      final artifact = await AndroidBuild.run(
         projectRoot: root.path,
         command: 'flutter build appbundle --release',
         aabOutputPath: 'build/app/outputs/bundle/release',

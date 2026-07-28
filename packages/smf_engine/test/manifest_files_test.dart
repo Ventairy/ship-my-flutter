@@ -4,21 +4,20 @@ import 'dart:io';
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
-String repeated(String value, int count) =>
-    List<String>.filled(count, value).join();
+String repeated(String value, int count) => List<String>.filled(count, value).join();
 
 ConventionalChange change({
   required String sha,
   required String description,
-  required Bump bump,
+  required VersionBump versionBump,
 }) => ConventionalChange(
   sha: sha,
   type: 'feat',
   scope: 'ios',
   description: description,
   body: null,
-  breaking: bump == Bump.major,
-  bump: bump,
+  breaking: versionBump == VersionBump.major,
+  versionBump: versionBump,
   platforms: const <Platform>[Platform.ios],
 );
 
@@ -29,13 +28,15 @@ Future<Directory> stateDirectory({
 }) async {
   final root = await Directory.systemTemp.createTemp('smf-manifest-');
   addTearDown(() => root.delete(recursive: true));
-  await git(root.path, const <String>['init', '-b', 'main']);
+  await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
   final state = Directory('${root.path}/smf');
   await state.create();
   await File(
     '${state.path}/config.yaml',
-  ).writeAsString('schema_version: 1\nplatforms:\n  ios: {}\n');
-  final paths = resolveSmfPaths(root.path);
+  ).writeAsString(
+    'schema_version: 3\napp_id: example\nplatforms:\n  ios: {}\n',
+  );
+  final paths = SmfPaths.resolve(root.path);
   await Directory(paths.candidates).create();
   final manifest = SmfManifest(
     ios: PlatformManifest(
@@ -64,7 +65,7 @@ void main() {
       final oldChange = change(
         sha: repeated('b', 40),
         description: 'Old plan',
-        bump: Bump.minor,
+        versionBump: VersionBump.minor,
       );
       final root = await stateDirectory(
         version: '1.1.0',
@@ -79,26 +80,35 @@ void main() {
           ),
         },
       );
-      final receipt = File(candidatePath(root.path, Platform.ios, '1.1.0'));
+      final receipt = File(
+        SmfPaths.resolve(root.path).candidatePath(
+          platform: Platform.ios,
+          version: '1.1.0',
+        ),
+      );
       await receipt.writeAsString('{}\n');
       final nextChange = change(
         sha: repeated('c', 40),
         description: 'Breaking plan',
-        bump: Bump.major,
+        versionBump: VersionBump.major,
       );
       final plan = ReleasePlan(
         platform: Platform.ios,
         currentVersion: '1.0.0',
         nextVersion: '2.0.0',
-        bump: Bump.major,
+        versionBump: VersionBump.major,
         baseSha: repeated('a', 40),
         headSha: repeated('c', 40),
         changes: <ConventionalChange>[nextChange],
       );
 
-      await applyReleasePlan(root.path, plan, DateTime.utc(2026, 7, 26));
+      await ReleaseRegistry.apply(
+        root: root.path,
+        plan: plan,
+        preparedAt: DateTime.utc(2026, 7, 26),
+      );
 
-      final changelog = await loadChangelog(root.path);
+      final changelog = await SmfState.changelog(root.path);
       expect(changelog.iosReleases.keys, <String>['2.0.0']);
       expect(await receipt.exists(), isFalse);
     });
@@ -109,7 +119,7 @@ void main() {
         final releasedChange = change(
           sha: repeated('b', 40),
           description: 'Released plan',
-          bump: Bump.minor,
+          versionBump: VersionBump.minor,
         );
         final root = await stateDirectory(
           version: '1.1.0',
@@ -124,41 +134,52 @@ void main() {
             ),
           },
         );
-        final receipt = File(candidatePath(root.path, Platform.ios, '1.1.0'));
+        final receipt = File(
+          SmfPaths.resolve(root.path).candidatePath(
+            platform: Platform.ios,
+            version: '1.1.0',
+          ),
+        );
         await receipt.writeAsString('{}\n');
-        await git(root.path, const <String>['config', 'user.name', 'Test']);
-        await git(root.path, const <String>[
+        await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+        await GitClient(root: root.path).run(const <String>[
           'config',
           'user.email',
           'test@example.com',
         ]);
-        await git(root.path, const <String>['add', '.']);
-        await git(root.path, const <String>[
+        await GitClient(root: root.path).run(const <String>['add', '.']);
+        await GitClient(root: root.path).run(const <String>[
           'commit',
           '-m',
           'chore(ios): release 1.1.0',
         ]);
-        await git(root.path, const <String>['tag', 'ios-v1.1.0']);
-        final head = await git(root.path, const <String>['rev-parse', 'HEAD']);
+        await GitClient(root: root.path).run(
+          const <String>['tag', 'example/ios-v1.1.0'],
+        );
+        final head = await GitClient(root: root.path).run(const <String>['rev-parse', 'HEAD']);
         final plan = ReleasePlan(
           platform: Platform.ios,
           currentVersion: '1.1.0',
           nextVersion: '1.2.0',
-          bump: Bump.minor,
+          versionBump: VersionBump.minor,
           baseSha: head,
           headSha: repeated('c', 40),
           changes: <ConventionalChange>[
             change(
               sha: repeated('c', 40),
               description: 'Next plan',
-              bump: Bump.minor,
+              versionBump: VersionBump.minor,
             ),
           ],
         );
 
-        await applyReleasePlan(root.path, plan, DateTime.utc(2026, 7, 26));
+        await ReleaseRegistry.apply(
+          root: root.path,
+          plan: plan,
+          preparedAt: DateTime.utc(2026, 7, 26),
+        );
 
-        final changelog = await loadChangelog(root.path);
+        final changelog = await SmfState.changelog(root.path);
         expect(changelog.iosReleases.keys, <String>['1.1.0', '1.2.0']);
         expect(await receipt.exists(), isTrue);
       },

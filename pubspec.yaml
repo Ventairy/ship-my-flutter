@@ -13,17 +13,20 @@ workspace:
 
 dev_dependencies:
   melos: ^8.2.2
+  path: ^1.9.1
   very_good_analysis: 10.1.0
 
 melos:
   repository: https://github.com/Ventairy/smf
   scripts:
     format:
-      run: dart format .
+      run: dart run tool/check_dart_format.dart --write
     format:check:
-      run: dart format --output=none --set-exit-if-changed .
+      run: dart run tool/check_dart_format.dart
     analyze:
       run: dart analyze --fatal-infos
+    docs:check:
+      run: dart run tool/check_markdown_links.dart
     test:
       exec:
         command: dart test

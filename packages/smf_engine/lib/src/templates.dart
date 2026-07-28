@@ -1,65 +1,88 @@
 import 'dart:convert';
 
-const String configSchemaUrl =
-    'https://raw.githubusercontent.com/Ventairy/smf/main/'
-    'packages/smf_engine/schemas/config.schema.json';
+/// Renders the configuration and GitHub workflow files owned by SMF.
+final class SmfTemplates {
+  const SmfTemplates._();
 
-String generatedConfigYaml({
-  required String initialVersion,
-  required bool enableIos,
-  required bool enableAndroid,
-  String? bundleId,
-  String? packageName,
-}) {
-  final bundleLine = bundleId == null
-      ? ''
-      : '    bundle_id: ${jsonEncode(bundleId)}\n';
-  final packageLine = packageName == null
-      ? ''
-      : '    package_name: ${jsonEncode(packageName)}\n';
-  return '''
+  /// Schema URL embedded in generated configuration files.
+  static const String configSchemaUrl =
+      'https://raw.githubusercontent.com/Ventairy/smf/main/'
+      'packages/smf_engine/schemas/config.schema.json';
+
+  static String _yamlBlock(List<String> lines) => '${lines.join('\n')}\n';
+
+  /// Renders a complete app configuration.
+  static String configYaml({
+    required String appId,
+    required String? iosInitialVersion,
+    required String? androidInitialVersion,
+    List<String> releaseTriggerPaths = const <String>[],
+    String? bundleId,
+    String? packageName,
+  }) {
+    final encodedBundleId = bundleId == null ? null : jsonEncode(bundleId);
+    final encodedPackageName = packageName == null ? null : jsonEncode(packageName);
+    final iosBlock = iosInitialVersion == null
+        ? ''
+        : _yamlBlock(<String>[
+            '  ios:',
+            '    enabled: true',
+            '    initial_version: $iosInitialVersion',
+            if (encodedBundleId != null) '    bundle_id: $encodedBundleId',
+            '    app_store:',
+            '      release_candidate:',
+            '        target: internal-testing',
+            '        groups: []',
+            '        wait_timeout_minutes: 45',
+          ]);
+    final androidBlock = androidInitialVersion == null
+        ? ''
+        : _yamlBlock(<String>[
+            '  android:',
+            '    enabled: true',
+            '    initial_version: $androidInitialVersion',
+            if (encodedPackageName != null) '    package_name: $encodedPackageName',
+            '    google_play:',
+            '      release_candidate:',
+            '        target: internal-testing',
+          ]);
+    return '''
 # yaml-language-server: \$schema=$configSchemaUrl
 
-schema_version: 1
+schema_version: 3
+app_id: ${jsonEncode(appId)}
 target_branch: main
-platforms:
-  ios:
-    enabled: $enableIos
-    initial_version: $initialVersion
-$bundleLine    testflight:
-      groups: []
-      wait_timeout_minutes: 45
-    app_store:
-      mode: upload
-  android:
-    enabled: $enableAndroid
-    initial_version: $initialVersion
-$packageLine    google_play:
-      testing_track: internal
-      production_track: production
-      mode: upload
-''';
-}
+${releaseTriggerPaths.isEmpty ? '' : 'release_trigger_paths:\n${releaseTriggerPaths.map((path) => '  - ${jsonEncode(path)}').join('\n')}\n'}platforms:
+$iosBlock$androidBlock''';
+  }
 
-String generatedWorkflowYaml({required String smfPath}) {
-  return workflowTemplate.replaceAll('__SMF_PATH__', jsonEncode(smfPath));
-}
+  /// Renders the app-scoped GitHub Actions workflow.
+  static String workflowYaml({
+    required String smfPath,
+    required String appId,
+  }) {
+    return _workflowTemplate.replaceAll('__SMF_PATH__', jsonEncode(smfPath)).replaceAll('__APP_ID__', appId);
+  }
 
-const String workflowTemplate = r'''
-name: SMF
+  /// Returns the app-scoped workflow file name.
+  static String workflowFileName(String appId) => 'smf-$appId.yml';
+
+  static const String _workflowTemplate = r'''
+name: SMF (__APP_ID__)
 
 on:
   push:
   workflow_dispatch:
 
 env:
+  SMF_APP_ID: __APP_ID__
   SMF_PATH: __SMF_PATH__
 
 permissions:
   contents: read
 
 concurrency:
-  group: smf-${{ github.repository }}
+  group: smf-${{ github.repository }}-${{ env.SMF_APP_ID }}
   cancel-in-progress: false
 
 jobs:
@@ -99,6 +122,7 @@ jobs:
     name: release-candidate (${{ matrix.platform }})
     needs: pull_request
     if: needs.pull_request.outputs.phase == 'release-candidate'
+    environment: smf-__APP_ID__
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -129,11 +153,10 @@ jobs:
           smf-path: ${{ env.SMF_PATH }}
           app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          app-store-connect-private-key-base64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
+          app-store-connect-auth-key-base64: ${{ secrets.APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
           ios-certificate-base64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           ios-certificate-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          ios-provisioning-profiles-base64: ${{ secrets.IOS_PROVISIONING_PROFILES_BASE64 }}
-          google-play-service-account-json-base64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+          google-play-service-account-json: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           android-keystore-base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           android-key-alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           android-keystore-password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -143,6 +166,7 @@ jobs:
     name: ship (${{ matrix.platform }})
     needs: pull_request
     if: needs.pull_request.outputs.phase == 'ship'
+    environment: smf-__APP_ID__
     strategy:
       fail-fast: false
       matrix:
@@ -162,6 +186,7 @@ jobs:
           smf-path: ${{ env.SMF_PATH }}
           app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          app-store-connect-private-key-base64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
-          google-play-service-account-json-base64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+          app-store-connect-auth-key-base64: ${{ secrets.APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
+          google-play-service-account-json: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
 ''';
+}

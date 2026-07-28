@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GooglePlayConfig {
 
- String get testingTrack; String get productionTrack; ReleaseMode get mode;
+ GooglePlayReleaseCandidateConfig get releaseCandidate; GooglePlayShipConfig? get ship;
 /// Create a copy of GooglePlayConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $GooglePlayConfigCopyWith<GooglePlayConfig> get copyWith => _$GooglePlayConfigCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GooglePlayConfig&&(identical(other.testingTrack, testingTrack) || other.testingTrack == testingTrack)&&(identical(other.productionTrack, productionTrack) || other.productionTrack == productionTrack)&&(identical(other.mode, mode) || other.mode == mode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GooglePlayConfig&&(identical(other.releaseCandidate, releaseCandidate) || other.releaseCandidate == releaseCandidate)&&(identical(other.ship, ship) || other.ship == ship));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,testingTrack,productionTrack,mode);
+int get hashCode => Object.hash(runtimeType,releaseCandidate,ship);
 
 @override
 String toString() {
-  return 'GooglePlayConfig(testingTrack: $testingTrack, productionTrack: $productionTrack, mode: $mode)';
+  return 'GooglePlayConfig(releaseCandidate: $releaseCandidate, ship: $ship)';
 }
 
 
@@ -45,11 +45,11 @@ abstract mixin class $GooglePlayConfigCopyWith<$Res>  {
   factory $GooglePlayConfigCopyWith(GooglePlayConfig value, $Res Function(GooglePlayConfig) _then) = _$GooglePlayConfigCopyWithImpl;
 @useResult
 $Res call({
- String testingTrack, String productionTrack, ReleaseMode mode
+ GooglePlayReleaseCandidateConfig releaseCandidate, GooglePlayShipConfig? ship
 });
 
 
-
+$GooglePlayReleaseCandidateConfigCopyWith<$Res> get releaseCandidate;$GooglePlayShipConfigCopyWith<$Res>? get ship;
 
 }
 /// @nodoc
@@ -62,15 +62,35 @@ class _$GooglePlayConfigCopyWithImpl<$Res>
 
 /// Create a copy of GooglePlayConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? testingTrack = null,Object? productionTrack = null,Object? mode = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? releaseCandidate = null,Object? ship = freezed,}) {
   return _then(_self.copyWith(
-testingTrack: null == testingTrack ? _self.testingTrack : testingTrack // ignore: cast_nullable_to_non_nullable
-as String,productionTrack: null == productionTrack ? _self.productionTrack : productionTrack // ignore: cast_nullable_to_non_nullable
-as String,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
-as ReleaseMode,
+releaseCandidate: null == releaseCandidate ? _self.releaseCandidate : releaseCandidate // ignore: cast_nullable_to_non_nullable
+as GooglePlayReleaseCandidateConfig,ship: freezed == ship ? _self.ship : ship // ignore: cast_nullable_to_non_nullable
+as GooglePlayShipConfig?,
   ));
 }
+/// Create a copy of GooglePlayConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$GooglePlayReleaseCandidateConfigCopyWith<$Res> get releaseCandidate {
+  
+  return $GooglePlayReleaseCandidateConfigCopyWith<$Res>(_self.releaseCandidate, (value) {
+    return _then(_self.copyWith(releaseCandidate: value));
+  });
+}/// Create a copy of GooglePlayConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$GooglePlayShipConfigCopyWith<$Res>? get ship {
+    if (_self.ship == null) {
+    return null;
+  }
 
+  return $GooglePlayShipConfigCopyWith<$Res>(_self.ship!, (value) {
+    return _then(_self.copyWith(ship: value));
+  });
+}
 }
 
 
@@ -152,10 +172,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String testingTrack,  String productionTrack,  ReleaseMode mode)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( GooglePlayReleaseCandidateConfig releaseCandidate,  GooglePlayShipConfig? ship)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GooglePlayConfig() when $default != null:
-return $default(_that.testingTrack,_that.productionTrack,_that.mode);case _:
+return $default(_that.releaseCandidate,_that.ship);case _:
   return orElse();
 
 }
@@ -173,10 +193,10 @@ return $default(_that.testingTrack,_that.productionTrack,_that.mode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String testingTrack,  String productionTrack,  ReleaseMode mode)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( GooglePlayReleaseCandidateConfig releaseCandidate,  GooglePlayShipConfig? ship)  $default,) {final _that = this;
 switch (_that) {
 case _GooglePlayConfig():
-return $default(_that.testingTrack,_that.productionTrack,_that.mode);case _:
+return $default(_that.releaseCandidate,_that.ship);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -193,10 +213,10 @@ return $default(_that.testingTrack,_that.productionTrack,_that.mode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String testingTrack,  String productionTrack,  ReleaseMode mode)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( GooglePlayReleaseCandidateConfig releaseCandidate,  GooglePlayShipConfig? ship)?  $default,) {final _that = this;
 switch (_that) {
 case _GooglePlayConfig() when $default != null:
-return $default(_that.testingTrack,_that.productionTrack,_that.mode);case _:
+return $default(_that.releaseCandidate,_that.ship);case _:
   return null;
 
 }
@@ -208,12 +228,11 @@ return $default(_that.testingTrack,_that.productionTrack,_that.mode);case _:
 
 
 class _GooglePlayConfig implements GooglePlayConfig {
-  const _GooglePlayConfig({this.testingTrack = 'internal', this.productionTrack = 'production', this.mode = ReleaseMode.upload});
+  const _GooglePlayConfig({this.releaseCandidate = const GooglePlayReleaseCandidateConfig(), this.ship});
   
 
-@override@JsonKey() final  String testingTrack;
-@override@JsonKey() final  String productionTrack;
-@override@JsonKey() final  ReleaseMode mode;
+@override@JsonKey() final  GooglePlayReleaseCandidateConfig releaseCandidate;
+@override final  GooglePlayShipConfig? ship;
 
 /// Create a copy of GooglePlayConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -225,16 +244,16 @@ _$GooglePlayConfigCopyWith<_GooglePlayConfig> get copyWith => __$GooglePlayConfi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GooglePlayConfig&&(identical(other.testingTrack, testingTrack) || other.testingTrack == testingTrack)&&(identical(other.productionTrack, productionTrack) || other.productionTrack == productionTrack)&&(identical(other.mode, mode) || other.mode == mode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GooglePlayConfig&&(identical(other.releaseCandidate, releaseCandidate) || other.releaseCandidate == releaseCandidate)&&(identical(other.ship, ship) || other.ship == ship));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,testingTrack,productionTrack,mode);
+int get hashCode => Object.hash(runtimeType,releaseCandidate,ship);
 
 @override
 String toString() {
-  return 'GooglePlayConfig(testingTrack: $testingTrack, productionTrack: $productionTrack, mode: $mode)';
+  return 'GooglePlayConfig(releaseCandidate: $releaseCandidate, ship: $ship)';
 }
 
 
@@ -245,11 +264,11 @@ abstract mixin class _$GooglePlayConfigCopyWith<$Res> implements $GooglePlayConf
   factory _$GooglePlayConfigCopyWith(_GooglePlayConfig value, $Res Function(_GooglePlayConfig) _then) = __$GooglePlayConfigCopyWithImpl;
 @override @useResult
 $Res call({
- String testingTrack, String productionTrack, ReleaseMode mode
+ GooglePlayReleaseCandidateConfig releaseCandidate, GooglePlayShipConfig? ship
 });
 
 
-
+@override $GooglePlayReleaseCandidateConfigCopyWith<$Res> get releaseCandidate;@override $GooglePlayShipConfigCopyWith<$Res>? get ship;
 
 }
 /// @nodoc
@@ -262,16 +281,36 @@ class __$GooglePlayConfigCopyWithImpl<$Res>
 
 /// Create a copy of GooglePlayConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? testingTrack = null,Object? productionTrack = null,Object? mode = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? releaseCandidate = null,Object? ship = freezed,}) {
   return _then(_GooglePlayConfig(
-testingTrack: null == testingTrack ? _self.testingTrack : testingTrack // ignore: cast_nullable_to_non_nullable
-as String,productionTrack: null == productionTrack ? _self.productionTrack : productionTrack // ignore: cast_nullable_to_non_nullable
-as String,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
-as ReleaseMode,
+releaseCandidate: null == releaseCandidate ? _self.releaseCandidate : releaseCandidate // ignore: cast_nullable_to_non_nullable
+as GooglePlayReleaseCandidateConfig,ship: freezed == ship ? _self.ship : ship // ignore: cast_nullable_to_non_nullable
+as GooglePlayShipConfig?,
   ));
 }
 
+/// Create a copy of GooglePlayConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$GooglePlayReleaseCandidateConfigCopyWith<$Res> get releaseCandidate {
+  
+  return $GooglePlayReleaseCandidateConfigCopyWith<$Res>(_self.releaseCandidate, (value) {
+    return _then(_self.copyWith(releaseCandidate: value));
+  });
+}/// Create a copy of GooglePlayConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$GooglePlayShipConfigCopyWith<$Res>? get ship {
+    if (_self.ship == null) {
+    return null;
+  }
 
+  return $GooglePlayShipConfigCopyWith<$Res>(_self.ship!, (value) {
+    return _then(_self.copyWith(ship: value));
+  });
+}
 }
 
 // dart format on

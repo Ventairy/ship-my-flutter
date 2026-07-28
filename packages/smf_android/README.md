@@ -26,3 +26,7 @@ The package supports:
 - exact-`versionCode` production promotion without rebuilding.
 
 Never log or persist service-account JSON, keystores, aliases, or passwords.
+The public API expects the platform-neutral state and integrity contracts from
+`smf_engine`. This package exposes a Dart library and no terminal executable.
+A minimal custom-client example is available in
+[`example/smf_android_example.dart`](https://github.com/Ventairy/smf/blob/main/packages/smf_android/example/smf_android_example.dart).

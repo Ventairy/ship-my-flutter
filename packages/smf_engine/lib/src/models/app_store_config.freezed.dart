@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppStoreConfig {
 
- ReleaseMode get mode;
+ AppleReleaseCandidateConfig get releaseCandidate; AppleShipConfig? get ship;
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $AppStoreConfigCopyWith<AppStoreConfig> get copyWith => _$AppStoreConfigCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStoreConfig&&(identical(other.mode, mode) || other.mode == mode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStoreConfig&&(identical(other.releaseCandidate, releaseCandidate) || other.releaseCandidate == releaseCandidate)&&(identical(other.ship, ship) || other.ship == ship));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,mode);
+int get hashCode => Object.hash(runtimeType,releaseCandidate,ship);
 
 @override
 String toString() {
-  return 'AppStoreConfig(mode: $mode)';
+  return 'AppStoreConfig(releaseCandidate: $releaseCandidate, ship: $ship)';
 }
 
 
@@ -45,11 +45,11 @@ abstract mixin class $AppStoreConfigCopyWith<$Res>  {
   factory $AppStoreConfigCopyWith(AppStoreConfig value, $Res Function(AppStoreConfig) _then) = _$AppStoreConfigCopyWithImpl;
 @useResult
 $Res call({
- ReleaseMode mode
+ AppleReleaseCandidateConfig releaseCandidate, AppleShipConfig? ship
 });
 
 
-
+$AppleReleaseCandidateConfigCopyWith<$Res> get releaseCandidate;$AppleShipConfigCopyWith<$Res>? get ship;
 
 }
 /// @nodoc
@@ -62,13 +62,35 @@ class _$AppStoreConfigCopyWithImpl<$Res>
 
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? mode = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? releaseCandidate = null,Object? ship = freezed,}) {
   return _then(_self.copyWith(
-mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
-as ReleaseMode,
+releaseCandidate: null == releaseCandidate ? _self.releaseCandidate : releaseCandidate // ignore: cast_nullable_to_non_nullable
+as AppleReleaseCandidateConfig,ship: freezed == ship ? _self.ship : ship // ignore: cast_nullable_to_non_nullable
+as AppleShipConfig?,
   ));
 }
+/// Create a copy of AppStoreConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AppleReleaseCandidateConfigCopyWith<$Res> get releaseCandidate {
+  
+  return $AppleReleaseCandidateConfigCopyWith<$Res>(_self.releaseCandidate, (value) {
+    return _then(_self.copyWith(releaseCandidate: value));
+  });
+}/// Create a copy of AppStoreConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AppleShipConfigCopyWith<$Res>? get ship {
+    if (_self.ship == null) {
+    return null;
+  }
 
+  return $AppleShipConfigCopyWith<$Res>(_self.ship!, (value) {
+    return _then(_self.copyWith(ship: value));
+  });
+}
 }
 
 
@@ -150,10 +172,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ReleaseMode mode)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( AppleReleaseCandidateConfig releaseCandidate,  AppleShipConfig? ship)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppStoreConfig() when $default != null:
-return $default(_that.mode);case _:
+return $default(_that.releaseCandidate,_that.ship);case _:
   return orElse();
 
 }
@@ -171,10 +193,10 @@ return $default(_that.mode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ReleaseMode mode)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( AppleReleaseCandidateConfig releaseCandidate,  AppleShipConfig? ship)  $default,) {final _that = this;
 switch (_that) {
 case _AppStoreConfig():
-return $default(_that.mode);case _:
+return $default(_that.releaseCandidate,_that.ship);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -191,10 +213,10 @@ return $default(_that.mode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ReleaseMode mode)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( AppleReleaseCandidateConfig releaseCandidate,  AppleShipConfig? ship)?  $default,) {final _that = this;
 switch (_that) {
 case _AppStoreConfig() when $default != null:
-return $default(_that.mode);case _:
+return $default(_that.releaseCandidate,_that.ship);case _:
   return null;
 
 }
@@ -206,10 +228,11 @@ return $default(_that.mode);case _:
 
 
 class _AppStoreConfig implements AppStoreConfig {
-  const _AppStoreConfig({this.mode = ReleaseMode.upload});
+  const _AppStoreConfig({this.releaseCandidate = const AppleReleaseCandidateConfig(), this.ship});
   
 
-@override@JsonKey() final  ReleaseMode mode;
+@override@JsonKey() final  AppleReleaseCandidateConfig releaseCandidate;
+@override final  AppleShipConfig? ship;
 
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -221,16 +244,16 @@ _$AppStoreConfigCopyWith<_AppStoreConfig> get copyWith => __$AppStoreConfigCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStoreConfig&&(identical(other.mode, mode) || other.mode == mode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStoreConfig&&(identical(other.releaseCandidate, releaseCandidate) || other.releaseCandidate == releaseCandidate)&&(identical(other.ship, ship) || other.ship == ship));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,mode);
+int get hashCode => Object.hash(runtimeType,releaseCandidate,ship);
 
 @override
 String toString() {
-  return 'AppStoreConfig(mode: $mode)';
+  return 'AppStoreConfig(releaseCandidate: $releaseCandidate, ship: $ship)';
 }
 
 
@@ -241,11 +264,11 @@ abstract mixin class _$AppStoreConfigCopyWith<$Res> implements $AppStoreConfigCo
   factory _$AppStoreConfigCopyWith(_AppStoreConfig value, $Res Function(_AppStoreConfig) _then) = __$AppStoreConfigCopyWithImpl;
 @override @useResult
 $Res call({
- ReleaseMode mode
+ AppleReleaseCandidateConfig releaseCandidate, AppleShipConfig? ship
 });
 
 
-
+@override $AppleReleaseCandidateConfigCopyWith<$Res> get releaseCandidate;@override $AppleShipConfigCopyWith<$Res>? get ship;
 
 }
 /// @nodoc
@@ -258,14 +281,36 @@ class __$AppStoreConfigCopyWithImpl<$Res>
 
 /// Create a copy of AppStoreConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? mode = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? releaseCandidate = null,Object? ship = freezed,}) {
   return _then(_AppStoreConfig(
-mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
-as ReleaseMode,
+releaseCandidate: null == releaseCandidate ? _self.releaseCandidate : releaseCandidate // ignore: cast_nullable_to_non_nullable
+as AppleReleaseCandidateConfig,ship: freezed == ship ? _self.ship : ship // ignore: cast_nullable_to_non_nullable
+as AppleShipConfig?,
   ));
 }
 
+/// Create a copy of AppStoreConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AppleReleaseCandidateConfigCopyWith<$Res> get releaseCandidate {
+  
+  return $AppleReleaseCandidateConfigCopyWith<$Res>(_self.releaseCandidate, (value) {
+    return _then(_self.copyWith(releaseCandidate: value));
+  });
+}/// Create a copy of AppStoreConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AppleShipConfigCopyWith<$Res>? get ship {
+    if (_self.ship == null) {
+    return null;
+  }
 
+  return $AppleShipConfigCopyWith<$Res>(_self.ship!, (value) {
+    return _then(_self.copyWith(ship: value));
+  });
+}
 }
 
 // dart format on

@@ -1,7 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:smf_engine/src/models/app_store_config.dart';
-import 'package:smf_engine/src/models/testflight_config.dart';
 
 part 'ios_config.freezed.dart';
 
@@ -15,7 +14,6 @@ abstract class IosConfig with _$IosConfig {
     String? bundleId,
     String? buildCommand,
     @Default('build/ios/ipa') String ipaOutputPath,
-    @Default(TestflightConfig()) TestflightConfig testflight,
     @Default(AppStoreConfig()) AppStoreConfig appStore,
   }) = _IosConfig;
 }

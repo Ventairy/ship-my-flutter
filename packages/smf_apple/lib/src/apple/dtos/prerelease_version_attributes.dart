@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:smf_apple/src/apple/dtos/apple_platform.dart';
 
 part 'prerelease_version_attributes.freezed.dart';
 part 'prerelease_version_attributes.g.dart';
@@ -10,7 +11,7 @@ abstract class PrereleaseVersionAttributes with _$PrereleaseVersionAttributes {
   @JsonSerializable(checked: true)
   const factory PrereleaseVersionAttributes({
     required String version,
-    required String platform,
+    required ApplePlatform platform,
   }) = _PrereleaseVersionAttributes;
 
   /// Decodes prerelease-version attributes from JSON.

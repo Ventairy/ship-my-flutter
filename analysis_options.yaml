@@ -4,14 +4,29 @@ analyzer:
   exclude:
     - "**/*.freezed.dart"
     - "**/*.g.dart"
+
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
   errors:
     invalid_annotation_target: ignore
 
+formatter:
+  page_width: 120
+
 linter:
   rules:
+    always_use_package_imports: false
+    avoid_catches_without_on_clauses: false
+    avoid_redundant_argument_values: false
     # SMF's curated exports require Dartdoc. Requiring it for every public
     # declaration in private src/ implementation files creates boilerplate.
     public_member_api_docs: false
     # SMF is an I/O-bound CLI and intentionally keeps filesystem work
     # asynchronous so embedded consumers are not forced onto blocking APIs.
     avoid_slow_async_io: false
+    lines_longer_than_80_chars: false
+    no_leading_underscores_for_local_identifiers: false
+    one_member_abstracts: false

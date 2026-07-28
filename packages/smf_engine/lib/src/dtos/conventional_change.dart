@@ -17,14 +17,12 @@ abstract class ConventionalChange with _$ConventionalChange {
     required String description,
     required String? body,
     required bool breaking,
-    required Bump? bump,
+    required VersionBump? versionBump,
     required List<Platform> platforms,
-    @JsonKey(includeIfNull: false) String? releaseAs,
   }) = _ConventionalChange;
 
   /// Decodes typed change fields without changelog-domain validation.
   ///
-  /// Use `validateChangelog` when reading user repository state.
-  factory ConventionalChange.fromJson(Map<String, Object?> json) =>
-      _$ConventionalChangeFromJson(json);
+  /// Use `SmfState.parseChangelog` when reading repository state.
+  factory ConventionalChange.fromJson(Map<String, Object?> json) => _$ConventionalChangeFromJson(json);
 }

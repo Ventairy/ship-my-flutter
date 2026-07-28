@@ -12,7 +12,7 @@ void main() {
         'description': 'add release automation',
         'body': null,
         'breaking': false,
-        'bump': 'minor',
+        'versionBump': 'minor',
         'platforms': <Object?>['ios'],
       };
 

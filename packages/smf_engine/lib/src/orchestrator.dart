@@ -18,26 +18,37 @@ final class ReleaseOrchestrator {
     required GitHubContext github,
     String? smfPath,
   }) async {
-    final paths = resolveSmfPaths(workingDirectory, smfPath: smfPath);
+    final paths = SmfPaths.resolve(workingDirectory, smfPath: smfPath);
     final repositoryRoot = paths.repositoryRoot;
+    final gitClient = GitClient(root: repositoryRoot);
     final (config, manifest) = await (
-      loadConfig(paths.directory),
-      loadManifest(paths.directory),
+      SmfState.config(paths.directory),
+      SmfState.manifest(paths.directory),
     ).wait;
     if (config.enabledPlatforms.isEmpty) {
       return const CommandResult(phase: 'noop');
     }
-    final branch = await currentBranch(repositoryRoot);
-    const releaseBranch = releaseBranchName;
+    final branch = await gitClient.currentBranch();
+    final releaseBranch = ReleaseReference.branch(config.appId);
+    final releasePlanner = ReleasePlanner(
+      gitClient: gitClient,
+      appId: config.appId,
+      releaseTriggerPaths: paths.releaseTriggerPaths(
+        config.releaseTriggerPaths,
+      ),
+    );
     if (branch != releaseBranch && branch != config.targetBranch) {
       return const CommandResult(phase: 'noop');
     }
-    await validateRepository(paths.directory);
+    await RepositoryValidator.validate(paths.directory);
     final pending = <ReleaseTarget>[];
     for (final platform in config.enabledPlatforms) {
       final state = manifest.forPlatform(platform);
       if (state.pendingRelease &&
-          await releaseNeedsPromotion(repositoryRoot, manifest, platform)) {
+          await releasePlanner.needsPromotion(
+            manifest: manifest,
+            platform: platform,
+          )) {
         pending.add(
           ReleaseTarget(platform: platform, version: state.version),
         );
@@ -57,19 +68,18 @@ final class ReleaseOrchestrator {
     }
     final plans = <ReleasePlan>[];
     for (final platform in config.enabledPlatforms) {
-      final plan = await createReleasePlan(
-        repositoryRoot,
-        manifest,
-        platform,
+      final plan = await releasePlanner.create(
+        manifest: manifest,
+        platform: platform,
       );
       if (plan != null) plans.add(plan);
     }
     if (plans.isEmpty) return const CommandResult(phase: 'noop');
-    final pull = await createOrUpdateReleasePullRequest(
-      paths.directory,
-      config,
-      plans,
-      github,
+    final pull = await ReleasePullRequest.createOrUpdate(
+      workingDirectory: paths.directory,
+      config: config,
+      plans: plans,
+      context: github,
       githubApi: githubApi,
     );
     return CommandResult(
@@ -86,12 +96,3 @@ final class ReleaseOrchestrator {
     );
   }
 }
-
-Future<CommandResult> planGitHubRelease({
-  required String workingDirectory,
-  required GitHubContext github,
-  String? smfPath,
-  GitHubApi? githubApi,
-}) => ReleaseOrchestrator(
-  githubApi: githubApi,
-).plan(workingDirectory: workingDirectory, smfPath: smfPath, github: github);

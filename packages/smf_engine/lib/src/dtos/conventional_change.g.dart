@@ -15,9 +15,9 @@ _ConventionalChange _$ConventionalChangeFromJson(Map<String, dynamic> json) =>
         description: $checkedConvert('description', (v) => v as String),
         body: $checkedConvert('body', (v) => v as String?),
         breaking: $checkedConvert('breaking', (v) => v as bool),
-        bump: $checkedConvert(
-          'bump',
-          (v) => $enumDecodeNullable(_$BumpEnumMap, v),
+        versionBump: $checkedConvert(
+          'versionBump',
+          (v) => $enumDecodeNullable(_$VersionBumpEnumMap, v),
         ),
         platforms: $checkedConvert(
           'platforms',
@@ -25,7 +25,6 @@ _ConventionalChange _$ConventionalChangeFromJson(Map<String, dynamic> json) =>
               .map((e) => $enumDecode(_$PlatformEnumMap, e))
               .toList(),
         ),
-        releaseAs: $checkedConvert('releaseAs', (v) => v as String?),
       );
       return val;
     });
@@ -39,15 +38,14 @@ Map<String, dynamic> _$ConventionalChangeToJson(
   'description': instance.description,
   'body': instance.body,
   'breaking': instance.breaking,
-  'bump': _$BumpEnumMap[instance.bump],
+  'versionBump': _$VersionBumpEnumMap[instance.versionBump],
   'platforms': instance.platforms.map((e) => _$PlatformEnumMap[e]!).toList(),
-  'releaseAs': ?instance.releaseAs,
 };
 
-const _$BumpEnumMap = {
-  Bump.patch: 'patch',
-  Bump.minor: 'minor',
-  Bump.major: 'major',
+const _$VersionBumpEnumMap = {
+  VersionBump.patch: 'patch',
+  VersionBump.minor: 'minor',
+  VersionBump.major: 'major',
 };
 
 const _$PlatformEnumMap = {Platform.ios: 'ios', Platform.android: 'android'};

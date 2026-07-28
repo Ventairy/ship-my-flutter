@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PrereleaseVersionAttributes {
 
- String get version; String get platform;
+ String get version; ApplePlatform get platform;
 /// Create a copy of PrereleaseVersionAttributes
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $PrereleaseVersionAttributesCopyWith<$Res>  {
   factory $PrereleaseVersionAttributesCopyWith(PrereleaseVersionAttributes value, $Res Function(PrereleaseVersionAttributes) _then) = _$PrereleaseVersionAttributesCopyWithImpl;
 @useResult
 $Res call({
- String version, String platform
+ String version, ApplePlatform platform
 });
 
 
@@ -69,7 +69,7 @@ class _$PrereleaseVersionAttributesCopyWithImpl<$Res>
   return _then(_self.copyWith(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as String,
+as ApplePlatform,
   ));
 }
 
@@ -154,7 +154,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  String platform)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  ApplePlatform platform)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PrereleaseVersionAttributes() when $default != null:
 return $default(_that.version,_that.platform);case _:
@@ -175,7 +175,7 @@ return $default(_that.version,_that.platform);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  String platform)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  ApplePlatform platform)  $default,) {final _that = this;
 switch (_that) {
 case _PrereleaseVersionAttributes():
 return $default(_that.version,_that.platform);case _:
@@ -195,7 +195,7 @@ return $default(_that.version,_that.platform);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  String platform)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  ApplePlatform platform)?  $default,) {final _that = this;
 switch (_that) {
 case _PrereleaseVersionAttributes() when $default != null:
 return $default(_that.version,_that.platform);case _:
@@ -214,7 +214,7 @@ class _PrereleaseVersionAttributes implements PrereleaseVersionAttributes {
   factory _PrereleaseVersionAttributes.fromJson(Map<String, dynamic> json) => _$PrereleaseVersionAttributesFromJson(json);
 
 @override final  String version;
-@override final  String platform;
+@override final  ApplePlatform platform;
 
 /// Create a copy of PrereleaseVersionAttributes
 /// with the given fields replaced by the non-null parameter values.
@@ -249,7 +249,7 @@ abstract mixin class _$PrereleaseVersionAttributesCopyWith<$Res> implements $Pre
   factory _$PrereleaseVersionAttributesCopyWith(_PrereleaseVersionAttributes value, $Res Function(_PrereleaseVersionAttributes) _then) = __$PrereleaseVersionAttributesCopyWithImpl;
 @override @useResult
 $Res call({
- String version, String platform
+ String version, ApplePlatform platform
 });
 
 
@@ -270,7 +270,7 @@ class __$PrereleaseVersionAttributesCopyWithImpl<$Res>
   return _then(_PrereleaseVersionAttributes(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as String,
+as ApplePlatform,
   ));
 }
 

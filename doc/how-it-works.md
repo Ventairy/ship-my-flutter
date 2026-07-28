@@ -6,7 +6,7 @@ SMF uses one reviewable lifecycle for iOS and Android:
 qualifying commits on target branch
                 |
                 v
-shared smf/release pull request
+app-scoped release pull request
                 |
         +-------+-------+
         |               |
@@ -30,7 +30,14 @@ shared smf/release pull request
 
 ## 1. Commits create platform plans
 
-SMF reads Conventional Commits since each platform’s own baseline.
+SMF reads Conventional Commits since each platform’s own baseline. For a
+nested Flutter app, it includes commits that change:
+
+- the app directory; or
+- a repository path listed in that app's `release_trigger_paths`.
+
+Commits that only change a sibling app do not apply. A shared-path commit
+applies to every app that lists that path.
 
 Unscoped and feature-scoped changes apply to all enabled platforms:
 
@@ -51,9 +58,9 @@ remains unchanged.
 
 ## 2. One PR contains every pending platform
 
-SMF creates or updates:
+For each initialized app, SMF creates or updates:
 
-- branch `smf/release`;
+- branch `smf/<app-id>/release`;
 - one pull request into the configured target branch;
 - a separate version/changelog plan for each pending platform; and
 - optional localized store notes.
@@ -137,35 +144,25 @@ After merge, each platform ship job:
 2. verifies the merged tracked inputs still match;
 3. verifies application identity;
 4. confirms the exact store artifact still exists in the testing destination;
-5. applies the configured delivery mode; and
+5. applies the configured ship target, when present; and
 6. creates the platform tag and GitHub Release.
 
 Tags are independent:
 
 ```text
-ios-vX.Y.Z
-android-vX.Y.Z
+<app-id>/ios-vX.Y.Z
+<app-id>/android-vX.Y.Z
 ```
 
 SMF never rebuilds after approval.
 
-## Delivery modes
+## Delivery after merge
 
-### iOS
-
-- `upload`: leave the tested build uploaded.
-- `review`: submit for App Review with manual release.
-- `auto`: submit for App Review with automatic release after approval.
-
-### Android
-
-- `upload`: leave the tested `versionCode` on the testing track.
-- `review`: update production with the same `versionCode`; Managed Publishing
-  must hold the approved change for manual publication.
-- `auto`: update production with the same `versionCode` and allow normal
-  publication after review.
-
-The initializer uses `upload` for both platforms.
+Each platform's optional `ship` target controls what SMF does with its tested
+artifact after the release PR is merged. See
+[Apple targets](configuration.md#apple-targets) and
+[Google Play targets](configuration.md#google-play-targets) for the canonical
+store-specific behavior.
 
 ## What changes invalidate a candidate
 

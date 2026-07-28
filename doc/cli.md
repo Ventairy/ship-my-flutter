@@ -1,286 +1,239 @@
-# CLI reference
+# CLI guide
 
-Install:
+The SMF command is named `smf`. Most users use it to set up SMF and check their
+work. The generated GitHub Actions workflow handles releases.
+
+For the complete setup process, follow
+[Getting started](getting-started.md).
+
+## Install
 
 ```bash
 dart install smf_cli
+smf --help
 ```
 
-The package exposes one executable:
+Every command has its own help:
 
 ```bash
-smf <command> [options]
+smf init --help
+smf validate --help
 ```
 
-Every command supports `--help`. Success prints one JSON value to stdout.
-Diagnostics use stderr and include a stable error code:
+Use `smf <command> --help` whenever you need the complete, current list of
+options.
 
-```text
-smf validate [INVALID_CONFIG]: platforms.android.package_name is invalid.
-```
+## Set up an app
 
-Secrets are accepted through environment values or documented file paths,
-never command-line secret values.
+Run `smf init` once for each Flutter app.
 
-## Commands
-
-| Command | Purpose |
-| --- | --- |
-| `smf init` | Create configuration and generated workflow |
-| `smf validate` | Validate config/repository invariants |
-| `smf plan` | Preview every enabled pending platform plan |
-| `smf open-pr` | Open/update the shared release PR |
-| `smf release` | Alias for `open-pr` |
-| `smf candidate` | Create one selected platform candidate |
-| `smf testflight` | iOS candidate alias |
-| `smf internal-testing` | Android candidate alias |
-| `smf promote` | Ship one selected exact candidate |
-| `smf app-store` | iOS promotion alias |
-| `smf google-play` | Android promotion alias |
-
-Standard users normally run `init`, `validate`, and `plan`; GitHub Actions runs
-the release lifecycle.
-
-## Common options
-
-- `--smf-path <path>` selects a forward directory named `smf`, for example
-  `apps/mobile/smf`.
-- `--repository <owner/name>` supplies GitHub identity when environment context
-  is absent.
-- `--github-token-file <path>` reads a GitHub token without placing it in
-  process arguments.
-- `--platform ios|android` is required by candidate/promotion commands when
-  both platforms are enabled.
-
-The CLI also reads `GITHUB_REPOSITORY`, `SMF_GITHUB_TOKEN`, or `GITHUB_TOKEN`.
-Do not set both a token environment value and `--github-token-file`.
-
-## `smf init`
+For an app at the repository root:
 
 ```bash
 smf init \
-  [--current-version X.Y.Z] \
-  [--bundle-id com.example.app] \
-  [--package-name com.example.app] \
-  [--smf-path path/to/smf] \
-  [--force] \
-  [--workflow-only]
+  --version 1.0.0 \
+  --ios-bundle-id com.acme.app \
+  --android-package-name com.acme.app
 ```
 
-- Run from the Flutter app directory.
-- Enables only platform directories that exist.
-- Reads a stable `pubspec.yaml` version when `--current-version` is omitted.
-- `--force` replaces existing initialization files.
-- `--workflow-only` refreshes the generated workflow without touching
-  configuration/release state.
-
-Example output:
-
-```json
-{
-  "smfPath": "/repo/apps/mobile/smf",
-  "initialized": true
-}
-```
-
-## `smf validate`
+For a nested app:
 
 ```bash
-smf validate [--smf-path apps/mobile/smf]
+smf init \
+  --app-path apps/mobile \
+  --app-id mobile \
+  --version 1.0.0 \
+  --ios-bundle-id com.acme.app \
+  --android-package-name com.acme.app
 ```
 
-Checks configuration, repository layout, app-contained paths, manifests,
-changelogs, notes, and supported invariants without changing files.
+- `--version` is the latest version already released, not the next version.
+- Use `--ios-version` and `--android-version` when the platforms have different
+  released versions.
+- Omit the iOS or Android identifier when the app does not support that
+  platform.
+- Choose an explicit, permanent `--app-id` for every app in a monorepo.
+- You can omit version options and let SMF detect the current versions.
 
-```json
-{
-  "valid": true
-}
-```
-
-## `smf plan`
-
-```bash
-smf plan [--smf-path apps/mobile/smf]
-```
-
-Read-only. Returns a JSON list because iOS and Android can both have plans:
-
-```json
-[
-  {
-    "platform": "ios",
-    "currentVersion": "1.4.0",
-    "nextVersion": "1.5.0"
-  },
-  {
-    "platform": "android",
-    "currentVersion": "1.3.2",
-    "nextVersion": "1.4.0"
-  }
-]
-```
-
-An empty list means no enabled platform has a release-worthy change.
-
-## `smf open-pr` / `smf release`
-
-```bash
-smf open-pr \
-  [--smf-path apps/mobile/smf] \
-  [--repository owner/repo] \
-  [--github-token-file /secure/token]
-```
-
-Runs on the target branch. It creates/updates one `smf/release` branch and PR
-containing all pending platform plans.
-
-Possible outputs:
-
-```json
-{
-  "phase": "release-candidate",
-  "releases": [
-    {"platform": "ios", "version": "1.5.0"},
-    {"platform": "android", "version": "1.4.0"}
-  ],
-  "branch": "smf/release",
-  "pullRequestNumber": 42
-}
-```
-
-```json
-{"phase": "noop"}
-```
-
-After the PR is merged, planning on the target branch can return:
-
-```json
-{
-  "phase": "ship",
-  "releases": [
-    {"platform": "android", "version": "1.4.0"}
-  ]
-}
-```
-
-## Candidate commands
-
-Generic:
-
-```bash
-smf candidate --platform ios
-smf candidate --platform android
-```
-
-Aliases:
-
-```bash
-smf testflight
-smf internal-testing
-```
-
-Options:
-
-- GitHub/common options above;
-- `--no-commit-receipt` for controlled local diagnostics only.
-
-Candidate creation must run on `smf/release` with a clean checkout. Normal
-release candidates should commit/push receipts; do not use
-`--no-commit-receipt` as a production shortcut.
-
-iOS output:
-
-```json
-{
-  "platform": "ios",
-  "version": "1.5.0",
-  "artifactId": "123456789",
-  "buildNumber": "17"
-}
-```
-
-Android output:
-
-```json
-{
-  "platform": "android",
-  "version": "1.4.0",
-  "artifactId": "208",
-  "buildNumber": "208"
-}
-```
-
-### Candidate credentials
-
-iOS:
+Initialization creates:
 
 ```text
-SMF_APP_STORE_CONNECT_KEY_ID
-SMF_APP_STORE_CONNECT_ISSUER_ID
-SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64 or _PATH
-SMF_IOS_CERTIFICATE_BASE64 or _PATH
-SMF_IOS_CERTIFICATE_PASSWORD
-SMF_IOS_PROVISIONING_PROFILES_BASE64 or _PATH
+<flutter-app>/smf/config.yaml
+.github/workflows/smf-<app-id>.yml
 ```
 
-Android:
+Review both files before committing them.
+
+If the configuration still exists but the generated workflow was deleted:
+
+```bash
+smf init --github-actions
+```
+
+For a nested app:
+
+```bash
+smf init --app-path apps/mobile --github-actions
+```
+
+## Check the setup
+
+```bash
+smf validate
+```
+
+A successful result means the local SMF files are consistent. It does not
+check GitHub secrets, store access, or signing credentials.
+
+## Select an app in a monorepo
+
+When the repository contains several initialized apps, select one by its
+`smf/` directory:
+
+```bash
+smf validate --smf-path apps/customer/smf
+```
+
+Run this command from the repository root.
+
+`--app-path` and `--smf-path` have different jobs:
+
+- `--app-path` points `smf init` to a Flutter app that is not at the repository
+  root.
+- `--smf-path` selects an app that is already initialized.
+
+## Update after installing a newer SMF version
+
+```bash
+smf migrate
+smf validate
+```
+
+With no extra option, `smf migrate` updates every SMF-owned file that needs the
+new format. It does not build, upload, or publish the app.
+
+In a monorepo:
+
+```bash
+smf migrate --smf-path apps/mobile/smf
+```
+
+Use `smf migrate --help` when you need to update only the configuration,
+workflow, or SMF release records.
+
+## Commands normally run by GitHub Actions
+
+The generated workflow normally runs these commands for you:
+
+| Command         | Purpose                                           |
+| --------------- | ------------------------------------------------- |
+| `smf open-pr`   | Open or update the app's release pull request     |
+| `smf candidate` | Build and upload a platform candidate for testing |
+| `smf promote`   | Verify or ship the tested candidate after merge   |
+
+The CLI also provides platform-specific names such as `smf testflight`,
+`smf internal-testing`, `smf app-store`, and `smf google-play`.
+
+Only run these commands manually when building custom automation. Use the
+command's `--help`, then read [How releases work](how-it-works.md) and
+[Release operations and recovery](operations.md) first.
+
+## Supply environment variables manually
+
+The generated GitHub Actions workflow supplies the required environment
+variables automatically. Follow this section only when running release commands
+yourself or building custom automation.
+
+On macOS or Linux, place variables immediately before the command to make them
+available only to that command:
+
+```bash
+SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json" \
+smf google-play --github-token-file "/secure/github-token"
+```
+
+For several commands in the same terminal session, export the variable once:
+
+```bash
+export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json"
+
+smf google-play --github-token-file "/secure/github-token"
+
+unset SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
+```
+
+In Windows PowerShell:
+
+```powershell
+$env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH = "C:\secure\service-account.json"
+
+smf google-play --github-token-file "C:\secure\github-token"
+
+Remove-Item Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
+```
+
+Prefer a documented `_PATH` variable for secret files. It points SMF to the
+protected file without placing the file's contents in shell history. For
+example:
 
 ```text
-SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 or _PATH
-SMF_ANDROID_KEYSTORE_BASE64 or _PATH
-SMF_ANDROID_KEY_ALIAS
-SMF_ANDROID_KEYSTORE_PASSWORD
-SMF_ANDROID_KEY_PASSWORD
+SMF_APP_STORE_CONNECT_AUTH_KEY_PATH
+SMF_IOS_CERTIFICATE_PATH
+SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
+SMF_ANDROID_KEYSTORE_PATH
 ```
 
-The Android alias/passwords are environment-only. File variants apply to the
-service-account JSON and keystore.
+Some values, such as signing passwords, do not have a file-path alternative.
+Enter those without showing or saving the value in shell history.
 
-## Promotion commands
-
-Generic:
+For example, a manual Android candidate can receive all five Android values
+like this:
 
 ```bash
-smf promote --platform ios
-smf promote --platform android
+export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json"
+export SMF_ANDROID_KEYSTORE_PATH="/secure/upload-keystore.jks"
+export SMF_ANDROID_KEY_ALIAS="upload"
+
+read -r -s SMF_ANDROID_KEYSTORE_PASSWORD
+export SMF_ANDROID_KEYSTORE_PASSWORD
+echo
+
+read -r -s SMF_ANDROID_KEY_PASSWORD
+export SMF_ANDROID_KEY_PASSWORD
+echo
+
+smf candidate \
+  --platform android \
+  --github-token-file "/secure/github-token"
+
+unset SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH \
+  SMF_ANDROID_KEYSTORE_PATH \
+  SMF_ANDROID_KEY_ALIAS \
+  SMF_ANDROID_KEYSTORE_PASSWORD \
+  SMF_ANDROID_KEY_PASSWORD
 ```
 
-Aliases:
+Run release commands only from the branch and repository state described in
+[Release operations and recovery](operations.md). The platform setup guides
+list the complete set of variables required by Apple and Android.
 
-```bash
-smf app-store
-smf google-play
-```
+Do not:
 
-Promotion runs on the configured target branch after the release PR merge. It
-requires GitHub credentials and the platform store API credential:
+- pass a secret as a command option;
+- paste a secret directly into a command that shell history may save;
+- commit secrets in a `.env` file; or
+- add release secrets permanently to a shell startup file.
 
-- iOS: App Store Connect API values;
-- Android: Google Play service-account JSON.
+SMF does not automatically load `.env` files.
 
-It does not require signing credentials because it does not rebuild.
+## Find the required variables
 
-Example:
+Follow:
 
-```json
-{
-  "platform": "android",
-  "version": "1.4.0",
-  "tag": "android-v1.4.0",
-  "artifactId": "208",
-  "buildNumber": "208",
-  "testingTrack": "internal",
-  "productionTrack": "production",
-  "githubReleaseUrl": "https://github.com/owner/repo/releases/tag/android-v1.4.0"
-}
-```
+- [Apple setup](apple-bootstrap.md) for App Store Connect and iOS signing;
+- [Android setup](android-bootstrap.md) for Google Play and Android signing; and
+- [Security](security.md) before using credentials in custom automation.
 
-## Exit codes
-
-- `0`: successful operation, including `noop`.
-- `64`: invalid command/options/help-required usage.
-- `1`: validated SMF, filesystem, store, GitHub, build, or credential failure.
-
-Automation should parse stdout JSON only after exit code `0`. Do not scrape
-diagnostic prose; use the stable error code.
+If a command fails, it prints an explanation and a short error name in
+brackets, such as `[INVALID_CONFIG]`. Use that name when searching the
+documentation or reporting the problem.

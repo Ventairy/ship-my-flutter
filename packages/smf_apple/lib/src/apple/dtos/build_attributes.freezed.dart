@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BuildAttributes {
 
- String get version; String get processingState; String? get uploadedDate; bool get expired; bool? get usesNonExemptEncryption;
+ String get version; BuildProcessingState get processingState; String? get uploadedDate; bool get expired; bool? get usesNonExemptEncryption;
 /// Create a copy of BuildAttributes
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $BuildAttributesCopyWith<$Res>  {
   factory $BuildAttributesCopyWith(BuildAttributes value, $Res Function(BuildAttributes) _then) = _$BuildAttributesCopyWithImpl;
 @useResult
 $Res call({
- String version, String processingState, String? uploadedDate, bool expired, bool? usesNonExemptEncryption
+ String version, BuildProcessingState processingState, String? uploadedDate, bool expired, bool? usesNonExemptEncryption
 });
 
 
@@ -69,7 +69,7 @@ class _$BuildAttributesCopyWithImpl<$Res>
   return _then(_self.copyWith(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,processingState: null == processingState ? _self.processingState : processingState // ignore: cast_nullable_to_non_nullable
-as String,uploadedDate: freezed == uploadedDate ? _self.uploadedDate : uploadedDate // ignore: cast_nullable_to_non_nullable
+as BuildProcessingState,uploadedDate: freezed == uploadedDate ? _self.uploadedDate : uploadedDate // ignore: cast_nullable_to_non_nullable
 as String?,expired: null == expired ? _self.expired : expired // ignore: cast_nullable_to_non_nullable
 as bool,usesNonExemptEncryption: freezed == usesNonExemptEncryption ? _self.usesNonExemptEncryption : usesNonExemptEncryption // ignore: cast_nullable_to_non_nullable
 as bool?,
@@ -157,7 +157,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  String processingState,  String? uploadedDate,  bool expired,  bool? usesNonExemptEncryption)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  BuildProcessingState processingState,  String? uploadedDate,  bool expired,  bool? usesNonExemptEncryption)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BuildAttributes() when $default != null:
 return $default(_that.version,_that.processingState,_that.uploadedDate,_that.expired,_that.usesNonExemptEncryption);case _:
@@ -178,7 +178,7 @@ return $default(_that.version,_that.processingState,_that.uploadedDate,_that.exp
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  String processingState,  String? uploadedDate,  bool expired,  bool? usesNonExemptEncryption)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  BuildProcessingState processingState,  String? uploadedDate,  bool expired,  bool? usesNonExemptEncryption)  $default,) {final _that = this;
 switch (_that) {
 case _BuildAttributes():
 return $default(_that.version,_that.processingState,_that.uploadedDate,_that.expired,_that.usesNonExemptEncryption);case _:
@@ -198,7 +198,7 @@ return $default(_that.version,_that.processingState,_that.uploadedDate,_that.exp
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  String processingState,  String? uploadedDate,  bool expired,  bool? usesNonExemptEncryption)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  BuildProcessingState processingState,  String? uploadedDate,  bool expired,  bool? usesNonExemptEncryption)?  $default,) {final _that = this;
 switch (_that) {
 case _BuildAttributes() when $default != null:
 return $default(_that.version,_that.processingState,_that.uploadedDate,_that.expired,_that.usesNonExemptEncryption);case _:
@@ -217,7 +217,7 @@ class _BuildAttributes implements BuildAttributes {
   factory _BuildAttributes.fromJson(Map<String, dynamic> json) => _$BuildAttributesFromJson(json);
 
 @override final  String version;
-@override final  String processingState;
+@override final  BuildProcessingState processingState;
 @override final  String? uploadedDate;
 @override@JsonKey() final  bool expired;
 @override final  bool? usesNonExemptEncryption;
@@ -255,7 +255,7 @@ abstract mixin class _$BuildAttributesCopyWith<$Res> implements $BuildAttributes
   factory _$BuildAttributesCopyWith(_BuildAttributes value, $Res Function(_BuildAttributes) _then) = __$BuildAttributesCopyWithImpl;
 @override @useResult
 $Res call({
- String version, String processingState, String? uploadedDate, bool expired, bool? usesNonExemptEncryption
+ String version, BuildProcessingState processingState, String? uploadedDate, bool expired, bool? usesNonExemptEncryption
 });
 
 
@@ -276,7 +276,7 @@ class __$BuildAttributesCopyWithImpl<$Res>
   return _then(_BuildAttributes(
 version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
 as String,processingState: null == processingState ? _self.processingState : processingState // ignore: cast_nullable_to_non_nullable
-as String,uploadedDate: freezed == uploadedDate ? _self.uploadedDate : uploadedDate // ignore: cast_nullable_to_non_nullable
+as BuildProcessingState,uploadedDate: freezed == uploadedDate ? _self.uploadedDate : uploadedDate // ignore: cast_nullable_to_non_nullable
 as String?,expired: null == expired ? _self.expired : expired // ignore: cast_nullable_to_non_nullable
 as bool,usesNonExemptEncryption: freezed == usesNonExemptEncryption ? _self.usesNonExemptEncryption : usesNonExemptEncryption // ignore: cast_nullable_to_non_nullable
 as bool?,

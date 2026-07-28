@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:smf_engine/src/models/release_enums.dart';
+import 'package:smf_engine/src/models/google_play_release_candidate_config.dart';
+import 'package:smf_engine/src/models/google_play_ship_config.dart';
 
 part 'google_play_config.freezed.dart';
 
@@ -9,8 +10,7 @@ part 'google_play_config.freezed.dart';
 abstract class GooglePlayConfig with _$GooglePlayConfig {
   /// Creates Google Play configuration.
   const factory GooglePlayConfig({
-    @Default('internal') String testingTrack,
-    @Default('production') String productionTrack,
-    @Default(ReleaseMode.upload) ReleaseMode mode,
+    @Default(GooglePlayReleaseCandidateConfig()) GooglePlayReleaseCandidateConfig releaseCandidate,
+    GooglePlayShipConfig? ship,
   }) = _GooglePlayConfig;
 }

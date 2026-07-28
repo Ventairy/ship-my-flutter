@@ -1,68 +1,79 @@
+import 'package:smf_apple/src/apple/client.dart';
 import 'package:smf_apple/src/apple/project.dart';
+import 'package:smf_apple/src/apple/provisioning.dart';
 import 'package:smf_apple/src/apple/signing.dart';
 import 'package:smf_apple/src/apple/upload.dart';
 import 'package:smf_apple/src/models/apple_credentials.dart';
+import 'package:smf_apple/src/models/resolved_signing_assets.dart';
 import 'package:smf_apple/src/models/signing_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
 
-/// Installs signing material for a candidate build.
-typedef InstallSigningAssets =
-    Future<SigningSession> Function(
-      SigningCredentials credentials,
-      String bundleId,
-    );
-
-/// Produces an IPA for a planned release version and build number.
-typedef BuildIosIpa =
-    Future<String> Function({
-      required String projectRoot,
-      required String command,
-      required String ipaOutputPath,
-      required String version,
-      required String buildNumber,
-      required String exportOptionsPath,
-      String? flavor,
-    });
-
-/// Uploads an IPA with App Store Connect credentials.
-typedef UploadIpa =
-    Future<void> Function(String ipaPath, AppleCredentials credentials);
-
-/// Runs project preparation before candidate fingerprinting.
-typedef RunBuildHook =
-    Future<bool?> Function(
-      String workingDirectory,
-      SmfConfig config,
-      Platform platform,
-      String version,
-    );
-
 /// Injectable candidate-build operations.
-final class CandidateDependencies {
+final class AppleCandidateDependencies {
   /// Creates candidate-build dependencies.
-  const CandidateDependencies({
-    this.installSigning = installSigningAssets,
-    this.buildIpa = runIosBuildCommand,
-    this.upload = uploadIpa,
-    this.resolveBundleIdentifier = resolveBundleId,
-    this.runBeforeBuild = runBeforeBuildHook,
+  const AppleCandidateDependencies({
+    this.installSigning = AppleSigning.install,
+    this.resolveProvisioning = AppleProvisioning.resolve,
+    this.buildIpa = AppleBuild.run,
+    this.upload = AppleBuild.upload,
+    this.resolveBundleIdentifier = AppleProject.resolveBundleId,
+    this.resolveSigningBundleIdentifiers = AppleProject.resolveSigningBundleIds,
+    this.runBeforeBuild = RepositoryHooks.beforeBuild,
     this.currentTime = _currentTime,
   });
 
   /// Signing installer.
-  final InstallSigningAssets installSigning;
+  final Future<AppleSigningSession> Function(
+    AppleResolvedSigningAssets assets,
+    String bundleId,
+  )
+  installSigning;
+
+  /// Provisioning-profile resolver.
+  final Future<AppleResolvedSigningAssets> Function({
+    required AppleSigningCredentials credentials,
+    required Set<String> bundleIds,
+    required AppStoreConnectApi client,
+  })
+  resolveProvisioning;
 
   /// IPA builder.
-  final BuildIosIpa buildIpa;
+  final Future<String> Function({
+    required String projectRoot,
+    required String command,
+    required String ipaOutputPath,
+    required String version,
+    required String buildNumber,
+    required String exportOptionsPath,
+    String? flavor,
+  })
+  buildIpa;
 
   /// App Store Connect uploader.
-  final UploadIpa upload;
+  final Future<void> Function({
+    required String ipaPath,
+    required AppleCredentials credentials,
+  })
+  upload;
 
   /// Xcode bundle-identifier resolver.
-  final ResolveBundleId resolveBundleIdentifier;
+  final Future<String> Function(
+    String appRoot,
+    IosConfig config, {
+    String? flavor,
+  })
+  resolveBundleIdentifier;
+
+  /// Xcode signed-target bundle-identifier resolver.
+  final Future<Set<String>> Function(
+    String appRoot, {
+    required String mainBundleId,
+    String? flavor,
+  })
+  resolveSigningBundleIdentifiers;
 
   /// Repository-owned candidate preparation.
-  final RunBuildHook runBeforeBuild;
+  final Future<bool> Function({required String workingDirectory}) runBeforeBuild;
 
   /// Supplies the receipt timestamp, primarily for deterministic workflows.
   final DateTime Function() currentTime;

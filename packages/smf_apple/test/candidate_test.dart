@@ -18,7 +18,7 @@ Future<void> writeObject(String path, Object? value) async {
 
 void main() {
   test(
-    'refreshes notes when reusing the exact valid TestFlight build',
+    'reuses a valid build and submits configured external testing',
     () async {
       final root = await Directory.systemTemp.createTemp('smf-candidate-');
       final origin = await Directory.systemTemp.createTemp(
@@ -28,7 +28,7 @@ void main() {
         await root.delete(recursive: true);
         await origin.delete(recursive: true);
       });
-      await git(origin.path, const <String>['init', '--bare']);
+      await GitClient(root: origin.path).run(const <String>['init', '--bare']);
       await Directory(p.join(root.path, 'ios')).create();
       await File(
         p.join(root.path, 'pubspec.yaml'),
@@ -36,29 +36,44 @@ void main() {
       await File(
         p.join(root.path, 'pubspec.lock'),
       ).writeAsString('# fixture lockfile\n');
-      await git(root.path, const <String>['init', '-b', 'main']);
-      await git(root.path, const <String>['config', 'user.name', 'Test']);
-      await git(root.path, const <String>[
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+      await GitClient(root: root.path).run(const <String>[
         'config',
         'user.email',
         'test@example.com',
       ]);
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-      await initialize(
-        InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
+      await RepositoryInitializer.initialize(
+        InitOptions(appRoot: root.path, iosBundleId: 'dev.example.app'),
       );
-      final paths = resolveSmfPaths(root.path);
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>[
+      final paths = SmfPaths.resolve(root.path);
+      final configFile = File(paths.config);
+      await configFile.writeAsString(
+        (await configFile.readAsString())
+            .replaceFirst(
+              '        target: internal-testing',
+              '        target: external-testing',
+            )
+            .replaceFirst(
+              '        groups: []',
+              '        groups:\n'
+                  '          - Public Beta',
+            ),
+      );
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>[
         'commit',
         '-m',
         'chore: configure releases',
       ]);
-      await git(root.path, <String>['remote', 'add', 'origin', origin.path]);
-      await git(root.path, const <String>['push', '-u', 'origin', 'main']);
-      await git(root.path, const <String>['checkout', '-b', 'smf/release']);
-      final baselineSha = await currentSha(root.path);
+      await GitClient(root: root.path).run(<String>['remote', 'add', 'origin', origin.path]);
+      await GitClient(root: root.path).run(const <String>['push', '-u', 'origin', 'main']);
+      await GitClient(root: root.path).run(
+        const <String>['checkout', '-b', 'smf/example/release'],
+      );
+      final baselineSha = await GitClient(root: root.path).currentSha();
       final manifest = SmfManifest(
         ios: PlatformManifest(
           version: '1.1.0',
@@ -87,7 +102,7 @@ void main() {
                 description: 'Fixture release',
                 body: null,
                 breaking: false,
-                bump: Bump.minor,
+                versionBump: VersionBump.minor,
                 platforms: const <Platform>[Platform.ios],
               ),
             ],
@@ -95,14 +110,14 @@ void main() {
         },
       );
       await writeObject(paths.changelog, changelog.toJson());
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>[
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>[
         'commit',
         '-m',
         'chore(ios): prepare fixture release',
       ]);
-      final sourceSha = await currentSha(root.path);
-      final fingerprint = await sourceFingerprint(root.path);
+      final sourceSha = await GitClient(root: root.path).currentSha();
+      final fingerprint = await SourceFingerprint.calculate(root.path);
       final receipt = CandidateReceipt(
         platform: Platform.ios,
         version: '1.1.0',
@@ -117,44 +132,50 @@ void main() {
         testingDestinations: const <String>[],
       );
       await writeObject(
-        candidatePath(root.path, Platform.ios, '1.1.0'),
+        paths.candidatePath(
+          platform: Platform.ios,
+          version: '1.1.0',
+        ),
         receipt.toJson(),
       );
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>[
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>[
         'commit',
         '-m',
         'chore(ios): record fixture candidate',
       ]);
-      await git(
-        root.path,
-        const <String>['push', '-u', 'origin', 'smf/release'],
+      await GitClient(root: root.path).run(
+        const <String>['push', '-u', 'origin', 'smf/example/release'],
       );
       final client = FakeAppStoreConnectApi(
-        directBuild: const ApiResource<BuildAttributes>(
-          type: 'builds',
-          id: 'build-7',
-          attributes: BuildAttributes(version: '7', processingState: 'VALID'),
-        ),
+        builds: const <ApiResource<BuildAttributes>>[
+          ApiResource<BuildAttributes>(
+            type: 'builds',
+            id: 'build-7',
+            attributes: BuildAttributes(
+              version: '7',
+              processingState: BuildProcessingState.valid,
+            ),
+          ),
+        ],
       );
       var candidateHookRan = false;
 
-      final reused = await createIosCandidate(
-        CandidateOptions(
+      final reused = await AppleCandidate.create(
+        AppleCandidateOptions(
           workingDirectory: root.path,
           appleCredentials: const AppleCredentials(
             keyId: 'unused',
             issuerId: 'unused',
             privateKey: 'unused',
           ),
-          signingCredentials: const SigningCredentials(
+          signingCredentials: const AppleSigningCredentials(
             certificateBase64: 'unused',
             certificatePassword: 'unused',
-            provisioningProfiles: 'unused',
           ),
           client: client,
-          dependencies: CandidateDependencies(
-            runBeforeBuild: (_, _, _, _) async {
+          dependencies: AppleCandidateDependencies(
+            runBeforeBuild: ({required workingDirectory}) async {
               candidateHookRan = true;
               await writeObject(paths.storeReleaseNotes, <String, Object?>{
                 'ios': <String, Object?>{
@@ -170,76 +191,42 @@ void main() {
       );
 
       expect(candidateHookRan, isTrue);
-      expect(reused.toJson(), receipt.toJson());
+      expect(reused.artifactId, receipt.artifactId);
+      expect(reused.testingDestinations, <String>['Public Beta']);
+      expect(client.groupAssignments.single.groups, <String>['Public Beta']);
+      expect(client.betaSubmitted, isTrue);
       expect(client.betaNotes.single.locale, 'en-US');
       expect(
         client.betaNotes.single.whatsNew,
         'Generated immediately before the build.',
       );
       expect(
-        await git(origin.path, const <String>[
+        await GitClient(root: origin.path).run(const <String>[
           'show',
-          'smf/release:smf/store-release-notes.json',
+          'smf/example/release:smf/store-release-notes.json',
         ]),
         contains('Generated immediately before the build.'),
       );
       expect(
-        await git(root.path, const <String>['log', '-1', '--pretty=%s']),
+        await GitClient(root: root.path).run(const <String>['log', '-2', '--pretty=%s']),
+        'chore(ios): record store candidate 1.1.0\n'
         'chore(ios): apply before_build hook for 1.1.0',
       );
+      expect(client.closed, isFalse);
 
+      await GitClient(root: root.path).run(const <String>['checkout', 'main']);
       await expectLater(
-        createIosCandidate(
-          CandidateOptions(
+        AppleCandidate.create(
+          AppleCandidateOptions(
             workingDirectory: root.path,
             appleCredentials: const AppleCredentials(
               keyId: 'unused',
               issuerId: 'unused',
               privateKey: 'unused',
             ),
-            signingCredentials: const SigningCredentials(
+            signingCredentials: const AppleSigningCredentials(
               certificateBase64: 'unused',
               certificatePassword: 'unused',
-              provisioningProfiles: 'unused',
-            ),
-            client: client,
-            dependencies: CandidateDependencies(
-              runBeforeBuild: (_, _, _, _) async {
-                await writeObject(paths.storeReleaseNotes, <String, Object?>{
-                  'ios': <String, Object?>{},
-                });
-                return false;
-              },
-            ),
-          ),
-        ),
-        throwsA(
-          isA<SmfError>().having(
-            (error) => error.code,
-            'code',
-            'BUILD_HOOK_DIRTY_WORKTREE',
-          ),
-        ),
-      );
-      await git(root.path, const <String>[
-        'restore',
-        'smf/store-release-notes.json',
-      ]);
-
-      await git(root.path, const <String>['checkout', 'main']);
-      await expectLater(
-        createIosCandidate(
-          CandidateOptions(
-            workingDirectory: root.path,
-            appleCredentials: const AppleCredentials(
-              keyId: 'unused',
-              issuerId: 'unused',
-              privateKey: 'unused',
-            ),
-            signingCredentials: const SigningCredentials(
-              certificateBase64: 'unused',
-              certificatePassword: 'unused',
-              provisioningProfiles: 'unused',
             ),
             client: client,
           ),
@@ -248,7 +235,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.message,
             'message',
-            contains('only runs on smf/release'),
+            contains('only runs on smf/example/release'),
           ),
         ),
       );

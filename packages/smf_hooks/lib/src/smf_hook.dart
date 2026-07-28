@@ -1,247 +1,167 @@
 import 'dart:convert';
 import 'dart:io' as io;
 
-import 'package:pub_semver/pub_semver.dart';
-
 import 'package:smf_hooks/src/models.dart';
 
-/// Repository hook phases supported by SMF.
-enum SmfHookPhase {
-  beforeCreatePr('before_create_pr'),
-  beforeBuild('before_build');
+enum _SmfHookPhase {
+  beforeCreatePr,
+  beforeBuild;
 
-  const SmfHookPhase(this.value);
-
-  /// Stable protocol value used by the hook runner.
-  final String value;
-
-  /// Parses one stable hook phase value.
-  static SmfHookPhase parse(String value) => switch (value) {
-    'before_create_pr' => SmfHookPhase.beforeCreatePr,
-    'before_build' => SmfHookPhase.beforeBuild,
+  static _SmfHookPhase parse(String value) => switch (value) {
+    'before_create_pr' => _SmfHookPhase.beforeCreatePr,
+    'before_build' => _SmfHookPhase.beforeBuild,
     _ => throw FormatException('Unsupported SMF hook phase "$value".'),
   };
 }
 
 /// Typed non-secret context shared by every repository hook.
 sealed class SmfHookContext {
-  const SmfHookContext({
-    required this.phase,
-    required this.repositoryRoot,
-    required this.appRoot,
-    required this.smfDirectory,
-    required this.configFile,
-    required this.changelogFile,
-    required this.storeReleaseNotesFile,
-    required this.flavor,
-  });
-
-  /// Hook phase being executed.
-  final SmfHookPhase phase;
-
-  /// Git repository containing the app.
-  final io.Directory repositoryRoot;
-
-  /// Flutter app that owns the discovered `smf` directory.
-  final io.Directory appRoot;
-
-  /// Directory containing SMF configuration and release state.
-  final io.Directory smfDirectory;
-
-  /// User-authored YAML configuration.
-  final io.File configFile;
-
-  /// Machine-owned changelog file.
-  final io.File changelogFile;
-
-  /// Optional user-owned localized store notes file.
-  final io.File storeReleaseNotesFile;
-
-  /// Configured Flutter flavor, when present.
-  final String? flavor;
+  const SmfHookContext._();
 }
 
 /// Context supplied before SMF creates or updates a release pull request.
 final class SmfBeforeCreatePrContext extends SmfHookContext {
-  const SmfBeforeCreatePrContext({
-    required super.repositoryRoot,
-    required super.appRoot,
-    required super.smfDirectory,
-    required super.configFile,
-    required super.changelogFile,
-    required super.storeReleaseNotesFile,
-    required super.flavor,
-    required this.releasePlans,
-  }) : super(phase: SmfHookPhase.beforeCreatePr);
+  const SmfBeforeCreatePrContext._({required this.release}) : super._();
 
-  /// Complete platform plans about to enter the shared release pull request.
-  final List<ReleasePlan> releasePlans;
+  /// Nullable iOS and Android plans entering the shared release pull request.
+  final PlannedReleases release;
 }
 
 /// Context supplied before SMF fingerprints and builds a platform candidate.
 final class SmfBeforeBuildContext extends SmfHookContext {
-  const SmfBeforeBuildContext({
-    required super.repositoryRoot,
-    required super.appRoot,
-    required super.smfDirectory,
-    required super.configFile,
-    required super.changelogFile,
-    required super.storeReleaseNotesFile,
-    required super.flavor,
-    required this.platform,
-    required this.platformVersion,
-    required this.release,
-  }) : super(phase: SmfHookPhase.beforeBuild);
+  const SmfBeforeBuildContext._({required io.Directory repositoryRoot}) : _repositoryRoot = repositoryRoot, super._();
 
-  /// Platform being built.
-  final Platform platform;
+  final io.Directory _repositoryRoot;
 
-  /// Planned platform marketing version.
-  final Version platformVersion;
-
-  /// Changelog release that the candidate implements.
-  final ChangelogRelease release;
+  /// Runs [command] through the platform shell.
+  ///
+  /// By default, the command runs from the hook process's current directory.
+  /// Pass `root: true` to run it from the Git repository root.
+  Future<void> runCommand(String command, {bool root = false}) async {
+    final process = await io.Process.start(
+      '/bin/sh',
+      <String>['-c', command],
+      workingDirectory: root ? _repositoryRoot.path : null,
+      mode: io.ProcessStartMode.inheritStdio,
+    );
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw io.ProcessException(
+        '/bin/sh',
+        <String>['-c', command],
+        'Hook command failed.',
+        exitCode,
+      );
+    }
+  }
 }
 
 /// Base class for a typed repository hook.
 ///
 /// Implement [run] in `smf/hooks/before_create_pr.dart` or
-/// `smf/hooks/before_build.dart`, then call [runSmfHook] from `main`.
+/// `smf/hooks/before_build.dart`, then call [execute] from `main`.
 abstract class SmfHook {
   const SmfHook();
 
-  /// Whether SMF commits every tracked or unignored change left by the hook.
-  ///
-  /// Override with `false` only when the hook commits its own changes or leaves
-  /// a clean worktree.
-  bool get commitChanges => true;
-
   /// Executes repository-owned preparation with a phase-specific context.
   Future<void> run(covariant SmfHookContext context);
+
+  /// Loads SMF's private protocol, runs this hook, and confirms completion.
+  ///
+  /// Hook entrypoints omit [environment]. Tests can supply an isolated
+  /// protocol environment.
+  Future<void> execute({Map<String, String>? environment}) =>
+      _SmfHookRunner(environment ?? io.Platform.environment).execute(this);
 }
 
-/// Loads the private hook protocol, runs [hook], and reports its result.
-///
-/// Hook entrypoints normally call this without [environment]. SMF supplies the
-/// protocol paths and strips store and GitHub credentials before execution.
-Future<void> runSmfHook(
-  SmfHook hook, {
-  Map<String, String>? environment,
-}) async {
-  final values = environment ?? io.Platform.environment;
-  final contextPath = _requiredEnvironment(values, 'SMF_HOOK_CONTEXT_PATH');
-  final resultPath = _requiredEnvironment(values, 'SMF_HOOK_RESULT_PATH');
-  final context = await _readContext(contextPath);
-  await hook.run(context);
-  await writeJson(resultPath, <String, Object?>{
-    'schemaVersion': 1,
-    'commitChanges': hook.commitChanges,
-  });
-}
+final class _SmfHookRunner {
+  const _SmfHookRunner(this._environment);
 
-Future<SmfHookContext> _readContext(String path) async {
-  try {
-    final value = await readJson(path);
-    final json = _object(value, 'hook context');
-    final schemaVersion = json['schemaVersion'];
-    if (schemaVersion != 1) {
-      throw FormatException(
-        'Unsupported SMF hook schema version "$schemaVersion".',
-      );
+  final Map<String, String> _environment;
+
+  Future<void> execute(SmfHook hook) async {
+    final contextPath = _requiredEnvironment('SMF_HOOK_CONTEXT_PATH');
+    final resultPath = _requiredEnvironment('SMF_HOOK_RESULT_PATH');
+    final context = await _readContext(contextPath);
+    await hook.run(context);
+    await _writeJson(resultPath, <String, Object?>{'schemaVersion': 1});
+  }
+
+  Future<SmfHookContext> _readContext(String path) async {
+    try {
+      final value = await _readJson(path);
+      final json = _object(value, 'hook context');
+      final schemaVersion = json['schemaVersion'];
+      if (schemaVersion != 1) {
+        throw FormatException(
+          'Unsupported SMF hook schema version "$schemaVersion".',
+        );
+      }
+      final phase = _SmfHookPhase.parse(_string(json, 'phase'));
+      return switch (phase) {
+        _SmfHookPhase.beforeCreatePr => SmfBeforeCreatePrContext._(
+          release: PlannedReleases(
+            ios: json['iosRelease'] == null
+                ? null
+                : PlatformRelease.fromJson(
+                    _object(json['iosRelease'], 'iosRelease'),
+                    platform: HookReleasePlatform.ios,
+                    storeReleaseNotesFile: io.File(
+                      _string(json, 'storeReleaseNotesFile'),
+                    ),
+                  ),
+            android: json['androidRelease'] == null
+                ? null
+                : PlatformRelease.fromJson(
+                    _object(json['androidRelease'], 'androidRelease'),
+                    platform: HookReleasePlatform.android,
+                    storeReleaseNotesFile: io.File(
+                      _string(json, 'storeReleaseNotesFile'),
+                    ),
+                  ),
+          ),
+        ),
+        _SmfHookPhase.beforeBuild => SmfBeforeBuildContext._(
+          repositoryRoot: io.Directory(_string(json, 'repositoryRoot')),
+        ),
+      };
+    } on Object catch (error) {
+      throw FormatException('The SMF hook context is invalid: $error');
     }
-    final phase = SmfHookPhase.parse(_string(json, 'phase'));
-    final common = (
-      repositoryRoot: io.Directory(_string(json, 'repositoryRoot')),
-      appRoot: io.Directory(_string(json, 'appRoot')),
-      smfDirectory: io.Directory(_string(json, 'smfDirectory')),
-      configFile: io.File(_string(json, 'configFile')),
-      changelogFile: io.File(_string(json, 'changelogFile')),
-      storeReleaseNotesFile: io.File(_string(json, 'storeReleaseNotesFile')),
-      flavor: _optionalString(json, 'flavor'),
+  }
+
+  String _requiredEnvironment(String name) {
+    final value = _environment[name]?.trim();
+    if (value == null || value.isEmpty) {
+      throw StateError('$name is required when running an SMF hook.');
+    }
+    return value;
+  }
+
+  Future<Object?> _readJson(String path) async => jsonDecode(await io.File(path).readAsString());
+
+  Future<void> _writeJson(String path, Object? value) async {
+    final file = io.File(path);
+    await file.parent.create(recursive: true);
+    await file.writeAsString(
+      '${const JsonEncoder.withIndent('  ').convert(value)}\n',
     );
-    return switch (phase) {
-      SmfHookPhase.beforeCreatePr => SmfBeforeCreatePrContext(
-        repositoryRoot: common.repositoryRoot,
-        appRoot: common.appRoot,
-        smfDirectory: common.smfDirectory,
-        configFile: common.configFile,
-        changelogFile: common.changelogFile,
-        storeReleaseNotesFile: common.storeReleaseNotesFile,
-        flavor: common.flavor,
-        releasePlans: _list(json, 'releasePlans')
-            .map(
-              (value) =>
-                  ReleasePlan.fromJson(_object(value, 'releasePlans item')),
-            )
-            .toList(growable: false),
-      ),
-      SmfHookPhase.beforeBuild => SmfBeforeBuildContext(
-        repositoryRoot: common.repositoryRoot,
-        appRoot: common.appRoot,
-        smfDirectory: common.smfDirectory,
-        configFile: common.configFile,
-        changelogFile: common.changelogFile,
-        storeReleaseNotesFile: common.storeReleaseNotesFile,
-        flavor: common.flavor,
-        platform: Platform.parse(_string(json, 'platform')),
-        platformVersion: Version.parse(_string(json, 'platformVersion')),
-        release: ChangelogRelease.fromJson(_object(json['release'], 'release')),
-      ),
+  }
+
+  Map<String, Object?> _object(Object? value, String name) {
+    if (value is! Map<Object?, Object?>) {
+      throw FormatException('$name must be an object.');
+    }
+    return <String, Object?>{
+      for (final entry in value.entries) entry.key.toString(): entry.value,
     };
-  } on Object catch (error) {
-    throw FormatException('The SMF hook context is invalid: $error');
   }
-}
 
-String _requiredEnvironment(Map<String, String> environment, String name) {
-  final value = environment[name]?.trim();
-  if (value == null || value.isEmpty) {
-    throw StateError('$name is required when running an SMF hook.');
+  String _string(Map<String, Object?> json, String name) {
+    final value = json[name];
+    if (value is! String || value.trim().isEmpty) {
+      throw FormatException('$name must be a non-empty string.');
+    }
+    return value;
   }
-  return value;
-}
-
-Future<Object?> readJson(String path) async =>
-    jsonDecode(await io.File(path).readAsString());
-
-Future<void> writeJson(String path, Object? value) async {
-  final file = io.File(path);
-  await file.parent.create(recursive: true);
-  await file.writeAsString(
-    '${const JsonEncoder.withIndent('  ').convert(value)}\n',
-  );
-}
-
-Map<String, Object?> _object(Object? value, String name) {
-  if (value is! Map<Object?, Object?>) {
-    throw FormatException('$name must be an object.');
-  }
-  return <String, Object?>{
-    for (final entry in value.entries) entry.key.toString(): entry.value,
-  };
-}
-
-String _string(Map<String, Object?> json, String name) {
-  final value = json[name];
-  if (value is! String || value.trim().isEmpty) {
-    throw FormatException('$name must be a non-empty string.');
-  }
-  return value;
-}
-
-String? _optionalString(Map<String, Object?> json, String name) {
-  final value = json[name];
-  if (value == null) return null;
-  if (value is! String || value.trim().isEmpty) {
-    throw FormatException('$name must be a non-empty string when provided.');
-  }
-  return value;
-}
-
-List<Object?> _list(Map<String, Object?> json, String name) {
-  final value = json[name];
-  if (value is! List<Object?>) {
-    throw FormatException('$name must be a list.');
-  }
-  return value;
 }

@@ -12,27 +12,27 @@ void main() {
     await File(
       p.join(root.path, 'pubspec.yaml'),
     ).writeAsString('name: example\nversion: 1.0.0+1\n');
-    await git(root.path, const <String>['init', '-b', 'main']);
-    await git(root.path, const <String>['config', 'user.name', 'Test']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+    await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+    await GitClient(root: root.path).run(const <String>[
       'config',
       'user.email',
       'test@example.com',
     ]);
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-    await initialize(
-      InitOptions(appRoot: root.path, bundleId: 'dev.example.app'),
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
+    await RepositoryInitializer.initialize(
+      InitOptions(appRoot: root.path, iosBundleId: 'dev.example.app'),
     );
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'chore: configure releases',
     ]);
 
     await expectLater(
-      validateRepository(root.path),
+      RepositoryValidator.validate(root.path),
       throwsA(
         isA<SmfError>().having(
           (error) => error.message,
@@ -43,7 +43,7 @@ void main() {
     );
     await File(p.join(root.path, 'pubspec.lock')).writeAsString('# fixture\n');
     await expectLater(
-      validateRepository(root.path),
+      RepositoryValidator.validate(root.path),
       throwsA(
         isA<SmfError>().having(
           (error) => error.message,
@@ -52,12 +52,54 @@ void main() {
         ),
       ),
     );
-    await git(root.path, const <String>['add', 'pubspec.lock']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', 'pubspec.lock']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'chore: lock dependencies',
     ]);
-    await validateRepository(root.path);
+    await RepositoryValidator.validate(root.path);
+  });
+
+  test('repository validation rejects duplicate app IDs', () async {
+    final root = await Directory.systemTemp.createTemp('smf-validate-');
+    addTearDown(() => root.delete(recursive: true));
+    await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+    await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+    await GitClient(root: root.path).run(const <String>[
+      'config',
+      'user.email',
+      'test@example.com',
+    ]);
+    await File(p.join(root.path, 'README.md')).writeAsString('fixture\n');
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
+    for (final app in <String>['customer', 'driver']) {
+      final appRoot = p.join(root.path, 'apps', app);
+      await Directory(p.join(appRoot, 'smf')).create(recursive: true);
+      await File(
+        p.join(appRoot, 'pubspec.yaml'),
+      ).writeAsString('name: $app\n');
+      await File(
+        p.join(appRoot, 'smf', 'config.yaml'),
+      ).writeAsString('''
+schema_version: 3
+app_id: mobile
+platforms:
+  android:
+    enabled: true
+''');
+    }
+
+    await expectLater(
+      RepositoryValidator.validate(p.join(root.path, 'apps', 'customer', 'smf')),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          'APP_ID_CONFLICT',
+        ),
+      ),
+    );
   });
 }

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ReleasePlan {
 
- Platform get platform; String get currentVersion; String get nextVersion; Bump get bump; String get baseSha; String get headSha; List<ConventionalChange> get changes;
+ Platform get platform; String get currentVersion; String get nextVersion; VersionBump get versionBump; String get baseSha; String get headSha; List<ConventionalChange> get changes;
 /// Create a copy of ReleasePlan
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $ReleasePlanCopyWith<ReleasePlan> get copyWith => _$ReleasePlanCopyWithImpl<Rele
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ReleasePlan&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.nextVersion, nextVersion) || other.nextVersion == nextVersion)&&(identical(other.bump, bump) || other.bump == bump)&&(identical(other.baseSha, baseSha) || other.baseSha == baseSha)&&(identical(other.headSha, headSha) || other.headSha == headSha)&&const DeepCollectionEquality().equals(other.changes, changes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ReleasePlan&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.nextVersion, nextVersion) || other.nextVersion == nextVersion)&&(identical(other.versionBump, versionBump) || other.versionBump == versionBump)&&(identical(other.baseSha, baseSha) || other.baseSha == baseSha)&&(identical(other.headSha, headSha) || other.headSha == headSha)&&const DeepCollectionEquality().equals(other.changes, changes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,platform,currentVersion,nextVersion,bump,baseSha,headSha,const DeepCollectionEquality().hash(changes));
+int get hashCode => Object.hash(runtimeType,platform,currentVersion,nextVersion,versionBump,baseSha,headSha,const DeepCollectionEquality().hash(changes));
 
 @override
 String toString() {
-  return 'ReleasePlan(platform: $platform, currentVersion: $currentVersion, nextVersion: $nextVersion, bump: $bump, baseSha: $baseSha, headSha: $headSha, changes: $changes)';
+  return 'ReleasePlan(platform: $platform, currentVersion: $currentVersion, nextVersion: $nextVersion, versionBump: $versionBump, baseSha: $baseSha, headSha: $headSha, changes: $changes)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $ReleasePlanCopyWith<$Res>  {
   factory $ReleasePlanCopyWith(ReleasePlan value, $Res Function(ReleasePlan) _then) = _$ReleasePlanCopyWithImpl;
 @useResult
 $Res call({
- Platform platform, String currentVersion, String nextVersion, Bump bump, String baseSha, String headSha, List<ConventionalChange> changes
+ Platform platform, String currentVersion, String nextVersion, VersionBump versionBump, String baseSha, String headSha, List<ConventionalChange> changes
 });
 
 
@@ -65,13 +65,13 @@ class _$ReleasePlanCopyWithImpl<$Res>
 
 /// Create a copy of ReleasePlan
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? platform = null,Object? currentVersion = null,Object? nextVersion = null,Object? bump = null,Object? baseSha = null,Object? headSha = null,Object? changes = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? platform = null,Object? currentVersion = null,Object? nextVersion = null,Object? versionBump = null,Object? baseSha = null,Object? headSha = null,Object? changes = null,}) {
   return _then(_self.copyWith(
 platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
 as Platform,currentVersion: null == currentVersion ? _self.currentVersion : currentVersion // ignore: cast_nullable_to_non_nullable
 as String,nextVersion: null == nextVersion ? _self.nextVersion : nextVersion // ignore: cast_nullable_to_non_nullable
-as String,bump: null == bump ? _self.bump : bump // ignore: cast_nullable_to_non_nullable
-as Bump,baseSha: null == baseSha ? _self.baseSha : baseSha // ignore: cast_nullable_to_non_nullable
+as String,versionBump: null == versionBump ? _self.versionBump : versionBump // ignore: cast_nullable_to_non_nullable
+as VersionBump,baseSha: null == baseSha ? _self.baseSha : baseSha // ignore: cast_nullable_to_non_nullable
 as String,headSha: null == headSha ? _self.headSha : headSha // ignore: cast_nullable_to_non_nullable
 as String,changes: null == changes ? _self.changes : changes // ignore: cast_nullable_to_non_nullable
 as List<ConventionalChange>,
@@ -159,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Platform platform,  String currentVersion,  String nextVersion,  Bump bump,  String baseSha,  String headSha,  List<ConventionalChange> changes)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Platform platform,  String currentVersion,  String nextVersion,  VersionBump versionBump,  String baseSha,  String headSha,  List<ConventionalChange> changes)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ReleasePlan() when $default != null:
-return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.bump,_that.baseSha,_that.headSha,_that.changes);case _:
+return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.versionBump,_that.baseSha,_that.headSha,_that.changes);case _:
   return orElse();
 
 }
@@ -180,10 +180,10 @@ return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.bump
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Platform platform,  String currentVersion,  String nextVersion,  Bump bump,  String baseSha,  String headSha,  List<ConventionalChange> changes)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Platform platform,  String currentVersion,  String nextVersion,  VersionBump versionBump,  String baseSha,  String headSha,  List<ConventionalChange> changes)  $default,) {final _that = this;
 switch (_that) {
 case _ReleasePlan():
-return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.bump,_that.baseSha,_that.headSha,_that.changes);case _:
+return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.versionBump,_that.baseSha,_that.headSha,_that.changes);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +200,10 @@ return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.bump
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Platform platform,  String currentVersion,  String nextVersion,  Bump bump,  String baseSha,  String headSha,  List<ConventionalChange> changes)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Platform platform,  String currentVersion,  String nextVersion,  VersionBump versionBump,  String baseSha,  String headSha,  List<ConventionalChange> changes)?  $default,) {final _that = this;
 switch (_that) {
 case _ReleasePlan() when $default != null:
-return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.bump,_that.baseSha,_that.headSha,_that.changes);case _:
+return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.versionBump,_that.baseSha,_that.headSha,_that.changes);case _:
   return null;
 
 }
@@ -215,13 +215,13 @@ return $default(_that.platform,_that.currentVersion,_that.nextVersion,_that.bump
 
 @JsonSerializable(checked: true, explicitToJson: true)
 class _ReleasePlan implements ReleasePlan {
-  const _ReleasePlan({required this.platform, required this.currentVersion, required this.nextVersion, required this.bump, required this.baseSha, required this.headSha, required final  List<ConventionalChange> changes}): _changes = changes;
+  const _ReleasePlan({required this.platform, required this.currentVersion, required this.nextVersion, required this.versionBump, required this.baseSha, required this.headSha, required final  List<ConventionalChange> changes}): _changes = changes;
   factory _ReleasePlan.fromJson(Map<String, dynamic> json) => _$ReleasePlanFromJson(json);
 
 @override final  Platform platform;
 @override final  String currentVersion;
 @override final  String nextVersion;
-@override final  Bump bump;
+@override final  VersionBump versionBump;
 @override final  String baseSha;
 @override final  String headSha;
  final  List<ConventionalChange> _changes;
@@ -245,16 +245,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ReleasePlan&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.nextVersion, nextVersion) || other.nextVersion == nextVersion)&&(identical(other.bump, bump) || other.bump == bump)&&(identical(other.baseSha, baseSha) || other.baseSha == baseSha)&&(identical(other.headSha, headSha) || other.headSha == headSha)&&const DeepCollectionEquality().equals(other._changes, _changes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ReleasePlan&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.currentVersion, currentVersion) || other.currentVersion == currentVersion)&&(identical(other.nextVersion, nextVersion) || other.nextVersion == nextVersion)&&(identical(other.versionBump, versionBump) || other.versionBump == versionBump)&&(identical(other.baseSha, baseSha) || other.baseSha == baseSha)&&(identical(other.headSha, headSha) || other.headSha == headSha)&&const DeepCollectionEquality().equals(other._changes, _changes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,platform,currentVersion,nextVersion,bump,baseSha,headSha,const DeepCollectionEquality().hash(_changes));
+int get hashCode => Object.hash(runtimeType,platform,currentVersion,nextVersion,versionBump,baseSha,headSha,const DeepCollectionEquality().hash(_changes));
 
 @override
 String toString() {
-  return 'ReleasePlan(platform: $platform, currentVersion: $currentVersion, nextVersion: $nextVersion, bump: $bump, baseSha: $baseSha, headSha: $headSha, changes: $changes)';
+  return 'ReleasePlan(platform: $platform, currentVersion: $currentVersion, nextVersion: $nextVersion, versionBump: $versionBump, baseSha: $baseSha, headSha: $headSha, changes: $changes)';
 }
 
 
@@ -265,7 +265,7 @@ abstract mixin class _$ReleasePlanCopyWith<$Res> implements $ReleasePlanCopyWith
   factory _$ReleasePlanCopyWith(_ReleasePlan value, $Res Function(_ReleasePlan) _then) = __$ReleasePlanCopyWithImpl;
 @override @useResult
 $Res call({
- Platform platform, String currentVersion, String nextVersion, Bump bump, String baseSha, String headSha, List<ConventionalChange> changes
+ Platform platform, String currentVersion, String nextVersion, VersionBump versionBump, String baseSha, String headSha, List<ConventionalChange> changes
 });
 
 
@@ -282,13 +282,13 @@ class __$ReleasePlanCopyWithImpl<$Res>
 
 /// Create a copy of ReleasePlan
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? platform = null,Object? currentVersion = null,Object? nextVersion = null,Object? bump = null,Object? baseSha = null,Object? headSha = null,Object? changes = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? platform = null,Object? currentVersion = null,Object? nextVersion = null,Object? versionBump = null,Object? baseSha = null,Object? headSha = null,Object? changes = null,}) {
   return _then(_ReleasePlan(
 platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
 as Platform,currentVersion: null == currentVersion ? _self.currentVersion : currentVersion // ignore: cast_nullable_to_non_nullable
 as String,nextVersion: null == nextVersion ? _self.nextVersion : nextVersion // ignore: cast_nullable_to_non_nullable
-as String,bump: null == bump ? _self.bump : bump // ignore: cast_nullable_to_non_nullable
-as Bump,baseSha: null == baseSha ? _self.baseSha : baseSha // ignore: cast_nullable_to_non_nullable
+as String,versionBump: null == versionBump ? _self.versionBump : versionBump // ignore: cast_nullable_to_non_nullable
+as VersionBump,baseSha: null == baseSha ? _self.baseSha : baseSha // ignore: cast_nullable_to_non_nullable
 as String,headSha: null == headSha ? _self.headSha : headSha // ignore: cast_nullable_to_non_nullable
 as String,changes: null == changes ? _self._changes : changes // ignore: cast_nullable_to_non_nullable
 as List<ConventionalChange>,

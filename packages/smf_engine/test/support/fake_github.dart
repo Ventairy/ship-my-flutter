@@ -37,7 +37,7 @@ final class FakeGitHubApi implements GitHubApi {
   }) async {
     releases.add((tag: tag, name: name, targetCommitish: targetCommitish));
     return const GitHubRelease(
-      htmlUrl: 'https://github.com/example/app/releases/tag/ios-v1.1.0',
+      htmlUrl: 'https://github.com/example/app/releases/tag/example/ios-v1.1.0',
     );
   }
 

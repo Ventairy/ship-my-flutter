@@ -11,6 +11,5 @@ abstract class GitHubPullRequest with _$GitHubPullRequest {
   const factory GitHubPullRequest({required int number}) = _GitHubPullRequest;
 
   /// Decodes a pull request from GitHub JSON.
-  factory GitHubPullRequest.fromJson(Map<String, Object?> json) =>
-      _$GitHubPullRequestFromJson(json);
+  factory GitHubPullRequest.fromJson(Map<String, Object?> json) => _$GitHubPullRequestFromJson(json);
 }

@@ -4,124 +4,19 @@ import 'dart:io';
 import 'package:googleapis/androidpublisher/v3.dart' as play;
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
+import 'package:smf_android/src/android/google_play_api.dart';
+import 'package:smf_android/src/android/google_play_bundle.dart';
+import 'package:smf_android/src/android/google_play_edit.dart';
+import 'package:smf_android/src/android/google_play_release.dart';
+import 'package:smf_android/src/android/google_play_track.dart';
 import 'package:smf_android/src/models/google_play_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
 
-/// One Google Play edit.
-final class GooglePlayEdit {
-  /// Creates an edit reference.
-  const GooglePlayEdit({required this.id});
-
-  /// Server-assigned edit identifier.
-  final String id;
-}
-
-/// One uploaded Android App Bundle.
-final class GooglePlayBundle {
-  /// Creates bundle evidence.
-  const GooglePlayBundle({
-    required this.versionCode,
-    required this.sha256,
-  });
-
-  /// Manifest version code.
-  final int versionCode;
-
-  /// SHA-256 digest returned by Google Play.
-  final String sha256;
-}
-
-/// One release configured on a Google Play track.
-final class GooglePlayRelease {
-  /// Creates a track release.
-  const GooglePlayRelease({
-    required this.status,
-    required this.versionCodes,
-    this.name,
-    this.releaseNotes = const <String, String>{},
-  });
-
-  /// Google Play release state.
-  final String status;
-
-  /// Version codes currently included in the release.
-  final List<int> versionCodes;
-
-  /// Optional release name.
-  final String? name;
-
-  /// Localized "What's new" text keyed by BCP-47 language.
-  final Map<String, String> releaseNotes;
-}
-
-/// Current desired state for a Google Play track.
-final class GooglePlayTrack {
-  /// Creates track state.
-  const GooglePlayTrack({
-    required this.name,
-    this.releases = const <GooglePlayRelease>[],
-  });
-
-  /// Track identifier.
-  final String name;
-
-  /// Active or desired releases.
-  final List<GooglePlayRelease> releases;
-
-  /// Whether [versionCode] is already assigned to this track.
-  bool containsVersionCode(int versionCode) => releases.any(
-    (release) => release.versionCodes.contains(versionCode),
-  );
-}
-
-/// Google Play operations required by SMF candidate and promotion workflows.
-abstract interface class GooglePlayApi {
-  /// Starts an isolated application edit.
-  Future<GooglePlayEdit> createEdit(String packageName);
-
-  /// Deletes an uncommitted edit.
-  Future<void> deleteEdit(String packageName, String editId);
-
-  /// Lists app bundles visible inside an edit.
-  Future<List<GooglePlayBundle>> listBundles(
-    String packageName,
-    String editId,
-  );
-
-  /// Uploads an AAB to an edit.
-  Future<GooglePlayBundle> uploadBundle(
-    String packageName,
-    String editId,
-    String aabPath,
-  );
-
-  /// Reads a track inside an edit.
-  Future<GooglePlayTrack> getTrack(
-    String packageName,
-    String editId,
-    String track,
-  );
-
-  /// Replaces the desired releases on a track inside an edit.
-  Future<GooglePlayTrack> updateTrack(
-    String packageName,
-    String editId,
-    GooglePlayTrack track,
-  );
-
-  /// Validates all changes in an edit without committing them.
-  Future<void> validateEdit(String packageName, String editId);
-
-  /// Commits an edit without canceling an already-running Play review.
-  Future<void> commitEdit(
-    String packageName,
-    String editId, {
-    required bool changesNotSentForReview,
-  });
-
-  /// Releases authentication and transport resources.
-  void close();
-}
+export 'google_play_api.dart';
+export 'google_play_bundle.dart';
+export 'google_play_edit.dart';
+export 'google_play_release.dart';
+export 'google_play_track.dart';
 
 /// Authenticated implementation backed by the official Google API packages.
 final class GooglePlayClient implements GooglePlayApi {
@@ -129,8 +24,7 @@ final class GooglePlayClient implements GooglePlayApi {
   ///
   /// The client must authorize the Android Publisher scope. SMF owns and
   /// closes it after use.
-  GooglePlayClient.authenticated(http.Client client)
-    : this._(client, play.AndroidPublisherApi(client));
+  GooglePlayClient.authenticated(http.Client client) : this._(client, play.AndroidPublisherApi(client));
 
   GooglePlayClient._(this._client, this._api);
 
@@ -176,32 +70,56 @@ final class GooglePlayClient implements GooglePlayApi {
   );
 
   @override
-  Future<void> deleteEdit(String packageName, String editId) => _guard(
+  Future<void> deleteEdit({
+    required String packageName,
+    required String editId,
+  }) => _guard(
     'delete an application edit',
     () => _api.edits.delete(packageName, editId),
   );
 
   @override
-  Future<List<GooglePlayBundle>> listBundles(
-    String packageName,
-    String editId,
-  ) => _guard(
+  Future<List<GooglePlayBundle>> listBundles({
+    required String packageName,
+    required String editId,
+  }) => _guard(
     'list app bundles',
     () async {
       final response = await _api.edits.bundles.list(packageName, editId);
       return <GooglePlayBundle>[
-        for (final bundle in response.bundles ?? const <play.Bundle>[])
-          _bundle(bundle),
+        for (final bundle in response.bundles ?? const <play.Bundle>[]) _bundle(bundle),
       ];
     },
   );
 
   @override
-  Future<GooglePlayBundle> uploadBundle(
-    String packageName,
-    String editId,
-    String aabPath,
-  ) => _guard(
+  Future<Set<int>> listArtifactVersionCodes({
+    required String packageName,
+    required String editId,
+  }) => _guard(
+    'list APK and app bundle version codes',
+    () async {
+      final (bundles, apks) = await (
+        _api.edits.bundles.list(packageName, editId),
+        _api.edits.apks.list(packageName, editId),
+      ).wait;
+      return <int>{
+        for (final bundle in bundles.bundles ?? const <play.Bundle>[])
+          _positiveVersionCode(
+            bundle.versionCode,
+            artifact: 'Android App Bundle',
+          ),
+        for (final apk in apks.apks ?? const <play.Apk>[]) _positiveVersionCode(apk.versionCode, artifact: 'APK'),
+      };
+    },
+  );
+
+  @override
+  Future<GooglePlayBundle> uploadBundle({
+    required String packageName,
+    required String editId,
+    required String aabPath,
+  }) => _guard(
     'upload the Android App Bundle',
     () async {
       final file = File(aabPath);
@@ -219,11 +137,11 @@ final class GooglePlayClient implements GooglePlayApi {
   );
 
   @override
-  Future<GooglePlayTrack> getTrack(
-    String packageName,
-    String editId,
-    String track,
-  ) => _guard(
+  Future<GooglePlayTrack> getTrack({
+    required String packageName,
+    required String editId,
+    required String track,
+  }) => _guard(
     'read Google Play track "$track"',
     () async => _track(
       await _api.edits.tracks.get(packageName, editId, track),
@@ -232,11 +150,11 @@ final class GooglePlayClient implements GooglePlayApi {
   );
 
   @override
-  Future<GooglePlayTrack> updateTrack(
-    String packageName,
-    String editId,
-    GooglePlayTrack track,
-  ) => _guard(
+  Future<GooglePlayTrack> updateTrack({
+    required String packageName,
+    required String editId,
+    required GooglePlayTrack track,
+  }) => _guard(
     'update Google Play track "${track.name}"',
     () async {
       final result = await _api.edits.tracks.update(
@@ -245,10 +163,8 @@ final class GooglePlayClient implements GooglePlayApi {
           releases: <play.TrackRelease>[
             for (final release in track.releases)
               play.TrackRelease(
-                status: release.status,
-                versionCodes: release.versionCodes
-                    .map((value) => value.toString())
-                    .toList(growable: false),
+                status: release.status.value,
+                versionCodes: release.versionCodes.map((value) => value.toString()).toList(growable: false),
                 name: release.name,
                 releaseNotes: <play.LocalizedText>[
                   for (final note in release.releaseNotes.entries)
@@ -266,7 +182,10 @@ final class GooglePlayClient implements GooglePlayApi {
   );
 
   @override
-  Future<void> validateEdit(String packageName, String editId) => _guard(
+  Future<void> validateEdit({
+    required String packageName,
+    required String editId,
+  }) => _guard(
     'validate the Google Play edit',
     () async {
       await _api.edits.validate(packageName, editId);
@@ -274,9 +193,9 @@ final class GooglePlayClient implements GooglePlayApi {
   );
 
   @override
-  Future<void> commitEdit(
-    String packageName,
-    String editId, {
+  Future<void> commitEdit({
+    required String packageName,
+    required String editId,
     required bool changesNotSentForReview,
   }) => _guard(
     'commit the Google Play edit',
@@ -303,91 +222,129 @@ final class GooglePlayClient implements GooglePlayApi {
     },
   );
 
+  GooglePlayBundle _bundle(play.Bundle bundle) {
+    final versionCode = _positiveVersionCode(
+      bundle.versionCode,
+      artifact: 'Android App Bundle',
+    );
+    final sha256 = bundle.sha256;
+    if (sha256 == null || !RegExp(r'^[a-f0-9]{64}$').hasMatch(sha256)) {
+      throw const SmfError(
+        'Google Play returned incomplete Android App Bundle evidence.',
+        'GOOGLE_PLAY_RESPONSE',
+      );
+    }
+    return GooglePlayBundle(versionCode: versionCode, sha256: sha256);
+  }
+
+  int _positiveVersionCode(int? value, {required String artifact}) {
+    if (value == null || value <= 0) {
+      throw SmfError(
+        'Google Play returned an invalid $artifact versionCode.',
+        'GOOGLE_PLAY_RESPONSE',
+      );
+    }
+    return value;
+  }
+
+  GooglePlayTrack _track(
+    play.Track track, {
+    required String fallbackName,
+  }) => GooglePlayTrack(
+    name: track.track ?? fallbackName,
+    releases: <GooglePlayRelease>[
+      for (final release in track.releases ?? const <play.TrackRelease>[])
+        GooglePlayRelease(
+          status: GooglePlayReleaseStatus.parse(release.status),
+          versionCodes: _versionCodes(release.versionCodes),
+          name: release.name,
+          releaseNotes: _releaseNotes(release.releaseNotes),
+        ),
+    ],
+  );
+
+  List<int> _versionCodes(List<String>? values) {
+    final versionCodes = <int>[];
+    for (final value in values ?? const <String>[]) {
+      final versionCode = int.tryParse(value);
+      if (versionCode == null || versionCode <= 0) {
+        throw SmfError(
+          'Google Play returned invalid versionCode "$value".',
+          'GOOGLE_PLAY_RESPONSE',
+        );
+      }
+      versionCodes.add(versionCode);
+    }
+    return versionCodes;
+  }
+
+  Map<String, String> _releaseNotes(List<play.LocalizedText>? notes) {
+    final result = <String, String>{};
+    for (final note in notes ?? const <play.LocalizedText>[]) {
+      final language = note.language;
+      final text = note.text;
+      if (language == null || language.trim().isEmpty || text == null || text.trim().isEmpty) {
+        throw const SmfError(
+          'Google Play returned an incomplete localized release note.',
+          'GOOGLE_PLAY_RESPONSE',
+        );
+      }
+      if (result.containsKey(language)) {
+        throw SmfError(
+          'Google Play returned duplicate release-note locale "$language".',
+          'GOOGLE_PLAY_RESPONSE',
+        );
+      }
+      result[language] = text;
+    }
+    return result;
+  }
+
+  String _required(String? value, String message) {
+    if (value == null || value.isEmpty) {
+      throw SmfError(message, 'GOOGLE_PLAY_RESPONSE');
+    }
+    return value;
+  }
+
+  String _responseMessage(String body) {
+    try {
+      final value = jsonDecode(body);
+      if (value case <String, Object?>{
+        'error': <String, Object?>{'message': final String message},
+      }) {
+        return message;
+      }
+    } on FormatException {
+      // The status code remains useful when Google returns non-JSON.
+    }
+    return 'no structured error message';
+  }
+
+  Future<T> _guard<T>(
+    String operation,
+    Future<T> Function() callback,
+  ) async {
+    try {
+      return await callback();
+    } on SmfError {
+      rethrow;
+    } on play.DetailedApiRequestError catch (error) {
+      throw SmfError(
+        'Could not $operation (HTTP ${error.status ?? 'unknown'}): '
+            '${error.message ?? 'Google Play returned no error message.'}',
+        'GOOGLE_PLAY_API',
+        cause: error,
+      );
+    } on Object catch (error) {
+      throw SmfError(
+        'Could not $operation.',
+        'GOOGLE_PLAY_API',
+        cause: error,
+      );
+    }
+  }
+
   @override
   void close() => _client.close();
-}
-
-GooglePlayBundle _bundle(play.Bundle bundle) {
-  final versionCode = bundle.versionCode;
-  final sha256 = bundle.sha256;
-  if (versionCode == null || sha256 == null || sha256.isEmpty) {
-    throw const SmfError(
-      'Google Play returned incomplete Android App Bundle evidence.',
-      'GOOGLE_PLAY_RESPONSE',
-    );
-  }
-  return GooglePlayBundle(versionCode: versionCode, sha256: sha256);
-}
-
-GooglePlayTrack _track(play.Track track, {required String fallbackName}) =>
-    GooglePlayTrack(
-      name: track.track ?? fallbackName,
-      releases: <GooglePlayRelease>[
-        for (final release in track.releases ?? const <play.TrackRelease>[])
-          GooglePlayRelease(
-            status: release.status ?? 'statusUnspecified',
-            versionCodes: _versionCodes(release.versionCodes),
-            name: release.name,
-            releaseNotes: _releaseNotes(release.releaseNotes),
-          ),
-      ],
-    );
-
-List<int> _versionCodes(List<String>? values) => <int>[
-  for (final value in values ?? const <String>[]) ?int.tryParse(value),
-];
-
-Map<String, String> _releaseNotes(List<play.LocalizedText>? notes) {
-  final result = <String, String>{};
-  for (final note in notes ?? const <play.LocalizedText>[]) {
-    final language = note.language;
-    final text = note.text;
-    if (language != null && text != null) result[language] = text;
-  }
-  return result;
-}
-
-String _required(String? value, String message) {
-  if (value == null || value.isEmpty) {
-    throw SmfError(message, 'GOOGLE_PLAY_RESPONSE');
-  }
-  return value;
-}
-
-String _responseMessage(String body) {
-  try {
-    final value = jsonDecode(body);
-    if (value case <String, Object?>{
-      'error': <String, Object?>{'message': final String message},
-    }) {
-      return message;
-    }
-  } on FormatException {
-    // The status code remains useful when Google returns a non-JSON response.
-  }
-  return 'no structured error message';
-}
-
-Future<T> _guard<T>(
-  String operation,
-  Future<T> Function() callback,
-) async {
-  try {
-    return await callback();
-  } on SmfError {
-    rethrow;
-  } on play.DetailedApiRequestError catch (error) {
-    throw SmfError(
-      'Could not $operation (HTTP ${error.status ?? 'unknown'}): '
-          '${error.message ?? 'Google Play returned no error message.'}',
-      'GOOGLE_PLAY_API',
-      cause: error,
-    );
-  } on Object catch (error) {
-    throw SmfError(
-      'Could not $operation.',
-      'GOOGLE_PLAY_API',
-      cause: error,
-    );
-  }
 }

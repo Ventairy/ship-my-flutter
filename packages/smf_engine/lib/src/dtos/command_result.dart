@@ -22,6 +22,5 @@ abstract class CommandResult with _$CommandResult {
   }) = _CommandResult;
 
   /// Decodes command output from JSON.
-  factory CommandResult.fromJson(Map<String, Object?> json) =>
-      _$CommandResultFromJson(json);
+  factory CommandResult.fromJson(Map<String, Object?> json) => _$CommandResultFromJson(json);
 }

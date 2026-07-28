@@ -4,10 +4,13 @@ import 'package:smf_engine/smf_engine.dart';
 final class FakeGooglePlayApi implements GooglePlayApi {
   FakeGooglePlayApi({
     this.bundles = const <GooglePlayBundle>[],
+    Set<int>? artifactVersionCodes,
     Map<String, GooglePlayTrack>? tracks,
-  }) : tracks = tracks ?? <String, GooglePlayTrack>{};
+  }) : artifactVersionCodes = artifactVersionCodes ?? bundles.map((bundle) => bundle.versionCode).toSet(),
+       tracks = tracks ?? <String, GooglePlayTrack>{};
 
   List<GooglePlayBundle> bundles;
+  final Set<int> artifactVersionCodes;
   final Map<String, GooglePlayTrack> tracks;
   final List<GooglePlayTrack> updates = <GooglePlayTrack>[];
   final List<String> deletedEdits = <String>[];
@@ -17,67 +20,78 @@ final class FakeGooglePlayApi implements GooglePlayApi {
   bool closed = false;
 
   @override
-  Future<GooglePlayEdit> createEdit(String packageName) async =>
-      GooglePlayEdit(id: 'edit-${++editCount}');
+  Future<GooglePlayEdit> createEdit(String packageName) async => GooglePlayEdit(id: 'edit-${++editCount}');
 
   @override
-  Future<void> deleteEdit(String packageName, String editId) async {
+  Future<void> deleteEdit({
+    required String packageName,
+    required String editId,
+  }) async {
     deletedEdits.add(editId);
   }
 
   @override
-  Future<List<GooglePlayBundle>> listBundles(
-    String packageName,
-    String editId,
-  ) async => bundles;
+  Future<List<GooglePlayBundle>> listBundles({
+    required String packageName,
+    required String editId,
+  }) async => bundles;
 
   @override
-  Future<GooglePlayBundle> uploadBundle(
-    String packageName,
-    String editId,
-    String aabPath,
-  ) async {
+  Future<Set<int>> listArtifactVersionCodes({
+    required String packageName,
+    required String editId,
+  }) async => Set<int>.unmodifiable(artifactVersionCodes);
+
+  @override
+  Future<GooglePlayBundle> uploadBundle({
+    required String packageName,
+    required String editId,
+    required String aabPath,
+  }) async {
     final bundle = GooglePlayBundle(
       versionCode:
-          bundles.fold<int>(
+          artifactVersionCodes.fold<int>(
             0,
-            (maximum, item) =>
-                item.versionCode > maximum ? item.versionCode : maximum,
+            (maximum, versionCode) => versionCode > maximum ? versionCode : maximum,
           ) +
           1,
-      sha256: await fileSha256(aabPath),
+      sha256: await FileDigest.sha256(aabPath),
     );
     bundles = <GooglePlayBundle>[...bundles, bundle];
+    artifactVersionCodes.add(bundle.versionCode);
     return bundle;
   }
 
   @override
-  Future<GooglePlayTrack> getTrack(
-    String packageName,
-    String editId,
-    String track,
-  ) async => tracks[track] ?? GooglePlayTrack(name: track);
+  Future<GooglePlayTrack> getTrack({
+    required String packageName,
+    required String editId,
+    required String track,
+  }) async => tracks[track] ?? GooglePlayTrack(name: track);
 
   @override
-  Future<GooglePlayTrack> updateTrack(
-    String packageName,
-    String editId,
-    GooglePlayTrack track,
-  ) async {
+  Future<GooglePlayTrack> updateTrack({
+    required String packageName,
+    required String editId,
+    required GooglePlayTrack track,
+  }) async {
     tracks[track.name] = track;
     updates.add(track);
     return track;
   }
 
   @override
-  Future<void> validateEdit(String packageName, String editId) async {
+  Future<void> validateEdit({
+    required String packageName,
+    required String editId,
+  }) async {
     validateCount += 1;
   }
 
   @override
-  Future<void> commitEdit(
-    String packageName,
-    String editId, {
+  Future<void> commitEdit({
+    required String packageName,
+    required String editId,
     required bool changesNotSentForReview,
   }) async {
     committedReviewStates.add(changesNotSentForReview);
@@ -115,8 +129,7 @@ final class FakeGitHubApi implements GitHubApi {
   }) => throw UnimplementedError();
 
   @override
-  Future<void> createLabel({required String name, required String color}) =>
-      throw UnimplementedError();
+  Future<void> createLabel({required String name, required String color}) => throw UnimplementedError();
 
   @override
   Future<GitHubPullRequest> createPullRequest({

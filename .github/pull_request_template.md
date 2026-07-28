@@ -4,7 +4,7 @@
 
 ## Verification
 
-- [ ] `dart format --output=none --set-exit-if-changed .`
+- [ ] `dart run tool/check_dart_format.dart`
 - [ ] `dart analyze --fatal-infos`
 - [ ] `dart test`
 - [ ] `dart pub publish --dry-run`

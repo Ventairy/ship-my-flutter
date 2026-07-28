@@ -5,11 +5,16 @@
   "$comment": "This schema provides structure, defaults, and conservative editor checks. The smf validate command is authoritative for shell syntax, cross-field rules, and platform-independent path safety.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "platforms"],
+  "required": ["schema_version", "app_id", "platforms"],
   "properties": {
     "schema_version": {
-      "const": 1,
+      "const": 3,
       "description": "Configuration contract version."
+    },
+    "app_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "Stable repository-unique identity used to namespace this app's workflow, release branch, tags, GitHub Releases, and environment."
     },
     "flavor": {
       "type": "string",
@@ -21,6 +26,17 @@
       "minLength": 1,
       "default": "main",
       "description": "Branch whose commits feed release pull requests."
+    },
+    "release_trigger_paths": {
+      "type": "array",
+      "default": [],
+      "uniqueItems": true,
+      "description": "Additional repository-relative paths or glob patterns whose qualifying commits apply to this app. The Flutter app directory is always included.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$"
+      }
     },
     "platforms": {
       "type": "object",
@@ -62,38 +78,110 @@
               "default": "build/ios/ipa",
               "description": "IPA file or directory relative to the Flutter app. Override only when a custom build command writes outside Flutter's standard build/ios/ipa directory."
             },
-            "testflight": {
-              "type": "object",
-              "default": {},
-              "additionalProperties": false,
-              "properties": {
-                "groups": {
-                  "type": "array",
-                  "default": [],
-                  "description": "Exact existing TestFlight group names that should receive the build.",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "wait_timeout_minutes": {
-                  "type": "integer",
-                  "minimum": 5,
-                  "maximum": 180,
-                  "default": 45,
-                  "description": "Maximum time to wait for Apple build processing."
-                }
-              }
-            },
             "app_store": {
               "type": "object",
               "default": {},
               "additionalProperties": false,
               "properties": {
-                "mode": {
-                  "enum": ["auto", "review", "upload"],
-                  "default": "upload",
-                  "description": "Whether promotion uploads only, submits for review with manual release, or submits for review with automatic release after approval."
+                "release_candidate": {
+                  "type": "object",
+                  "default": {},
+                  "additionalProperties": false,
+                  "properties": {
+                    "target": {
+                      "enum": ["internal-testing", "external-testing"],
+                      "default": "internal-testing",
+                      "description": "TestFlight audience that receives the candidate while the release PR is open."
+                    },
+                    "groups": {
+                      "type": "array",
+                      "default": [],
+                      "uniqueItems": true,
+                      "description": "Exact existing TestFlight group names matching the selected target.",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "wait_timeout_minutes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 180,
+                      "default": 45,
+                      "description": "Maximum time to wait for Apple build processing."
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "target": {
+                            "const": "external-testing"
+                          }
+                        },
+                        "required": ["target"]
+                      },
+                      "then": {
+                        "required": ["groups"],
+                        "properties": {
+                          "groups": {
+                            "minItems": 1
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "ship": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["target"],
+                  "properties": {
+                    "target": {
+                      "enum": [
+                        "external-testing",
+                        "submit-for-review",
+                        "production"
+                      ],
+                      "description": "Apple destination or review action performed after the release PR is merged."
+                    },
+                    "groups": {
+                      "type": "array",
+                      "default": [],
+                      "uniqueItems": true,
+                      "description": "Exact external TestFlight groups used by external-testing.",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "target": {
+                            "const": "external-testing"
+                          }
+                        }
+                      },
+                      "then": {
+                        "required": ["groups"],
+                        "properties": {
+                          "groups": {
+                            "minItems": 1
+                          }
+                        }
+                      },
+                      "else": {
+                        "properties": {
+                          "groups": {
+                            "maxItems": 0
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -139,22 +227,108 @@
               "default": {},
               "additionalProperties": false,
               "properties": {
-                "testing_track": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9._-]+$",
-                  "default": "internal",
-                  "description": "Promotable Google Play track used for candidate testing."
+                "release_candidate": {
+                  "type": "object",
+                  "default": {},
+                  "additionalProperties": false,
+                  "properties": {
+                    "target": {
+                      "enum": [
+                        "internal-testing",
+                        "closed-testing",
+                        "open-testing"
+                      ],
+                      "default": "internal-testing",
+                      "description": "Google Play destination that receives the candidate while the release PR is open."
+                    },
+                    "tracks": {
+                      "type": "array",
+                      "default": [],
+                      "uniqueItems": true,
+                      "description": "Existing custom closed-testing track names.",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9._-]+$"
+                      }
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "target": {
+                            "const": "closed-testing"
+                          }
+                        }
+                      },
+                      "then": {
+                        "required": ["tracks"],
+                        "properties": {
+                          "tracks": {
+                            "minItems": 1
+                          }
+                        }
+                      },
+                      "else": {
+                        "properties": {
+                          "tracks": {
+                            "maxItems": 0
+                          }
+                        }
+                      }
+                    }
+                  ]
                 },
-                "production_track": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9._-]+$",
-                  "default": "production",
-                  "description": "Google Play track used for public delivery."
-                },
-                "mode": {
-                  "enum": ["auto", "review", "upload"],
-                  "default": "upload",
-                  "description": "Whether promotion keeps the candidate on testing only, sends it to production with Managed Publishing, or sends it to production for automatic publishing after approval."
+                "ship": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["target"],
+                  "properties": {
+                    "target": {
+                      "enum": [
+                        "closed-testing",
+                        "open-testing",
+                        "production"
+                      ],
+                      "description": "Google Play destination used after the release PR is merged."
+                    },
+                    "tracks": {
+                      "type": "array",
+                      "default": [],
+                      "uniqueItems": true,
+                      "description": "Existing custom closed-testing track names.",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9._-]+$"
+                      }
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "target": {
+                            "const": "closed-testing"
+                          }
+                        }
+                      },
+                      "then": {
+                        "required": ["tracks"],
+                        "properties": {
+                          "tracks": {
+                            "minItems": 1
+                          }
+                        }
+                      },
+                      "else": {
+                        "properties": {
+                          "tracks": {
+                            "maxItems": 0
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }

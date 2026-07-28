@@ -14,18 +14,24 @@ import 'package:smf_hooks/smf_hooks.dart';
 final class CheckPlan extends SmfHook {
   @override
   Future<void> run(SmfBeforeCreatePrContext context) async {
-    final plan = context.releasePlan;
-
-    // Inspect the plan or write project-owned release notes.
-    print(plan.nextVersion);
+    final ios = context.release.ios;
+    if (ios != null) {
+      ios.storeReleaseNotes.write(
+        locale: 'en-US',
+        message: ios.changes
+            .map((change) => '- ${change.description}')
+            .join('\n'),
+      );
+    }
   }
 }
 
-Future<void> main() async {
-  await runSmfHook(CheckPlan());
-}
+Future<void> main() => CheckPlan().execute();
 ```
 
 Applications that only use the standard SMF workflow do not need this package.
 See the [hook guide](https://github.com/Ventairy/smf/blob/main/doc/hooks.md) for
-the supported phases and data contract.
+the supported phases, data contract, verification, and recovery. A complete
+implementation is available in
+[`example/smf_hooks_example.dart`](https://github.com/Ventairy/smf/blob/main/packages/smf_hooks/example/smf_hooks_example.dart).
+This package exposes a Dart library and no terminal executable.

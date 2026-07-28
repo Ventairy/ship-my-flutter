@@ -10,19 +10,17 @@ abstract class ChangelogManifest with _$ChangelogManifest {
   /// Creates changelog state.
   const factory ChangelogManifest({
     required Map<String, ChangelogRelease> iosReleases,
-    @Default(<String, ChangelogRelease>{})
-    Map<String, ChangelogRelease> androidReleases,
+    @Default(<String, ChangelogRelease>{}) Map<String, ChangelogRelease> androidReleases,
     @Default(1) int schemaVersion,
   }) = _ChangelogManifest;
 
   const ChangelogManifest._();
 
   /// Returns changelog releases for [platform].
-  Map<String, ChangelogRelease> releasesFor(Platform platform) =>
-      switch (platform) {
-        Platform.ios => iosReleases,
-        Platform.android => androidReleases,
-      };
+  Map<String, ChangelogRelease> releasesFor(Platform platform) => switch (platform) {
+    Platform.ios => iosReleases,
+    Platform.android => androidReleases,
+  };
 
   /// Encodes the stable changelog wire format.
   Map<String, Object?> toJson() => <String, Object?>{

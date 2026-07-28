@@ -2,12 +2,11 @@
 ///
 /// This deliberately does not use generated value semantics so signing
 /// secrets are never included in a generated `toString`.
-final class SigningCredentials {
+final class AppleSigningCredentials {
   /// Creates signing credentials.
-  const SigningCredentials({
+  const AppleSigningCredentials({
     required this.certificateBase64,
     required this.certificatePassword,
-    required this.provisioningProfiles,
   });
 
   /// Base64-encoded distribution certificate and private key.
@@ -15,7 +14,4 @@ final class SigningCredentials {
 
   /// Password protecting the distribution certificate.
   final String certificatePassword;
-
-  /// Encoded provisioning-profile mapping.
-  final String provisioningProfiles;
 }

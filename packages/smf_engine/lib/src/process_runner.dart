@@ -8,40 +8,12 @@ import 'package:smf_engine/src/process/run_result.dart';
 export 'process/run_options.dart';
 export 'process/run_result.dart';
 
-// This interface is an intentional process-boundary injection seam.
-// ignore: one_member_abstracts
 abstract interface class ProcessRunner {
   Future<RunResult> run(
     String executable,
     List<String> arguments, {
     RunOptions options = const RunOptions(),
   });
-}
-
-/// Runs a trusted repository-owned command through a fail-fast POSIX shell.
-///
-/// The command inherits the credential-stripped environment enforced by
-/// [SystemProcessRunner]. Use this only for explicit consumer configuration,
-/// not for remote or machine-generated values.
-Future<RunResult> runShellCommand(
-  String command, {
-  RunOptions options = const RunOptions(),
-  ProcessRunner processRunner = const SystemProcessRunner(),
-}) {
-  if (Platform.isWindows) {
-    throw const SmfError(
-      'Repository commands require a POSIX shell.',
-      'SHELL_UNSUPPORTED',
-    );
-  }
-  return processRunner.run('/bin/bash', <String>[
-    '--noprofile',
-    '--norc',
-    '-euo',
-    'pipefail',
-    '-c',
-    command,
-  ], options: options);
 }
 
 final class SystemProcessRunner implements ProcessRunner {
@@ -52,14 +24,12 @@ final class SystemProcessRunner implements ProcessRunner {
     'INPUT_GITHUB_TOKEN',
     'SMF_APP_STORE_CONNECT_KEY_ID',
     'SMF_APP_STORE_CONNECT_ISSUER_ID',
-    'SMF_APP_STORE_CONNECT_PRIVATE_KEY_BASE64',
-    'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH',
+    'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
+    'SMF_APP_STORE_CONNECT_AUTH_KEY_PATH',
     'SMF_IOS_CERTIFICATE_BASE64',
     'SMF_IOS_CERTIFICATE_PATH',
     'SMF_IOS_CERTIFICATE_PASSWORD',
-    'SMF_IOS_PROVISIONING_PROFILES_BASE64',
-    'SMF_IOS_PROVISIONING_PROFILES_PATH',
-    'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64',
+    'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON',
     'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH',
     'SMF_ANDROID_KEYSTORE_BASE64',
     'SMF_ANDROID_KEYSTORE_PATH',
@@ -73,6 +43,32 @@ final class SystemProcessRunner implements ProcessRunner {
   ///
   /// When omitted, the current process environment is used.
   final Map<String, String>? parentEnvironment;
+
+  /// Runs a trusted repository command through a fail-fast POSIX shell.
+  ///
+  /// The command inherits the credential-stripped environment enforced by
+  /// this runner. Use this only for explicit consumer configuration, not for
+  /// remote or machine-generated values.
+  static Future<RunResult> shell(
+    String command, {
+    RunOptions options = const RunOptions(),
+    ProcessRunner processRunner = const SystemProcessRunner(),
+  }) {
+    if (Platform.isWindows) {
+      throw const SmfError(
+        'Repository commands require a POSIX shell.',
+        'SHELL_UNSUPPORTED',
+      );
+    }
+    return processRunner.run('/bin/bash', <String>[
+      '--noprofile',
+      '--norc',
+      '-euo',
+      'pipefail',
+      '-c',
+      command,
+    ], options: options);
+  }
 
   @override
   Future<RunResult> run(
@@ -122,12 +118,8 @@ final class SystemProcessRunner implements ProcessRunner {
       exitCode: exitCode,
     );
     if (exitCode != 0 && !options.allowFailure) {
-      final diagnostics = stderrValue.trim().isNotEmpty
-          ? stderrValue.trim()
-          : stdoutValue.trim();
-      final detail = diagnostics.isEmpty
-          ? ''
-          : '\n${_truncateDiagnostics(diagnostics)}';
+      final diagnostics = stderrValue.trim().isNotEmpty ? stderrValue.trim() : stdoutValue.trim();
+      final detail = diagnostics.isEmpty ? '' : '\n${_truncateDiagnostics(diagnostics)}';
       throw SmfError(
         '$executable failed with exit code $exitCode$detail',
         'COMMAND_FAILED',
@@ -136,10 +128,10 @@ final class SystemProcessRunner implements ProcessRunner {
     }
     return result;
   }
-}
 
-String _truncateDiagnostics(String value) {
-  const maximumCharacters = 4000;
-  if (value.length <= maximumCharacters) return value;
-  return '${value.substring(0, maximumCharacters)}\n[output truncated]';
+  static String _truncateDiagnostics(String value) {
+    const maximumCharacters = 4000;
+    if (value.length <= maximumCharacters) return value;
+    return '${value.substring(0, maximumCharacters)}\n[output truncated]';
+  }
 }

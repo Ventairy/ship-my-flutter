@@ -6,6 +6,5 @@ part 'git_commit.freezed.dart';
 @freezed
 abstract class GitCommit with _$GitCommit {
   /// Creates a Git commit.
-  const factory GitCommit({required String sha, required String message}) =
-      _GitCommit;
+  const factory GitCommit({required String sha, required String message}) = _GitCommit;
 }

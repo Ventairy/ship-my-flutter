@@ -63,9 +63,7 @@ final class GitHubRestApi implements GitHubApi {
   final Uri _apiRoot;
 
   Uri _uri(String path, [Map<String, String>? query]) {
-    final basePath = _apiRoot.path.endsWith('/')
-        ? _apiRoot.path.substring(0, _apiRoot.path.length - 1)
-        : _apiRoot.path;
+    final basePath = _apiRoot.path.endsWith('/') ? _apiRoot.path.substring(0, _apiRoot.path.length - 1) : _apiRoot.path;
     return _apiRoot.replace(path: '$basePath$path', queryParameters: query);
   }
 
@@ -87,8 +85,7 @@ final class GitHubRestApi implements GitHubApi {
     Map<String, String>? query,
     Object? body,
   }) async {
-    final request = http.Request(method, _uri(path, query))
-      ..headers.addAll(_headers);
+    final request = http.Request(method, _uri(path, query))..headers.addAll(_headers);
     if (body != null) request.body = jsonEncode(body);
     late final http.Response response;
     try {
@@ -240,8 +237,7 @@ final class GitHubRestApi implements GitHubApi {
     return _release(_decodeResponse(response));
   }
 
-  String _boundedBody(String body) =>
-      body.length > 500 ? body.substring(0, 500) : body;
+  String _boundedBody(String body) => body.length > 500 ? body.substring(0, 500) : body;
 
   GitHubPullRequest _pullRequest(Object? value) {
     return _decodeDto(value, GitHubPullRequest.fromJson);
@@ -268,16 +264,16 @@ final class GitHubRestApi implements GitHubApi {
       );
     }
   }
-}
 
-Object? _decodeResponse(http.Response response) {
-  try {
-    return jsonDecode(response.body);
-  } on FormatException catch (error) {
-    throw SmfError(
-      'GitHub returned malformed JSON.',
-      'GITHUB_RESPONSE',
-      cause: error,
-    );
+  Object? _decodeResponse(http.Response response) {
+    try {
+      return jsonDecode(response.body);
+    } on FormatException catch (error) {
+      throw SmfError(
+        'GitHub returned malformed JSON.',
+        'GITHUB_RESPONSE',
+        cause: error,
+      );
+    }
   }
 }

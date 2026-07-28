@@ -1,32 +1,43 @@
 # Security guide
 
-SMF handles store API credentials and signing material. Protect every encoded
-value exactly like the original secret.
+SMF handles store API credentials and signing material. Protect every secret
+and encoded value exactly like the original credential.
 
 ## Workflow credentials
 
 ### Apple
 
-| Secret | Contains |
-| --- | --- |
-| `APP_STORE_CONNECT_KEY_ID` | API key ID |
-| `APP_STORE_CONNECT_ISSUER_ID` | API issuer ID |
-| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | Base64 `.p8` private key |
-| `IOS_CERTIFICATE_BASE64` | Base64 Apple Distribution `.p12` |
-| `IOS_CERTIFICATE_PASSWORD` | `.p12` password |
-| `IOS_PROVISIONING_PROFILES_BASE64` | Base64 profile or bundle-ID JSON map |
+| Secret                              | Contains                         |
+| ----------------------------------- | -------------------------------- |
+| `APP_STORE_CONNECT_KEY_ID`          | API key ID                       |
+| `APP_STORE_CONNECT_ISSUER_ID`       | API issuer ID                    |
+| `APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 `AuthKey_*.p8`            |
+| `IOS_CERTIFICATE_BASE64`            | Base64 Apple Distribution `.p12` |
+| `IOS_CERTIFICATE_PASSWORD`          | `.p12` password                  |
 
 ### Android
 
-| Secret | Contains |
-| --- | --- |
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` | Base64 service-account JSON |
-| `ANDROID_KEYSTORE_BASE64` | Base64 upload keystore |
-| `ANDROID_KEY_ALIAS` | Upload-key alias |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_PASSWORD` | Key password |
+| Secret                             | Contains                      |
+| ---------------------------------- | ----------------------------- |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete service-account JSON |
+| `ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore        |
+| `ANDROID_KEY_ALIAS`                | Upload-key alias              |
+| `ANDROID_KEYSTORE_PASSWORD`        | Keystore password             |
+| `ANDROID_KEY_PASSWORD`             | Key password                  |
 
-Base64 is encoding, not encryption.
+Base64 used for binary signing files is encoding, not encryption.
+
+Store these values as environment secrets under
+`Settings → Environments → smf-<app-id>`. Each initialized app has a separate
+environment, so sibling apps can use the same secret names without sharing
+credentials. The generated candidate and ship jobs declare only the selected
+app's environment.
+
+The generated cross-platform Action step lists both Apple and Android input
+names so one workflow can run either matrix platform. Configure credentials
+only for platforms the app enables. At runtime SMF loads the selected
+platform's credential set, masks supplied secrets, and removes store/signing
+values before repository hooks and project commands.
 
 Creation instructions:
 
@@ -40,7 +51,9 @@ Creation instructions:
 - API/signing values are removed before repository hooks, Git, and unrelated
   project commands.
 - Signing files live in private temporary directories outside the repository.
-- iOS uses a temporary keychain/profile installation.
+- iOS matches the exact `.p12` certificate and signed bundle IDs against the
+  Apple team, resolves profiles through Apple's API, and uses a temporary
+  keychain/profile installation.
 - Android signs the AAB with the upload keystore, verifies the JAR signature,
   and compares the exact certificate SHA-256.
 - Temporary files are removed after the candidate operation.
@@ -75,7 +88,7 @@ permissions and no unnecessary Google Cloud or financial access.
 
 These repository files can execute during a release:
 
-- `.github/workflows/smf.yml`;
+- `.github/workflows/smf-<app-id>.yml`;
 - `smf/hooks/before_create_pr.dart`;
 - `smf/hooks/before_build.dart`;
 - custom `build_command` values;
@@ -119,7 +132,32 @@ repository with:
 Pass the alternative token consistently to every SMF Action step when the same
 identity must push receipts/create Releases.
 
-`smf init --workflow-only` regenerates the workflow and may replace manual
+For a GitHub App, create an installation token in each job before checkout:
+
+```yaml
+- name: Create SMF GitHub App token
+  id: smf-token
+  uses: actions/create-github-app-token@<reviewed-commit>
+  with:
+    app-id: ${{ vars.SMF_GITHUB_APP_ID }}
+    private-key: ${{ secrets.SMF_GITHUB_APP_PRIVATE_KEY }}
+    permission-contents: write
+    permission-issues: write
+    permission-pull-requests: write
+```
+
+Then pass it to that job's SMF step:
+
+```yaml
+with:
+  github-token: ${{ steps.smf-token.outputs.token }}
+```
+
+The pull-request job needs Contents, Issues, and Pull requests write. Candidate
+and ship jobs need Contents write. If the installed App lacks one requested
+repository permission, token creation fails before SMF runs.
+
+`smf init --github-actions` regenerates the workflow and may replace manual
 token edits. Review/reapply intentional customization.
 
 ## Action version pinning
@@ -168,11 +206,9 @@ build inputs.
 
 ## Production controls
 
-- Keep both platform modes at `upload` until the candidate-only flow works.
-- iOS `review`/`auto` can submit App Review.
-- Android `review`/`auto` can update production.
-- Android `review` is safe as a manual final hold only when Managed Publishing
-  is enabled in Play Console.
+- Keep `ship` omitted for both platforms until the candidate-only flow works.
+- Before adding either `ship` section, read the exact store effects and
+  prerequisites in the [configuration reference](configuration.md#ios).
 - Protect the target branch and require human release approval.
 
 GitHub approval does not replace store-account production gates, policy

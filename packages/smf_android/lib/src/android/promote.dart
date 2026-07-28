@@ -1,6 +1,7 @@
 import 'package:path/path.dart' as p;
 import 'package:smf_android/src/android/client.dart';
 import 'package:smf_android/src/android/project.dart';
+import 'package:smf_android/src/android/tracks.dart';
 import 'package:smf_android/src/models/google_play_credentials.dart';
 import 'package:smf_engine/smf_engine.dart';
 
@@ -13,6 +14,8 @@ final class AndroidPromotionResult {
     required this.versionCode,
     required this.testingTrack,
     required this.githubReleaseUrl,
+    this.testingTracks = const <String>[],
+    this.shippedTracks = const <String>[],
     this.productionTrack,
   });
 
@@ -28,6 +31,12 @@ final class AndroidPromotionResult {
   /// Testing track that contained the candidate.
   final String testingTrack;
 
+  /// Every testing track that contained the candidate.
+  final List<String> testingTracks;
+
+  /// Every track updated during the ship phase.
+  final List<String> shippedTracks;
+
   /// Production track updated by this promotion, if any.
   final String? productionTrack;
 
@@ -42,6 +51,8 @@ final class AndroidPromotionResult {
     'artifactId': versionCode.toString(),
     'buildNumber': versionCode.toString(),
     'testingTrack': testingTrack,
+    'testingTracks': testingTracks,
+    'shippedTracks': shippedTracks,
     'productionTrack': ?productionTrack,
     'githubReleaseUrl': githubReleaseUrl,
   };
@@ -57,7 +68,7 @@ final class AndroidPromotionOptions {
     this.smfPath,
     this.client,
     this.githubApi,
-    this.resolvePackage = resolvePackageName,
+    this.resolvePackage = AndroidProject.resolvePackageName,
   });
 
   /// Directory from which SMF discovers the target app.
@@ -79,191 +90,241 @@ final class AndroidPromotionOptions {
   final GitHubApi? githubApi;
 
   /// Android application-ID resolver.
-  final ResolvePackageName resolvePackage;
+  final Future<String> Function(
+    String appRoot,
+    AndroidConfig config, {
+    String? flavor,
+  })
+  resolvePackage;
 }
 
-/// Verifies and promotes the exact internal-testing AAB without rebuilding.
-Future<AndroidPromotionResult> promoteAndroidRelease(
-  AndroidPromotionOptions options,
-) async {
-  final workingDirectory = p.normalize(p.absolute(options.workingDirectory));
-  final paths = resolveSmfPaths(workingDirectory, smfPath: options.smfPath);
-  final repositoryRoot = paths.repositoryRoot;
-  await validateRepository(paths.directory);
-  final (config, manifest) = await (
-    loadConfig(paths.directory),
-    loadManifest(paths.directory),
-  ).wait;
-  invariant(
-    config.android.enabled,
-    'Android delivery is disabled in configuration.',
-    'ANDROID_DISABLED',
-  );
-  invariant(
-    await currentBranch(repositoryRoot) == config.targetBranch,
-    'Shipping only runs on ${config.targetBranch}.',
-    'PROMOTION_BRANCH',
-  );
-  invariant(
-    await isClean(repositoryRoot),
-    'The promotion checkout must be clean before its source is verified.',
-    'DIRTY_WORKTREE',
-  );
-  final state = manifest.android;
-  invariant(
-    state.pendingRelease,
-    'The Android manifest does not contain a pending release.',
-    'NO_PENDING_RELEASE',
-  );
-  final receipt = await loadCandidateReceipt(
-    candidatePath(paths.directory, Platform.android, state.version),
-  );
-  invariant(
-    receipt.version == state.version && receipt.platform == Platform.android,
-    'The candidate receipt does not match the pending Android release.',
-    'CANDIDATE_MISMATCH',
-  );
-  invariant(
-    await sourceFingerprint(paths.directory) == receipt.sourceFingerprint,
-    'The merged source does not match the tested Google Play candidate. '
-        'Produce a new candidate before promoting this version.',
-    'UNTESTED_SOURCE',
-  );
-  final packageName = await options.resolvePackage(
-    paths.appRoot,
-    config.android,
-    flavor: config.flavor,
-  );
-  invariant(
-    receipt.applicationId == packageName &&
-        receipt.storeApplicationId == packageName,
-    'The candidate receipt package name does not match the configured Android '
-        'application.',
-    'CANDIDATE_PACKAGE_MISMATCH',
-  );
-  final versionCode = int.tryParse(receipt.artifactId);
-  if (versionCode == null ||
-      receipt.buildNumber != receipt.artifactId ||
-      versionCode <= 0) {
-    throw const SmfError(
-      'The candidate receipt does not contain a valid Google Play versionCode.',
+/// Promotes exact tested Google Play candidates without rebuilding.
+final class AndroidRelease {
+  const AndroidRelease._();
+
+  /// Verifies and promotes the exact candidate described by [options].
+  static Future<AndroidPromotionResult> promote(
+    AndroidPromotionOptions options,
+  ) async {
+    final workingDirectory = p.normalize(p.absolute(options.workingDirectory));
+    final paths = SmfPaths.resolve(
+      workingDirectory,
+      smfPath: options.smfPath,
+    );
+    final repositoryRoot = paths.repositoryRoot;
+    final gitClient = GitClient(root: repositoryRoot);
+    await RepositoryValidator.validate(paths.directory);
+    final (config, manifest) = await (
+      SmfState.config(paths.directory),
+      SmfState.manifest(paths.directory),
+    ).wait;
+    SmfError.check(
+      config.android.enabled,
+      'Android delivery is disabled in configuration.',
+      'ANDROID_DISABLED',
+    );
+    SmfError.check(
+      await gitClient.currentBranch() == config.targetBranch,
+      'Shipping only runs on ${config.targetBranch}.',
+      'PROMOTION_BRANCH',
+    );
+    SmfError.check(
+      await gitClient.isClean(),
+      'The promotion checkout must be clean before its source is verified.',
+      'DIRTY_WORKTREE',
+    );
+    final state = manifest.android;
+    SmfError.check(
+      state.pendingRelease,
+      'The Android manifest does not contain a pending release.',
+      'NO_PENDING_RELEASE',
+    );
+    final receipt = await CandidateReceipt.read(
+      paths.candidatePath(
+        platform: Platform.android,
+        version: state.version,
+      ),
+    );
+    SmfError.check(
+      receipt.version == state.version && receipt.platform == Platform.android,
+      'The candidate receipt does not match the pending Android release.',
       'CANDIDATE_MISMATCH',
     );
-  }
+    SmfError.check(
+      await SourceFingerprint.calculate(paths.directory) == receipt.sourceFingerprint,
+      'The merged source does not match the tested Google Play candidate. '
+          'Produce a new candidate before promoting this version.',
+      'UNTESTED_SOURCE',
+    );
+    final packageName = await options.resolvePackage(
+      paths.appRoot,
+      config.android,
+      flavor: config.flavor,
+    );
+    SmfError.check(
+      receipt.applicationId == packageName && receipt.storeApplicationId == packageName,
+      'The candidate receipt package name does not match the configured Android '
+          'application.',
+      'CANDIDATE_PACKAGE_MISMATCH',
+    );
+    final versionCode = int.tryParse(receipt.artifactId);
+    if (versionCode == null || receipt.buildNumber != receipt.artifactId || versionCode <= 0) {
+      throw const SmfError(
+        'The candidate receipt does not contain a valid Google Play versionCode.',
+        'CANDIDATE_MISMATCH',
+      );
+    }
 
-  final ownsClient = options.client == null;
-  final client =
-      options.client ??
-      await GooglePlayClient.open(options.googlePlayCredentials);
-  String? promotedTrack;
-  try {
-    final edit = await client.createEdit(packageName);
-    var committed = false;
+    final ownsClient = options.client == null;
+    final client = options.client ?? await GooglePlayClient.open(options.googlePlayCredentials);
+    final testingTracks = GooglePlayTrackNames.releaseCandidate(
+      config.android.googlePlay.releaseCandidate,
+    );
+    final configuredShip = config.android.googlePlay.ship;
+    final shipTracks = configuredShip == null ? const <String>[] : GooglePlayTrackNames.ship(configuredShip);
+    final promotedTracks = <String>[];
     try {
-      final bundles = await client.listBundles(packageName, edit.id);
-      final bundle = bundles
-          .where((item) => item.versionCode == versionCode)
-          .firstOrNull;
-      invariant(
-        bundle?.sha256 == receipt.artifactSha256,
-        'The recorded Android App Bundle is not available with the exact '
-            'candidate SHA-256.',
-        'CANDIDATE_INVALID',
-      );
-      final testingTrack = await client.getTrack(
-        packageName,
-        edit.id,
-        config.android.googlePlay.testingTrack,
-      );
-      invariant(
-        testingTrack.containsVersionCode(versionCode),
-        'The exact candidate versionCode is not on the configured Google Play '
-            'testing track.',
-        'CANDIDATE_NOT_TESTING',
-      );
-
-      if (config.android.googlePlay.mode != ReleaseMode.upload) {
-        final production = await client.getTrack(
-          packageName,
-          edit.id,
-          config.android.googlePlay.productionTrack,
+      final edit = await client.createEdit(packageName);
+      var committed = false;
+      try {
+        final bundles = await client.listBundles(
+          packageName: packageName,
+          editId: edit.id,
         );
-        if (!production.containsVersionCode(versionCode)) {
-          invariant(
-            production.releases.every(
-              (release) => release.status == 'completed',
-            ),
-            'The Google Play production track has an unfinished release. '
-                'Finish or halt it in Play Console before SMF replaces the '
-                'track.',
-            'GOOGLE_PLAY_RELEASE_IN_PROGRESS',
+        final bundle = bundles.where((item) => item.versionCode == versionCode).firstOrNull;
+        SmfError.check(
+          bundle?.sha256 == receipt.artifactSha256,
+          'The recorded Android App Bundle is not available with the exact '
+              'candidate SHA-256.',
+          'CANDIDATE_INVALID',
+        );
+        for (final testingTrackName in testingTracks) {
+          final testingTrack = await client.getTrack(
+            packageName: packageName,
+            editId: edit.id,
+            track: testingTrackName,
           );
-          final notes = await loadStoreReleaseNotes(paths.directory);
-          await client.updateTrack(
-            packageName,
-            edit.id,
-            GooglePlayTrack(
-              name: config.android.googlePlay.productionTrack,
-              releases: <GooglePlayRelease>[
-                GooglePlayRelease(
-                  status: 'completed',
-                  versionCodes: <int>[versionCode],
-                  name: state.version,
-                  releaseNotes:
-                      notes[Platform.android]?[state.version] ??
-                      const <String, String>{},
-                ),
-              ],
-            ),
+          SmfError.check(
+            testingTrack.containsCompletedVersionCode(versionCode),
+            'The exact candidate versionCode is not on configured Google Play '
+                'testing track "$testingTrackName" as a completed release.',
+            'CANDIDATE_NOT_TESTING',
           );
-          await client.validateEdit(packageName, edit.id);
+        }
+
+        var changed = false;
+        for (final shipTrackName in shipTracks) {
+          final destination = await client.getTrack(
+            packageName: packageName,
+            editId: edit.id,
+            track: shipTrackName,
+          );
+          final existingRelease = destination.releaseForVersionCode(versionCode);
+          if (existingRelease != null) {
+            SmfError.check(
+              existingRelease.status == GooglePlayReleaseStatus.completed,
+              'Google Play track "$shipTrackName" contains the candidate in '
+                  '${existingRelease.status.value} state, not as a completed '
+                  'release.',
+              'GOOGLE_PLAY_RELEASE_IN_PROGRESS',
+            );
+          } else {
+            SmfError.check(
+              destination.releases.every(
+                (release) => release.status == GooglePlayReleaseStatus.completed,
+              ),
+              'Google Play track "$shipTrackName" has an unfinished release. '
+                  'Finish or halt it in Play Console before SMF replaces it.',
+              'GOOGLE_PLAY_RELEASE_IN_PROGRESS',
+            );
+            final notes = await SmfState.storeReleaseNotes(paths.directory);
+            await client.updateTrack(
+              packageName: packageName,
+              editId: edit.id,
+              track: GooglePlayTrack(
+                name: shipTrackName,
+                releases: <GooglePlayRelease>[
+                  GooglePlayRelease(
+                    status: GooglePlayReleaseStatus.completed,
+                    versionCodes: <int>[versionCode],
+                    name: state.version,
+                    releaseNotes: notes.forRelease(
+                      platform: Platform.android,
+                      version: state.version,
+                    ),
+                  ),
+                ],
+              ),
+            );
+            changed = true;
+          }
+          promotedTracks.add(shipTrackName);
+        }
+        if (changed) {
+          await client.validateEdit(
+            packageName: packageName,
+            editId: edit.id,
+          );
           await client.commitEdit(
-            packageName,
-            edit.id,
+            packageName: packageName,
+            editId: edit.id,
             changesNotSentForReview: false,
           );
           committed = true;
         }
-        promotedTrack = config.android.googlePlay.productionTrack;
-      }
-    } finally {
-      if (!committed) {
-        try {
-          await client.deleteEdit(packageName, edit.id);
-        } on Object {
-          // An abandoned Google Play edit expires automatically. Cleanup must
-          // not hide the promotion result or its original failure.
+      } finally {
+        if (!committed) {
+          try {
+            await client.deleteEdit(
+              packageName: packageName,
+              editId: edit.id,
+            );
+          } on Object {
+            // An abandoned Google Play edit expires automatically. Cleanup must
+            // not hide the promotion result or its original failure.
+          }
         }
       }
+    } finally {
+      if (ownsClient) client.close();
     }
-  } finally {
-    if (ownsClient) client.close();
-  }
 
-  final changelog = await loadChangelog(paths.directory);
-  final release = changelog.androidReleases[state.version];
-  if (release == null) {
-    throw SmfError(
-      'Missing changelog for Android ${state.version}',
-      'MISSING_CHANGELOG',
+    final changelog = await SmfState.changelog(paths.directory);
+    final release = changelog.androidReleases[state.version];
+    if (release == null) {
+      throw SmfError(
+        'Missing changelog for Android ${state.version}',
+        'MISSING_CHANGELOG',
+      );
+    }
+    final tag = ReleaseReference.tag(
+      config.appId,
+      Platform.android,
+      state.version,
+    );
+    final githubApi = options.githubApi ?? GitHubRestApi(context: options.github);
+    final githubRelease =
+        await githubApi.releaseByTag(tag) ??
+        await githubApi.createRelease(
+          tag: tag,
+          targetCommitish: await gitClient.currentSha(),
+          name: '${config.appId} Android v${state.version}',
+          body: ReleaseChangelog.markdown(
+            platform: Platform.android,
+            release: release,
+          ),
+        );
+    return AndroidPromotionResult(
+      version: state.version,
+      tag: tag,
+      versionCode: versionCode,
+      testingTrack: testingTracks.first,
+      testingTracks: testingTracks,
+      shippedTracks: promotedTracks,
+      productionTrack: promotedTracks.contains(GooglePlayTrackNames.production)
+          ? GooglePlayTrackNames.production
+          : null,
+      githubReleaseUrl: githubRelease.htmlUrl,
     );
   }
-  final tag = releaseTag(Platform.android, state.version);
-  final githubApi = options.githubApi ?? GitHubRestApi(context: options.github);
-  final githubRelease =
-      await githubApi.releaseByTag(tag) ??
-      await githubApi.createRelease(
-        tag: tag,
-        targetCommitish: await currentSha(repositoryRoot),
-        name: 'Android v${state.version}',
-        body: releaseNotesMarkdown(Platform.android, release),
-      );
-  return AndroidPromotionResult(
-    version: state.version,
-    tag: tag,
-    versionCode: versionCode,
-    testingTrack: config.android.googlePlay.testingTrack,
-    productionTrack: promotedTrack,
-    githubReleaseUrl: githubRelease.htmlUrl,
-  );
 }

@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SmfConfig {
 
- IosConfig get ios; AndroidConfig get android; int get schemaVersion; String? get flavor; String get targetBranch;
+ String get appId; IosConfig get ios; AndroidConfig get android; int get schemaVersion; String? get flavor; String get targetBranch; List<String> get releaseTriggerPaths;
 /// Create a copy of SmfConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $SmfConfigCopyWith<SmfConfig> get copyWith => _$SmfConfigCopyWithImpl<SmfConfig>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SmfConfig&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.android, android) || other.android == android)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SmfConfig&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.android, android) || other.android == android)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch)&&const DeepCollectionEquality().equals(other.releaseTriggerPaths, releaseTriggerPaths));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ios,android,schemaVersion,flavor,targetBranch);
+int get hashCode => Object.hash(runtimeType,appId,ios,android,schemaVersion,flavor,targetBranch,const DeepCollectionEquality().hash(releaseTriggerPaths));
 
 @override
 String toString() {
-  return 'SmfConfig(ios: $ios, android: $android, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch)';
+  return 'SmfConfig(appId: $appId, ios: $ios, android: $android, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch, releaseTriggerPaths: $releaseTriggerPaths)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $SmfConfigCopyWith<$Res>  {
   factory $SmfConfigCopyWith(SmfConfig value, $Res Function(SmfConfig) _then) = _$SmfConfigCopyWithImpl;
 @useResult
 $Res call({
- IosConfig ios, AndroidConfig android, int schemaVersion, String? flavor, String targetBranch
+ String appId, IosConfig ios, AndroidConfig android, int schemaVersion, String? flavor, String targetBranch, List<String> releaseTriggerPaths
 });
 
 
@@ -62,14 +62,16 @@ class _$SmfConfigCopyWithImpl<$Res>
 
 /// Create a copy of SmfConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? ios = null,Object? android = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? appId = null,Object? ios = null,Object? android = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,Object? releaseTriggerPaths = null,}) {
   return _then(_self.copyWith(
-ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable
+appId: null == appId ? _self.appId : appId // ignore: cast_nullable_to_non_nullable
+as String,ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable
 as IosConfig,android: null == android ? _self.android : android // ignore: cast_nullable_to_non_nullable
 as AndroidConfig,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,flavor: freezed == flavor ? _self.flavor : flavor // ignore: cast_nullable_to_non_nullable
 as String?,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
-as String,
+as String,releaseTriggerPaths: null == releaseTriggerPaths ? _self.releaseTriggerPaths : releaseTriggerPaths // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 /// Create a copy of SmfConfig
@@ -172,10 +174,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String appId,  IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch,  List<String> releaseTriggerPaths)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SmfConfig() when $default != null:
-return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
+return $default(_that.appId,_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch,_that.releaseTriggerPaths);case _:
   return orElse();
 
 }
@@ -193,10 +195,10 @@ return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String appId,  IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch,  List<String> releaseTriggerPaths)  $default,) {final _that = this;
 switch (_that) {
 case _SmfConfig():
-return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
+return $default(_that.appId,_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch,_that.releaseTriggerPaths);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -213,10 +215,10 @@ return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String appId,  IosConfig ios,  AndroidConfig android,  int schemaVersion,  String? flavor,  String targetBranch,  List<String> releaseTriggerPaths)?  $default,) {final _that = this;
 switch (_that) {
 case _SmfConfig() when $default != null:
-return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch);case _:
+return $default(_that.appId,_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.targetBranch,_that.releaseTriggerPaths);case _:
   return null;
 
 }
@@ -228,14 +230,22 @@ return $default(_that.ios,_that.android,_that.schemaVersion,_that.flavor,_that.t
 
 
 class _SmfConfig extends SmfConfig {
-  const _SmfConfig({this.ios = const IosConfig(enabled: false), this.android = const AndroidConfig(), this.schemaVersion = 1, this.flavor, this.targetBranch = 'main'}): super._();
+  const _SmfConfig({required this.appId, this.ios = const IosConfig(enabled: false), this.android = const AndroidConfig(), this.schemaVersion = 3, this.flavor, this.targetBranch = 'main', final  List<String> releaseTriggerPaths = const <String>[]}): _releaseTriggerPaths = releaseTriggerPaths,super._();
   
 
+@override final  String appId;
 @override@JsonKey() final  IosConfig ios;
 @override@JsonKey() final  AndroidConfig android;
 @override@JsonKey() final  int schemaVersion;
 @override final  String? flavor;
 @override@JsonKey() final  String targetBranch;
+ final  List<String> _releaseTriggerPaths;
+@override@JsonKey() List<String> get releaseTriggerPaths {
+  if (_releaseTriggerPaths is EqualUnmodifiableListView) return _releaseTriggerPaths;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_releaseTriggerPaths);
+}
+
 
 /// Create a copy of SmfConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -247,16 +257,16 @@ _$SmfConfigCopyWith<_SmfConfig> get copyWith => __$SmfConfigCopyWithImpl<_SmfCon
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SmfConfig&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.android, android) || other.android == android)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SmfConfig&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.ios, ios) || other.ios == ios)&&(identical(other.android, android) || other.android == android)&&(identical(other.schemaVersion, schemaVersion) || other.schemaVersion == schemaVersion)&&(identical(other.flavor, flavor) || other.flavor == flavor)&&(identical(other.targetBranch, targetBranch) || other.targetBranch == targetBranch)&&const DeepCollectionEquality().equals(other._releaseTriggerPaths, _releaseTriggerPaths));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ios,android,schemaVersion,flavor,targetBranch);
+int get hashCode => Object.hash(runtimeType,appId,ios,android,schemaVersion,flavor,targetBranch,const DeepCollectionEquality().hash(_releaseTriggerPaths));
 
 @override
 String toString() {
-  return 'SmfConfig(ios: $ios, android: $android, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch)';
+  return 'SmfConfig(appId: $appId, ios: $ios, android: $android, schemaVersion: $schemaVersion, flavor: $flavor, targetBranch: $targetBranch, releaseTriggerPaths: $releaseTriggerPaths)';
 }
 
 
@@ -267,7 +277,7 @@ abstract mixin class _$SmfConfigCopyWith<$Res> implements $SmfConfigCopyWith<$Re
   factory _$SmfConfigCopyWith(_SmfConfig value, $Res Function(_SmfConfig) _then) = __$SmfConfigCopyWithImpl;
 @override @useResult
 $Res call({
- IosConfig ios, AndroidConfig android, int schemaVersion, String? flavor, String targetBranch
+ String appId, IosConfig ios, AndroidConfig android, int schemaVersion, String? flavor, String targetBranch, List<String> releaseTriggerPaths
 });
 
 
@@ -284,14 +294,16 @@ class __$SmfConfigCopyWithImpl<$Res>
 
 /// Create a copy of SmfConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? ios = null,Object? android = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? appId = null,Object? ios = null,Object? android = null,Object? schemaVersion = null,Object? flavor = freezed,Object? targetBranch = null,Object? releaseTriggerPaths = null,}) {
   return _then(_SmfConfig(
-ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable
+appId: null == appId ? _self.appId : appId // ignore: cast_nullable_to_non_nullable
+as String,ios: null == ios ? _self.ios : ios // ignore: cast_nullable_to_non_nullable
 as IosConfig,android: null == android ? _self.android : android // ignore: cast_nullable_to_non_nullable
 as AndroidConfig,schemaVersion: null == schemaVersion ? _self.schemaVersion : schemaVersion // ignore: cast_nullable_to_non_nullable
 as int,flavor: freezed == flavor ? _self.flavor : flavor // ignore: cast_nullable_to_non_nullable
 as String?,targetBranch: null == targetBranch ? _self.targetBranch : targetBranch // ignore: cast_nullable_to_non_nullable
-as String,
+as String,releaseTriggerPaths: null == releaseTriggerPaths ? _self._releaseTriggerPaths : releaseTriggerPaths // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 

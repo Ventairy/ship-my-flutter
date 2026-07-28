@@ -1,7 +1,7 @@
 /// A provisioning profile installed for one signed bundle.
-final class InstalledProfile {
+final class AppleInstalledProfile {
   /// Creates installed-profile metadata.
-  const InstalledProfile({
+  const AppleInstalledProfile({
     required this.bundleId,
     required this.uuid,
     required this.name,

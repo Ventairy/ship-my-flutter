@@ -43,7 +43,11 @@ jobs:
 
       - name: Verify formatting
         if: matrix.sdk == 'stable'
-        run: dart format --output=none --set-exit-if-changed .
+        run: dart run tool/check_dart_format.dart
+
+      - name: Verify documentation links
+        if: matrix.sdk == 'stable'
+        run: dart run tool/check_markdown_links.dart
 
       - name: Analyze
         run: dart analyze --fatal-infos

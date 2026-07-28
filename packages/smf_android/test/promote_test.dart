@@ -25,40 +25,43 @@ void main() {
       p.join(root.path, 'pubspec.yaml'),
     ).writeAsString('name: example\nversion: 1.0.0+1\n');
     await File(p.join(root.path, 'pubspec.lock')).writeAsString('# lock\n');
-    await git(root.path, const <String>['init', '-b', 'main']);
-    await git(root.path, const <String>['config', 'user.name', 'Test']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+    await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+    await GitClient(root: root.path).run(const <String>[
       'config',
       'user.email',
       'test@example.com',
     ]);
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-    await initialize(
-      InitOptions(appRoot: root.path, packageName: 'dev.example.android'),
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
+    await RepositoryInitializer.initialize(
+      InitOptions(
+        appRoot: root.path,
+        androidPackageName: 'dev.example.android',
+      ),
     );
-    final paths = resolveSmfPaths(root.path);
+    final paths = SmfPaths.resolve(root.path);
     final configFile = File(paths.config);
     await configFile.writeAsString(
       (await configFile.readAsString()).replaceFirst(
         '    google_play:\n'
-            '      testing_track: internal\n'
-            '      production_track: production\n'
-            '      mode: upload',
+            '      release_candidate:\n'
+            '        target: internal-testing',
         '    google_play:\n'
-            '      testing_track: internal\n'
-            '      production_track: production\n'
-            '      mode: auto',
+            '      release_candidate:\n'
+            '        target: internal-testing\n'
+            '      ship:\n'
+            '        target: production',
       ),
     );
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'chore: configure releases',
     ]);
-    final baseline = await currentSha(root.path);
-    final initial = await loadManifest(root.path);
+    final baseline = await GitClient(root: root.path).currentSha();
+    final initial = await SmfState.manifest(root.path);
     await writeObject(
       paths.manifest,
       SmfManifest(
@@ -88,7 +91,7 @@ void main() {
                 description: 'Android release',
                 body: null,
                 breaking: false,
-                bump: Bump.minor,
+                versionBump: VersionBump.minor,
                 platforms: const <Platform>[Platform.android],
               ),
             ],
@@ -101,18 +104,20 @@ void main() {
         '1.1.0': <String, Object?>{'en-US': 'Ready for everyone.'},
       },
     });
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'chore(android): release 1.1.0',
     ]);
-    final sourceSha = await currentSha(root.path);
-    final fingerprint = await sourceFingerprint(root.path);
-    const artifactHash =
-        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    final sourceSha = await GitClient(root: root.path).currentSha();
+    final fingerprint = await SourceFingerprint.calculate(root.path);
+    const artifactHash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     await writeObject(
-      candidatePath(root.path, Platform.android, '1.1.0'),
+      paths.candidatePath(
+        platform: Platform.android,
+        version: '1.1.0',
+      ),
       CandidateReceipt(
         platform: Platform.android,
         version: '1.1.0',
@@ -124,11 +129,11 @@ void main() {
         sourceFingerprint: fingerprint,
         artifactSha256: artifactHash,
         uploadedAt: DateTime.utc(2026, 7, 27),
-        testingDestinations: const <String>['internal'],
+        testingDestinations: const <String>['qa'],
       ).toJson(),
     );
-    await git(root.path, const <String>['add', '.']);
-    await git(root.path, const <String>[
+    await GitClient(root: root.path).run(const <String>['add', '.']);
+    await GitClient(root: root.path).run(const <String>[
       'commit',
       '-m',
       'chore(android): record candidate',
@@ -139,17 +144,20 @@ void main() {
         GooglePlayBundle(versionCode: 9, sha256: artifactHash),
       ],
       tracks: <String, GooglePlayTrack>{
-        'internal': const GooglePlayTrack(
-          name: 'internal',
+        'qa': GooglePlayTrack(
+          name: 'qa',
           releases: <GooglePlayRelease>[
-            GooglePlayRelease(status: 'completed', versionCodes: <int>[9]),
+            GooglePlayRelease(
+              status: GooglePlayReleaseStatus.completed,
+              versionCodes: <int>[9],
+            ),
           ],
         ),
-        'production': const GooglePlayTrack(name: 'production'),
+        'production': GooglePlayTrack(name: 'production'),
       },
     );
     final github = FakeGitHubApi();
-    final result = await promoteAndroidRelease(
+    final result = await AndroidRelease.promote(
       AndroidPromotionOptions(
         workingDirectory: root.path,
         googlePlayCredentials: const GooglePlayCredentials(
@@ -174,6 +182,6 @@ void main() {
       <String, String>{'en-US': 'Ready for everyone.'},
     );
     expect(play.committedReviewStates, <bool>[false]);
-    expect(github.createdTags, <String>['android-v1.1.0']);
+    expect(github.createdTags, <String>['example/android-v1.1.0']);
   });
 }

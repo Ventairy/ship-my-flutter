@@ -16,6 +16,5 @@ abstract class AppAttributes with _$AppAttributes {
   }) = _AppAttributes;
 
   /// Decodes app attributes from JSON.
-  factory AppAttributes.fromJson(Map<String, Object?> json) =>
-      _$AppAttributesFromJson(json);
+  factory AppAttributes.fromJson(Map<String, Object?> json) => _$AppAttributesFromJson(json);
 }

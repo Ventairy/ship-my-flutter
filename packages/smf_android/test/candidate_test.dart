@@ -27,7 +27,7 @@ Future<void> writeObject(String path, Object? value) async {
 
 void main() {
   test(
-    'uploads the next versionCode to internal testing and records it',
+    'when an older APK has the highest code, it should upload the next versionCode to every configured track',
     () async {
       final root = await Directory.systemTemp.createTemp(
         'smf-android-candidate-',
@@ -39,28 +39,43 @@ void main() {
         p.join(root.path, 'pubspec.yaml'),
       ).writeAsString('name: example\nversion: 1.0.0+1\n');
       await File(p.join(root.path, 'pubspec.lock')).writeAsString('# lock\n');
-      await git(root.path, const <String>['init', '-b', 'main']);
-      await git(root.path, const <String>['config', 'user.name', 'Test']);
-      await git(root.path, const <String>[
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['config', 'user.name', 'Test']);
+      await GitClient(root: root.path).run(const <String>[
         'config',
         'user.email',
         'test@example.com',
       ]);
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>['commit', '-m', 'chore: bootstrap']);
-      await initialize(
-        InitOptions(appRoot: root.path, packageName: 'dev.example.android'),
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
+      await RepositoryInitializer.initialize(
+        InitOptions(
+          appRoot: root.path,
+          androidPackageName: 'dev.example.android',
+        ),
       );
-      final paths = resolveSmfPaths(root.path);
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>[
+      final paths = SmfPaths.resolve(root.path);
+      final configFile = File(paths.config);
+      await configFile.writeAsString(
+        (await configFile.readAsString()).replaceFirst(
+          '        target: internal-testing',
+          '        target: closed-testing\n'
+              '        tracks:\n'
+              '          - internal-qa\n'
+              '          - trusted-users',
+        ),
+      );
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>[
         'commit',
         '-m',
         'chore: configure releases',
       ]);
-      await git(root.path, const <String>['checkout', '-b', 'smf/release']);
-      final baseline = await currentSha(root.path);
-      final initial = await loadManifest(root.path);
+      await GitClient(root: root.path).run(
+        const <String>['checkout', '-b', 'smf/example/release'],
+      );
+      final baseline = await GitClient(root: root.path).currentSha();
+      final initial = await SmfState.manifest(root.path);
       await writeObject(
         paths.manifest,
         SmfManifest(
@@ -72,13 +87,39 @@ void main() {
           ),
         ).toJson(),
       );
+      await writeObject(
+        paths.changelog,
+        ChangelogManifest(
+          iosReleases: const <String, ChangelogRelease>{},
+          androidReleases: <String, ChangelogRelease>{
+            '1.1.0': ChangelogRelease(
+              version: '1.1.0',
+              preparedAt: DateTime.utc(2026, 7, 28),
+              baseSha: baseline,
+              headSha: baseline,
+              changes: <ConventionalChange>[
+                ConventionalChange(
+                  sha: baseline,
+                  type: 'feat',
+                  scope: 'android',
+                  description: 'Prepare Android candidate',
+                  body: null,
+                  breaking: false,
+                  versionBump: VersionBump.minor,
+                  platforms: const <Platform>[Platform.android],
+                ),
+              ],
+            ),
+          },
+        ).toJson(),
+      );
       await writeObject(paths.storeReleaseNotes, <String, Object?>{
         'android': <String, Object?>{
           '1.1.0': <String, Object?>{'en-US': 'Ready for internal testing.'},
         },
       });
-      await git(root.path, const <String>['add', '.']);
-      await git(root.path, const <String>[
+      await GitClient(root: root.path).run(const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>[
         'commit',
         '-m',
         'chore(android): prepare release',
@@ -88,8 +129,9 @@ void main() {
         bundles: const <GooglePlayBundle>[
           GooglePlayBundle(versionCode: 8, sha256: 'old'),
         ],
+        artifactVersionCodes: <int>{8, 41},
       );
-      final result = await createAndroidCandidate(
+      final result = await AndroidCandidate.create(
         AndroidCandidateOptions(
           workingDirectory: root.path,
           googlePlayCredentials: googleCredentials,
@@ -97,7 +139,7 @@ void main() {
           client: play,
           commitReceipt: false,
           dependencies: AndroidCandidateDependencies(
-            runBeforeBuild: (_, _, _, _) async => false,
+            runBeforeBuild: ({required workingDirectory}) async => false,
             buildAab:
                 ({
                   required projectRoot,
@@ -110,7 +152,7 @@ void main() {
                   flavor,
                 }) async {
                   expect(version, '1.1.0');
-                  expect(buildNumber, '9');
+                  expect(buildNumber, '42');
                   expect(command, 'flutter build appbundle --release');
                   final artifact = File(
                     p.join(projectRoot, 'build', 'app-release.aab'),
@@ -126,22 +168,33 @@ void main() {
 
       expect(result.platform, Platform.android);
       expect(result.version, '1.1.0');
-      expect(result.artifactId, '9');
+      expect(result.artifactId, '42');
       expect(result.applicationId, 'dev.example.android');
-      expect(result.testingDestinations, <String>['internal']);
-      expect(play.updates.single.name, 'internal');
-      expect(play.updates.single.releases.single.versionCodes, <int>[9]);
+      expect(result.testingDestinations, <String>[
+        'internal-qa',
+        'trusted-users',
+      ]);
       expect(
-        play.updates.single.releases.single.releaseNotes,
-        <String, String>{'en-US': 'Ready for internal testing.'},
+        play.updates.map((track) => track.name),
+        <String>['internal-qa', 'trusted-users'],
       );
+      for (final track in play.updates) {
+        expect(track.releases.single.versionCodes, <int>[42]);
+        expect(
+          track.releases.single.releaseNotes,
+          <String, String>{'en-US': 'Ready for internal testing.'},
+        );
+      }
       expect(play.validateCount, 1);
       expect(play.committedReviewStates, <bool>[false]);
       expect(
-        (await loadCandidateReceipt(
-          candidatePath(root.path, Platform.android, '1.1.0'),
+        (await CandidateReceipt.read(
+          paths.candidatePath(
+            platform: Platform.android,
+            version: '1.1.0',
+          ),
         )).artifactId,
-        '9',
+        '42',
       );
     },
   );
