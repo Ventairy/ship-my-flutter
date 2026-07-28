@@ -43,11 +43,11 @@ final class SmfExecutable {
 SMF release automation
 
 Usage:
-  smf --phase <pull-request|release-candidate|ship> [options]
   smf <command> [options]
 
 Commands:
   init              Initialize SMF in a Flutter repository.
+  release           Run one phase of the SMF release workflow.
   upgrade           Upgrade the installed SMF CLI to the latest version.
   migrate           Update files created by an older SMF CLI to the installed format.
   validate          Validate repository configuration.
@@ -65,17 +65,14 @@ Commands:
       await _writeUpdateNotice(resolvedIo);
       return exitCode;
     }
-    if (arguments.first.startsWith('-')) {
-      final exitCode = await runRelease(arguments, io: resolvedIo);
-      await _writeUpdateNotice(resolvedIo);
-      return exitCode;
-    }
     final command = arguments.first;
     final options = arguments.sublist(1);
     final int exitCode;
     switch (command) {
       case 'init':
         exitCode = await runInit(options, io: resolvedIo);
+      case 'release':
+        exitCode = await runRelease(options, io: resolvedIo);
       case 'upgrade':
         exitCode = await runUpgrade(options, io: resolvedIo);
       case 'migrate':

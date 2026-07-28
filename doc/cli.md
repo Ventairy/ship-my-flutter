@@ -189,10 +189,10 @@ The manual sequence is:
 ```bash
 git switch main
 git pull --ff-only origin main
-smf --phase pull-request
+smf release --phase pull-request
 git fetch origin
 git switch smf/<app-id>/release
-smf --phase release-candidate
+smf release --phase release-candidate
 ```
 
 Install and test every candidate from its configured TestFlight or Google Play
@@ -200,7 +200,7 @@ testing destination. Review and merge the release PR. Then ship from anywhere
 inside the same Git repository:
 
 ```bash
-smf --phase ship
+smf release --phase ship
 ```
 
 The `pull-request` phase requires a clean checkout. The `release-candidate`
@@ -252,7 +252,7 @@ read -r -s SMF_ANDROID_KEY_PASSWORD
 export SMF_ANDROID_KEY_PASSWORD
 echo
 
-smf --phase release-candidate
+smf release --phase release-candidate
 
 unset SMF_GITHUB_TOKEN \
   SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON \
@@ -272,7 +272,7 @@ $env:SMF_ANDROID_KEY_ALIAS = "upload"
 $env:SMF_ANDROID_KEYSTORE_PASSWORD = Read-Host "Keystore password" -MaskInput
 $env:SMF_ANDROID_KEY_PASSWORD = Read-Host "Key password" -MaskInput
 
-smf --phase release-candidate
+smf release --phase release-candidate
 
 Remove-Item Env:SMF_GITHUB_TOKEN,Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,Env:SMF_ANDROID_KEYSTORE_BASE64,Env:SMF_ANDROID_KEY_ALIAS,Env:SMF_ANDROID_KEYSTORE_PASSWORD,Env:SMF_ANDROID_KEY_PASSWORD
 ```
@@ -280,13 +280,13 @@ Remove-Item Env:SMF_GITHUB_TOKEN,Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,Env:SM
 For a quick local run, every credential also has a direct option:
 
 ```bash
-smf --phase ship \
+smf release --phase ship \
   --platform android \
   --github-token "<token>" \
   --google-play-service-account-json '<complete JSON>'
 ```
 
-Use `smf --phase pull-request --help` for the complete option list. SMF rejects
+Use `smf release --phase pull-request --help` for the complete option list. SMF rejects
 an option when its matching `SMF_*` variable is also set. SMF does not accept
 credential-file options or credential `_PATH` variables.
 

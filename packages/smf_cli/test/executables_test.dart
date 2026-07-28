@@ -949,7 +949,12 @@ platforms:
       'upgrade': <String>['upgrade', '--help'],
       'migrate': <String>['migrate', '--help'],
       'validate': <String>['validate', '--help'],
-      'release phases': <String>['--phase', 'pull-request', '--help'],
+      'release phases': <String>[
+        'release',
+        '--phase',
+        'pull-request',
+        '--help',
+      ],
     };
 
     for (final entry in commands.entries) {
@@ -992,13 +997,13 @@ platforms:
       'create-release',
       'ship',
       'action',
-      'release',
       'candidate',
       'testflight',
       'internal-testing',
       'promote',
       'app-store',
       'google-play',
+      '--phase',
     ]) {
       final errors = <Object?>[];
 

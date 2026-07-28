@@ -75,7 +75,7 @@ store notes, and platform selection like any other production change.
 
 The optional GitHub Actions wrapper uses one matrix entry for every platform in
 the PR. The CLI can perform the same candidate operations sequentially with
-`smf --phase release-candidate`, or one platform at a time with
+`smf release --phase release-candidate`, or one platform at a time with
 `--platform`. Candidate jobs are serialized because each commits its receipt
 to the same branch.
 
