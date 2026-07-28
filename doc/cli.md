@@ -41,14 +41,15 @@ Upgrade the globally installed CLI with:
 smf upgrade
 ```
 
-The command checks the latest `smf_cli` version published on pub.dev`.
-It does not migrate files inside your Flutter repository.
-Run `smf migrate` separately when the newer version
+The command checks the latest `smf_cli` version published on pub.dev and runs
+`dart install smf_cli <version> --overwrite`. It does not migrate files inside
+your Flutter repository. Run `smf migrate` separately when the newer version
 changes generated files or persisted SMF formats.
 
-Automatic checks are skipped in CI and in SMF's GitHub Action.
-A failed advisory check is silent and never changes the requested command's exit code.
-To disable the advisory check elsewhere, set `SMF_NO_UPDATE_CHECK=true`; `smf upgrade` still checks when explicitly run.
+Automatic checks are skipped in CI and in SMF's GitHub Action. A failed
+advisory check is silent and never changes the requested command's exit code.
+To disable the advisory check elsewhere, set
+`SMF_NO_UPDATE_CHECK=true`; `smf upgrade` still checks when explicitly run.
 
 ## Set up an app
 
@@ -231,28 +232,17 @@ For production and shared machines, use environment variables. Process
 arguments may be visible to other local processes, shell history, job
 diagnostics, or monitoring tools.
 
-On macOS or Linux, read sensitive text without echoing it, export it for the
-release, and remove it afterward:
+On macOS or Linux, export the credentials for the release and remove them
+afterward:
 
 ```bash
-printf 'GitHub token: '
-read -r -s SMF_GITHUB_TOKEN
-printf '\n'
-export SMF_GITHUB_TOKEN
+export SMF_GITHUB_TOKEN="<token>"
 
 export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
 export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
 export SMF_ANDROID_KEY_ALIAS="upload"
-
-printf 'Keystore password: '
-read -r -s SMF_ANDROID_KEYSTORE_PASSWORD
-printf '\n'
-export SMF_ANDROID_KEYSTORE_PASSWORD
-
-printf 'Key password: '
-read -r -s SMF_ANDROID_KEY_PASSWORD
-printf '\n'
-export SMF_ANDROID_KEY_PASSWORD
+export SMF_ANDROID_KEYSTORE_PASSWORD="<keystore-password>"
+export SMF_ANDROID_KEY_PASSWORD="<key-password>"
 
 smf release --phase release-candidate
 
