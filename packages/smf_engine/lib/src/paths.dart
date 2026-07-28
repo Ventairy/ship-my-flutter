@@ -144,6 +144,12 @@ final class SmfPaths {
     required String version,
   }) => p.join(candidates, '${platform.name}-$version.json');
 
+  /// Returns the durable pre-upload intent path for one platform [version].
+  String candidateIntentPath({
+    required Platform platform,
+    required String version,
+  }) => p.join(candidates, '${platform.name}-$version.intent.json');
+
   static String _resolveExplicitSmfDirectory(String start, String smfPath) {
     if (smfPath.trim().isEmpty) {
       throw const SmfError(

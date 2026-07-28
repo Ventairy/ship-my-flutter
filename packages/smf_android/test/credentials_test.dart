@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:path/path.dart' as p;
 import 'package:smf_android/smf_android.dart';
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
@@ -39,56 +37,19 @@ void main() {
     expect(google.toString(), isNot(contains('secret')));
   });
 
-  test('loads credential files and rejects conflicting sources', () async {
-    final root = await Directory.systemTemp.createTemp('smf-android-creds-');
-    addTearDown(() => root.delete(recursive: true));
-    final serviceAccountPath = p.join(root.path, 'service-account.json');
-    final keystorePath = p.join(root.path, 'upload.jks');
-    await File(serviceAccountPath).writeAsString(
-      jsonEncode(<String, String>{
-        'type': 'service_account',
-        'client_id': '1234567890',
-        'client_email': 'smf@example.invalid',
-        'private_key': 'secret',
-      }),
-    );
-    await File(keystorePath).writeAsBytes(<int>[4, 5, 6]);
-
-    final provider = AndroidCredentialProvider(
-      environment: <String, String>{
-        'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH': serviceAccountPath,
-        'SMF_ANDROID_KEYSTORE_PATH': keystorePath,
-        'SMF_ANDROID_KEY_ALIAS': 'upload',
-        'SMF_ANDROID_KEYSTORE_PASSWORD': 'store',
-        'SMF_ANDROID_KEY_PASSWORD': 'key',
-      },
-    );
-    expect(
-      jsonDecode((await provider.googlePlayCredentials()).serviceAccountJson),
-      containsPair('type', 'service_account'),
-    );
-    expect(
-      base64Decode((await provider.signingCredentials()).keystoreBase64),
-      <int>[4, 5, 6],
-    );
-
+  test('missing credentials name the CLI and environment options', () async {
     await expectLater(
-      AndroidCredentialProvider(
-        environment: <String, String>{
-          'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH': serviceAccountPath,
-          'SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON': jsonEncode(<String, String>{
-            'type': 'service_account',
-            'client_id': '1234567890',
-            'client_email': 'smf@example.invalid',
-            'private_key': 'secret',
-          }),
-        },
+      const AndroidCredentialProvider(
+        environment: <String, String>{},
       ).googlePlayCredentials(),
       throwsA(
         isA<SmfError>().having(
-          (error) => error.code,
-          'code',
-          'CONFLICTING_CREDENTIAL',
+          (error) => error.message,
+          'message',
+          allOf(
+            contains('--google-play-service-account-json'),
+            contains('SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON'),
+          ),
         ),
       ),
     );

@@ -252,7 +252,7 @@ void main() {
       await File(
         p.join(root.path, 'smf', 'config.yaml'),
       ).writeAsString(
-        'schema_version: 3\napp_id: example\nplatforms:\n  ios: {}\n',
+        'schema_version: 1\napp_id: example\nplatforms:\n  ios: {}\n',
       );
       await GitClient(root: root.path).run(const <String>['add', '.']);
       await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);

@@ -83,7 +83,7 @@ void main() {
       await File(
         p.join(appRoot, 'smf', 'config.yaml'),
       ).writeAsString('''
-schema_version: 3
+schema_version: 1
 app_id: mobile
 platforms:
   android:

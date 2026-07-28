@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:smf_apple/src/apple/candidate_options.dart';
 import 'package:smf_apple/src/apple/client.dart';
@@ -10,6 +12,25 @@ export 'candidate_options.dart';
 /// Creates and records exact App Store Connect release candidates.
 final class AppleCandidate {
   const AppleCandidate._();
+
+  static Future<CandidateIntent?> _matchingIntent(
+    String intentPath, {
+    required String fingerprint,
+    required String version,
+    required String bundleId,
+    required String appId,
+  }) async {
+    if (!(await SmfFileSystem.exists(intentPath))) return null;
+    final intent = await CandidateIntent.read(intentPath);
+    if (intent.platform != Platform.ios ||
+        intent.version != version ||
+        intent.applicationId != bundleId ||
+        intent.storeApplicationId != appId ||
+        intent.sourceFingerprint != fingerprint) {
+      return null;
+    }
+    return intent;
+  }
 
   static Future<CandidateReceipt?> _reusableCandidate(
     String receiptPath, {
@@ -73,6 +94,7 @@ final class AppleCandidate {
 
   static Future<void> _recordCandidateReceipt({
     required String root,
+    required String intentPath,
     required String receiptPath,
     required CandidateReceipt receipt,
     required bool commitReceipt,
@@ -80,10 +102,13 @@ final class AppleCandidate {
     required bool refreshed,
   }) async {
     await SmfFileSystem.writeJson(receiptPath, receipt.toJson());
+    final intent = File(intentPath);
+    if (await intent.exists()) await intent.delete();
     if (!commitReceipt) return;
     try {
-      await CandidateGit.commitReceipt(
+      await CandidateGit.finalizeReceipt(
         repositoryRoot: root,
+        intentPath: intentPath,
         receiptPath: receiptPath,
         platform: Platform.ios,
         version: receipt.version,
@@ -95,6 +120,33 @@ final class AppleCandidate {
         'The TestFlight build is valid, but its $description could not be '
             'committed. Do not merge the release PR until this is repaired.',
         'CANDIDATE_RECEIPT_COMMIT',
+        cause: error,
+      );
+    }
+  }
+
+  static Future<void> _recordIntent({
+    required String root,
+    required String intentPath,
+    required CandidateIntent intent,
+    required bool commitIntent,
+    required GitHubContext? github,
+  }) async {
+    await SmfFileSystem.writeJson(intentPath, intent.toJson());
+    if (!commitIntent) return;
+    try {
+      await CandidateGit.commitIntent(
+        repositoryRoot: root,
+        intentPath: intentPath,
+        platform: Platform.ios,
+        version: intent.version,
+        github: github,
+      );
+    } on Exception catch (error) {
+      throw SmfError(
+        'The iOS candidate was built, but its upload intent could not be '
+            'committed. Nothing was uploaded to App Store Connect.',
+        'CANDIDATE_INTENT_COMMIT',
         cause: error,
       );
     }
@@ -165,6 +217,10 @@ final class AppleCandidate {
         platform: Platform.ios,
         version: state.version,
       );
+      final intentPath = paths.candidateIntentPath(
+        platform: Platform.ios,
+        version: state.version,
+      );
       final reusable = await _reusableCandidate(
         receiptPath,
         fingerprint: fingerprint,
@@ -187,6 +243,7 @@ final class AppleCandidate {
         );
         await _recordCandidateReceipt(
           root: repositoryRoot,
+          intentPath: intentPath,
           receiptPath: receiptPath,
           receipt: refreshed,
           commitReceipt: options.commitReceipt,
@@ -196,11 +253,73 @@ final class AppleCandidate {
         return refreshed;
       }
 
-      final buildNumber = await client.nextBuildNumber(
-        appId: app.id,
-        version: state.version,
-      );
       final sourceSha = await gitClient.currentSha();
+      final previousIntent = await _matchingIntent(
+        intentPath,
+        fingerprint: fingerprint,
+        version: state.version,
+        bundleId: bundleId,
+        appId: app.id,
+      );
+      if (previousIntent != null) {
+        final existingBuilds = await client.buildsForVersion(
+          appId: app.id,
+          version: state.version,
+        );
+        final existing = existingBuilds
+            .where(
+              (build) => build.attributes.version == previousIntent.buildNumber,
+            )
+            .firstOrNull;
+        if (existing != null) {
+          final build = existing.attributes.processingState == BuildProcessingState.valid
+              ? existing
+              : await client.waitForBuild(
+                  appId: app.id,
+                  version: state.version,
+                  buildNumber: previousIntent.buildNumber,
+                  timeoutMinutes: config.ios.appStore.releaseCandidate.waitTimeoutMinutes,
+                );
+          await _applyTestflightMetadata(
+            root: paths.directory,
+            version: state.version,
+            appId: app.id,
+            buildId: build.id,
+            config: config.ios.appStore.releaseCandidate,
+            client: client,
+          );
+          final recovered = CandidateReceipt(
+            platform: Platform.ios,
+            version: previousIntent.version,
+            buildNumber: previousIntent.buildNumber,
+            artifactId: build.id,
+            applicationId: previousIntent.applicationId,
+            storeApplicationId: previousIntent.storeApplicationId,
+            sourceSha: previousIntent.sourceSha,
+            sourceFingerprint: previousIntent.sourceFingerprint,
+            artifactSha256: previousIntent.artifactSha256,
+            uploadedAt: previousIntent.preparedAt,
+            testingDestinations: config.ios.appStore.releaseCandidate.groups,
+          );
+          await _recordCandidateReceipt(
+            root: repositoryRoot,
+            intentPath: intentPath,
+            receiptPath: receiptPath,
+            receipt: recovered,
+            commitReceipt: options.commitReceipt,
+            github: options.github,
+            refreshed: false,
+          );
+          return recovered;
+        }
+      }
+
+      final buildNumber =
+          previousIntent?.buildNumber ??
+          await client.nextBuildNumber(
+            appId: app.id,
+            version: state.version,
+          );
       final signingBundleIds = await options.dependencies.resolveSigningBundleIdentifiers(
         projectRoot,
         mainBundleId: bundleId,
@@ -216,6 +335,7 @@ final class AppleCandidate {
         bundleId,
       );
       late final String ipaPath;
+      late final CandidateIntent uploadIntent;
       try {
         ipaPath = await options.dependencies.buildIpa(
           projectRoot: projectRoot,
@@ -240,6 +360,24 @@ final class AppleCandidate {
           await SourceFingerprint.calculate(paths.directory) == fingerprint,
           'A tracked build input changed while producing the IPA.',
           'BUILD_INPUT_CHANGED',
+        );
+        uploadIntent = CandidateIntent(
+          platform: Platform.ios,
+          version: state.version,
+          buildNumber: buildNumber,
+          applicationId: bundleId,
+          storeApplicationId: app.id,
+          sourceSha: sourceSha,
+          sourceFingerprint: fingerprint,
+          artifactSha256: await FileDigest.sha256(ipaPath),
+          preparedAt: options.dependencies.currentTime().toUtc(),
+        );
+        await _recordIntent(
+          root: repositoryRoot,
+          intentPath: intentPath,
+          intent: uploadIntent,
+          commitIntent: options.commitReceipt,
+          github: options.github,
         );
         await options.dependencies.upload(
           ipaPath: ipaPath,
@@ -272,12 +410,13 @@ final class AppleCandidate {
         storeApplicationId: app.id,
         sourceSha: sourceSha,
         sourceFingerprint: fingerprint,
-        artifactSha256: await FileDigest.sha256(ipaPath),
-        uploadedAt: options.dependencies.currentTime().toUtc(),
+        artifactSha256: uploadIntent.artifactSha256,
+        uploadedAt: uploadIntent.preparedAt,
         testingDestinations: config.ios.appStore.releaseCandidate.groups,
       );
       await _recordCandidateReceipt(
         root: repositoryRoot,
+        intentPath: intentPath,
         receiptPath: receiptPath,
         receipt: receipt,
         commitReceipt: options.commitReceipt,

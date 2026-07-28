@@ -39,6 +39,7 @@ creation nor shipping depends on an Action runner.
 | `manifest.json` | Independent platform version/pending state |
 | `changelog.json` | Independent platform release history |
 | `store-release-notes.json` | Optional user/hook-owned localized copy |
+| `candidates/<platform>-X.Y.Z.intent.json` | Durable pre-upload candidate identity |
 | `candidates/ios-X.Y.Z.json` | Exact Apple candidate evidence |
 | `candidates/android-X.Y.Z.json` | Exact Google Play candidate evidence |
 
@@ -74,10 +75,11 @@ Both adapters:
 3. resolve immutable app identity;
 4. compute the generic source fingerprint;
 5. reuse only exact store-validated receipts;
-6. build, sign, and upload one artifact;
-7. verify local/store evidence;
-8. place it in a promotable testing destination; and
-9. commit schema-v2 `CandidateReceipt`.
+6. build and sign one artifact;
+7. commit a schema-v1 `CandidateIntent` with its build identity and digest;
+8. upload and verify local/store evidence;
+9. place it in a promotable testing destination; and
+10. atomically replace the intent with a schema-v2 `CandidateReceipt`.
 
 Generic receipt fields include platform, version/build number, artifact/app
 identifiers, source SHA/fingerprint, artifact SHA-256, upload time, processing
@@ -116,5 +118,8 @@ replace unfinished releases and commits use `ERROR_IF_IN_REVIEW`.
 
 Operations are idempotent where store contracts permit. Exact valid
 candidates, App Store versions/localizations, Play track state, tags, and
-GitHub Releases are reused. Uncommitted Play edits are best-effort deleted and
-otherwise expire. Cleanup failures must not hide the originating error.
+GitHub Releases are reused. A remotely committed candidate intent lets a fresh
+runner recover only its exact Apple build number or Android
+`versionCode`/digest after upload or receipt-push interruption. Uncommitted Play
+edits are best-effort deleted and otherwise expire. Cleanup failures must not
+hide the originating error.

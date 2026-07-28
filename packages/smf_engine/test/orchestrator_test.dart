@@ -134,7 +134,7 @@ void main() {
       await Directory(p.join(root.path, 'android')).create();
       final configFile = File(SmfPaths.resolve(root.path).config);
       await configFile.writeAsString('''
-schema_version: 3
+schema_version: 1
 app_id: example
 platforms:
   ios:

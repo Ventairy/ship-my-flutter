@@ -13,7 +13,7 @@ String configYaml({
   String? shipTarget,
 }) =>
     '''
-schema_version: 3
+schema_version: 1
 app_id: $appId
 ${flavor == null ? '' : 'flavor: $flavor\n'}${releaseTriggerPaths.isEmpty ? '' : 'release_trigger_paths:\n${releaseTriggerPaths.map((path) => '  - $path').join('\n')}\n'}platforms:
   ios:
@@ -67,12 +67,20 @@ void main() {
       final receipt = File(
         paths.candidatePath(platform: Platform.ios, version: '1.0.0'),
       );
+      final intent = File(
+        paths.candidateIntentPath(
+          platform: Platform.ios,
+          version: '1.0.0',
+        ),
+      );
       await receipt.writeAsString('{}\n');
+      await intent.writeAsString('{}\n');
       await GitClient(root: root.path).run(const <String>['add', '.']);
 
       final before = await SourceFingerprint.calculate(root.path);
       await File(paths.storeReleaseNotes).writeAsString('{"ios":{}}\n');
       await receipt.writeAsString('{"build":"1"}\n');
+      await intent.writeAsString('{"build":"2"}\n');
       await File(paths.config).writeAsString(
         configYaml(
           groups: const <String>['Internal'],

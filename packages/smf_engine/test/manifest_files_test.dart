@@ -34,7 +34,7 @@ Future<Directory> stateDirectory({
   await File(
     '${state.path}/config.yaml',
   ).writeAsString(
-    'schema_version: 3\napp_id: example\nplatforms:\n  ios: {}\n',
+    'schema_version: 1\napp_id: example\nplatforms:\n  ios: {}\n',
   );
   final paths = SmfPaths.resolve(root.path);
   await Directory(paths.candidates).create();
@@ -86,7 +86,14 @@ void main() {
           version: '1.1.0',
         ),
       );
+      final intent = File(
+        SmfPaths.resolve(root.path).candidateIntentPath(
+          platform: Platform.ios,
+          version: '1.1.0',
+        ),
+      );
       await receipt.writeAsString('{}\n');
+      await intent.writeAsString('{}\n');
       final nextChange = change(
         sha: repeated('c', 40),
         description: 'Breaking plan',
@@ -111,6 +118,7 @@ void main() {
       final changelog = await SmfState.changelog(root.path);
       expect(changelog.iosReleases.keys, <String>['2.0.0']);
       expect(await receipt.exists(), isFalse);
+      expect(await intent.exists(), isFalse);
     });
 
     test(

@@ -10,7 +10,7 @@ Future<void> _createSmfConfig(String appRoot) async {
   await File(
     p.join(directory.path, 'config.yaml'),
   ).writeAsString(
-    'schema_version: 3\napp_id: example\nplatforms:\n  ios: {}\n',
+    'schema_version: 1\napp_id: example\nplatforms:\n  ios: {}\n',
   );
 }
 

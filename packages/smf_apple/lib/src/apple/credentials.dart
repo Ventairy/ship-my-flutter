@@ -13,86 +13,58 @@ final class AppleCredentialProvider {
   final Map<String, String> environment;
 
   Future<AppleCredentials> appleCredentials() async {
-    final privateKeyBase64 = _optional(const <String>[
-      'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
-    ]);
-    final privateKeyPath = _optional(const <String>[
-      'SMF_APP_STORE_CONNECT_AUTH_KEY_PATH',
-    ]);
-    if (privateKeyBase64 != null && privateKeyPath != null) {
-      throw const SmfError(
-        'Set only one App Store Connect auth-key source.',
-        'CONFLICTING_CREDENTIAL',
-      );
-    }
-    final privateKey = privateKeyPath == null
-        ? _decodeBase64(
-            privateKeyBase64 ??
-                _required(const <String>[
-                  'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
-                ]),
-            'App Store Connect auth key',
-          )
-        : (await io.File(privateKeyPath).readAsString()).trim();
+    final privateKey = _decodeBase64(
+      _required(
+        'SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64',
+        'app-store-connect-auth-key-base64',
+      ),
+      'App Store Connect auth key',
+    );
     SmfError.check(
       privateKey.isNotEmpty,
       'App Store Connect auth key is empty.',
       'INVALID_CREDENTIAL',
     );
     return AppleCredentials(
-      keyId: _required(const <String>['SMF_APP_STORE_CONNECT_KEY_ID']),
-      issuerId: _required(const <String>['SMF_APP_STORE_CONNECT_ISSUER_ID']),
+      keyId: _required(
+        'SMF_APP_STORE_CONNECT_KEY_ID',
+        'app-store-connect-key-id',
+      ),
+      issuerId: _required(
+        'SMF_APP_STORE_CONNECT_ISSUER_ID',
+        'app-store-connect-issuer-id',
+      ),
       privateKey: privateKey,
     );
   }
 
   Future<AppleSigningCredentials> signingCredentials() async {
-    final certificateBase64 = await _base64Value(
-      base64Names: const <String>['SMF_IOS_CERTIFICATE_BASE64'],
-      pathNames: const <String>['SMF_IOS_CERTIFICATE_PATH'],
-      label: 'iOS distribution certificate',
-    );
     return AppleSigningCredentials(
-      certificateBase64: certificateBase64,
-      certificatePassword: _required(const <String>[
+      certificateBase64: _required(
+        'SMF_IOS_CERTIFICATE_BASE64',
+        'ios-certificate-base64',
+      ),
+      certificatePassword: _required(
         'SMF_IOS_CERTIFICATE_PASSWORD',
-      ]),
+        'ios-certificate-password',
+      ),
     );
   }
 
-  Future<String> _base64Value({
-    required List<String> base64Names,
-    required List<String> pathNames,
-    required String label,
-  }) async {
-    final encoded = _optional(base64Names);
-    final path = _optional(pathNames);
-    if (encoded != null && path != null) {
-      throw SmfError('Set only one $label source.', 'CONFLICTING_CREDENTIAL');
-    }
-    if (path != null) {
-      return base64Encode(await io.File(path).readAsBytes());
-    }
-    return encoded ?? _required(base64Names);
-  }
-
-  String _required(List<String> names) {
-    final value = _optional(names);
+  String _required(String name, String option) {
+    final value = _optional(name);
     if (value == null) {
       throw SmfError(
-        'Missing required secret ${names.first}.',
+        'Missing required credential. Set --$option or $name.',
         'MISSING_CREDENTIAL',
       );
     }
     return value;
   }
 
-  String? _optional(List<String> names) {
-    for (final name in names) {
-      final value = environment[name]?.trim();
-      if (value != null && value.isNotEmpty) return value;
-    }
-    return null;
+  String? _optional(String name) {
+    final value = environment[name]?.trim();
+    return value == null || value.isEmpty ? null : value;
   }
 
   static String _decodeBase64(String value, String name) {

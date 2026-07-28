@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:smf_engine/src/config.dart';
+import 'package:smf_engine/src/dtos/candidate_intent.dart';
 import 'package:smf_engine/src/dtos/candidate_receipt.dart';
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/models/smf_config.dart';
@@ -10,7 +11,6 @@ import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/serialization.dart';
 import 'package:smf_engine/src/templates.dart';
 import 'package:yaml/yaml.dart';
-import 'package:yaml_edit/yaml_edit.dart';
 
 /// A user-selectable group of files owned by SMF migration.
 enum MigrationTarget {
@@ -102,11 +102,8 @@ final class _MigrationWrite {
 final class SmfMigration {
   const SmfMigration._();
 
-  static final Map<int, String Function(String source, String appId)> _configMigrations =
-      <int, String Function(String source, String appId)>{
-        1: _migrateConfigV1ToV2,
-        2: _migrateConfigV2ToV3,
-      };
+  static const Map<int, String Function(String source, String appId)> _configMigrations =
+      <int, String Function(String source, String appId)>{};
 
   /// Migrates selected files without changing unrelated contents.
   ///
@@ -209,162 +206,6 @@ final class SmfMigration {
       hint,
       '# yaml-language-server: \$schema=${SmfTemplates.configSchemaUrl}',
     );
-  }
-
-  static String _migrateConfigV1ToV2(String source, String appId) {
-    final schema = RegExp(r'(^|\n)(schema_version:\s*)1(?=\s*(?:#.*)?(?:\n|$))');
-    if (!schema.hasMatch(source)) {
-      throw const SmfError(
-        'Could not locate schema_version: 1 in smf/config.yaml.',
-        'CONFIG_MIGRATION_INVALID',
-      );
-    }
-    return source.replaceFirstMapped(
-      schema,
-      (match) => '${match.group(1)}${match.group(2)}2\napp_id: ${jsonEncode(appId)}',
-    );
-  }
-
-  static String _migrateConfigV2ToV3(String source, String _) {
-    final config = _parseConfigMap(source, 'smf/config.yaml');
-    final platforms = _migrationMap(config['platforms'], 'platforms');
-    // A historical migration must keep producing its named version when a
-    // later schema is added; the migration loop applies later steps in order.
-    final editor = YamlEditor(source)..update(<Object>['schema_version'], 3);
-
-    final iosValue = platforms['ios'];
-    if (iosValue != null) {
-      final ios = _migrationMap(iosValue, 'platforms.ios');
-      final testflight = _migrationOptionalMap(
-        ios['testflight'],
-        'platforms.ios.testflight',
-      );
-      final oldAppStore = _migrationOptionalMap(
-        ios['app_store'],
-        'platforms.ios.app_store',
-      );
-      final groups = _migrationStringList(
-        testflight['groups'],
-        'platforms.ios.testflight.groups',
-      );
-      final waitTimeout = testflight['wait_timeout_minutes'] ?? 45;
-      final appStore = <String, Object?>{
-        'release_candidate': <String, Object?>{
-          'target': 'internal-testing',
-          'groups': groups,
-          'wait_timeout_minutes': waitTimeout,
-        },
-        if (_appleShipTargetForMode(oldAppStore['mode']) case final target?)
-          'ship': <String, Object?>{'target': target},
-      };
-      if (ios.containsKey('testflight')) {
-        editor.remove(<Object>['platforms', 'ios', 'testflight']);
-      }
-      if (oldAppStore['mode'] == null && oldAppStore.containsKey('mode')) {
-        editor.remove(<Object>['platforms', 'ios', 'app_store', 'mode']);
-      }
-      editor.update(<Object>['platforms', 'ios', 'app_store'], appStore);
-    }
-
-    final androidValue = platforms['android'];
-    if (androidValue != null) {
-      final android = _migrationMap(androidValue, 'platforms.android');
-      final oldGooglePlay = _migrationOptionalMap(
-        android['google_play'],
-        'platforms.android.google_play',
-      );
-      final candidate = _playMigrationTarget(
-        oldGooglePlay['testing_track'] ?? 'internal',
-        candidate: true,
-      );
-      final googlePlay = <String, Object?>{
-        'release_candidate': <String, Object?>{
-          'target': candidate.target,
-          if (candidate.track != null) 'tracks': <String>[candidate.track!],
-        },
-        'ship': ?_googleShipForMode(oldGooglePlay),
-      };
-      editor.update(
-        <Object>['platforms', 'android', 'google_play'],
-        googlePlay,
-      );
-    }
-
-    return editor.toString();
-  }
-
-  static String? _appleShipTargetForMode(Object? mode) => switch (mode ?? 'upload') {
-    'upload' => null,
-    'review' => 'submit-for-review',
-    'auto' => 'production',
-    _ => throw const SmfError(
-      'platforms.ios.app_store.mode cannot be migrated.',
-      'CONFIG_MIGRATION_INVALID',
-    ),
-  };
-
-  static Map<String, Object?>? _googleShipForMode(Map<Object?, Object?> googlePlay) {
-    final mode = googlePlay['mode'] ?? 'upload';
-    if (mode == 'upload') return null;
-    if (mode != 'review' && mode != 'auto') {
-      throw const SmfError(
-        'platforms.android.google_play.mode cannot be migrated.',
-        'CONFIG_MIGRATION_INVALID',
-      );
-    }
-    final destination = _playMigrationTarget(
-      googlePlay['production_track'] ?? 'production',
-      candidate: false,
-    );
-    return <String, Object?>{
-      'target': destination.target,
-      if (destination.track != null) 'tracks': <String>[destination.track!],
-    };
-  }
-
-  static ({String target, String? track}) _playMigrationTarget(
-    Object? value, {
-    required bool candidate,
-  }) {
-    if (value is! String || value.isEmpty) {
-      throw const SmfError(
-        'Google Play track configuration cannot be migrated.',
-        'CONFIG_MIGRATION_INVALID',
-      );
-    }
-    return switch (value) {
-      'internal' || 'qa' when candidate => (
-        target: 'internal-testing',
-        track: null,
-      ),
-      'beta' => (target: 'open-testing', track: null),
-      'production' when !candidate => (target: 'production', track: null),
-      _ => (target: 'closed-testing', track: value),
-    };
-  }
-
-  static Map<Object?, Object?> _migrationMap(Object? value, String path) {
-    if (value is! Map<Object?, Object?>) {
-      throw SmfError(
-        '$path must be an object before it can be migrated.',
-        'CONFIG_MIGRATION_INVALID',
-      );
-    }
-    return value;
-  }
-
-  static Map<Object?, Object?> _migrationOptionalMap(Object? value, String path) =>
-      value == null ? <Object?, Object?>{} : _migrationMap(value, path);
-
-  static List<String> _migrationStringList(Object? value, String path) {
-    if (value == null) return <String>[];
-    if (value is! List<Object?> || value.any((item) => item is! String || item.isEmpty)) {
-      throw SmfError(
-        '$path must contain only non-empty strings before it can be migrated.',
-        'CONFIG_MIGRATION_INVALID',
-      );
-    }
-    return value.cast<String>();
   }
 
   static Future<String> _appIdForMigration(
@@ -581,6 +422,10 @@ final class SmfMigration {
           );
         }
         final value = await _readRegistryJson(entry.path);
+        if (p.basename(entry.path).endsWith('.intent.json')) {
+          CandidateIntent.fromJson(value, source: entry.path);
+          continue;
+        }
         final receipt = CandidateReceipt.fromJson(value, source: entry.path);
         if (_schemaVersion(value) == 1) {
           writes.add(_MigrationWrite(entry.path, _json(receipt.toJson())));

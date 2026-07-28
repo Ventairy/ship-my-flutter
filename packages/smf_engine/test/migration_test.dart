@@ -55,6 +55,19 @@ Map<String, Object?> legacyReceipt() => <String, Object?>{
   'testflightGroups': <Object?>['Internal'],
 };
 
+Map<String, Object?> candidateIntent() => <String, Object?>{
+  'schemaVersion': 1,
+  'platform': 'ios',
+  'version': '1.2.3',
+  'buildNumber': '8',
+  'applicationId': 'dev.example.app',
+  'storeApplicationId': 'app-1',
+  'sourceSha': repeated('a', 40),
+  'sourceFingerprint': repeated('b', 64),
+  'artifactSha256': repeated('c', 64),
+  'preparedAt': '2026-07-26T00:00:00.000Z',
+};
+
 Future<void> writeJson(String path, Object? value) async {
   await File(path).parent.create(recursive: true);
   await File(path).writeAsString(jsonEncode(value));
@@ -96,147 +109,6 @@ void main() {
     );
   });
 
-  test('adds a stable app ID and app-scoped workflow to version 1', () async {
-    final (root, paths) = await repository();
-    await File(paths.config).writeAsString('''
-schema_version: 1
-target_branch: main
-platforms:
-  ios:
-    enabled: true
-''');
-    final scopedWorkflow = File(
-      p.join(root.path, '.github', 'workflows', 'smf-example.yml'),
-    );
-    await scopedWorkflow.delete();
-    final legacyWorkflow = File(
-      p.join(root.path, '.github', 'workflows', 'smf.yml'),
-    );
-    await legacyWorkflow.writeAsString('legacy\n');
-
-    final result = await SmfMigration.migrate(
-      MigrationOptions(workingDirectory: root.path),
-    );
-
-    final config = await File(paths.config).readAsString();
-    expect(config, contains('schema_version: 3'));
-    expect(config, contains('app_id: "example"'));
-    expect(await scopedWorkflow.exists(), isTrue);
-    expect(
-      await scopedWorkflow.readAsString(),
-      contains('environment: smf-example'),
-    );
-    expect(await legacyWorkflow.exists(), isFalse);
-    expect(
-      result.changedFiles,
-      containsAll(<String>[
-        'smf/config.yaml',
-        '.github/workflows/smf-example.yml',
-        '.github/workflows/smf.yml',
-      ]),
-    );
-  });
-
-  test(
-    'migrates delivery modes into release-candidate and ship phases',
-    () async {
-      final (root, paths) = await repository();
-      await Directory(p.join(root.path, 'android')).create();
-      await File(paths.config).writeAsString('''
-# Preserve this project note.
-schema_version: 2
-app_id: example
-target_branch: main
-platforms:
-  ios:
-    enabled: true
-    testflight:
-      groups:
-        - Internal QA
-      wait_timeout_minutes: 60
-    app_store:
-      mode: review
-  android:
-    enabled: true
-    google_play:
-      testing_track: partner-qa
-      production_track: beta
-      mode: auto
-''');
-
-      await SmfMigration.migrate(
-        MigrationOptions(workingDirectory: root.path, config: true),
-      );
-
-      final source = await File(paths.config).readAsString();
-      final config = await SmfState.config(root.path);
-      expect(source, contains('# Preserve this project note.'));
-      expect(source, isNot(contains('testflight:')));
-      expect(config.schemaVersion, 3);
-      expect(
-        config.ios.appStore.releaseCandidate.target,
-        AppleReleaseCandidateTarget.internalTesting,
-      );
-      expect(
-        config.ios.appStore.releaseCandidate.groups,
-        <String>['Internal QA'],
-      );
-      expect(config.ios.appStore.releaseCandidate.waitTimeoutMinutes, 60);
-      expect(config.ios.appStore.ship?.target, AppleShipTarget.submitForReview);
-      expect(
-        config.android.googlePlay.releaseCandidate.target,
-        GooglePlayReleaseCandidateTarget.closedTesting,
-      );
-      expect(
-        config.android.googlePlay.releaseCandidate.tracks,
-        <String>['partner-qa'],
-      );
-      expect(
-        config.android.googlePlay.ship?.target,
-        GooglePlayShipTarget.openTesting,
-      );
-    },
-  );
-
-  test('migrates an empty legacy delivery mode as candidate-only', () async {
-    final (root, paths) = await repository();
-    await File(paths.config).writeAsString(r'''
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/schemas/config.schema.json
-# Keep the release owner note.
-schema_version: 1
-platforms:
-  ios:
-    initial_version: 1.0.0
-    app_store:
-      mode:
-''');
-
-    await SmfMigration.migrate(
-      MigrationOptions(
-        workingDirectory: root.path,
-        appId: 'example',
-        config: true,
-      ),
-    );
-
-    final source = await File(paths.config).readAsString();
-    expect(
-      source,
-      contains(
-        r'# yaml-language-server: $schema=https://raw.githubusercontent.com/Ventairy/smf/main/packages/smf_engine/schemas/config.schema.json',
-      ),
-    );
-    expect(source, isNot(contains('/main/schemas/config.schema.json')));
-    final config = await SmfState.config(root.path);
-    expect(source, contains('# Keep the release owner note.'));
-    expect(config.schemaVersion, 3);
-    expect(
-      config.ios.appStore.releaseCandidate.target,
-      AppleReleaseCandidateTarget.internalTesting,
-    );
-    expect(config.ios.appStore.ship, isNull);
-  });
-
   test('migrates every changed target when no selector is passed', () async {
     final (root, paths) = await repository();
     final legacyWorkflowPath = p.join(
@@ -258,6 +130,11 @@ platforms:
       p.join(paths.candidates, 'ios-1.2.3.json'),
       legacyReceipt(),
     );
+    final intentPath = p.join(
+      paths.candidates,
+      'ios-1.2.3.intent.json',
+    );
+    await writeJson(intentPath, candidateIntent());
     await writeJson(paths.storeReleaseNotes, <String, Object?>{});
 
     final result = await SmfMigration.migrate(
@@ -291,6 +168,13 @@ platforms:
     expect(receipt['schemaVersion'], 2);
     expect(receipt['artifactId'], 'build-7');
     expect(receipt, isNot(contains('ipaSha256')));
+    expect(
+      CandidateIntent.fromJson(
+        await SmfFileSystem.readJson(intentPath),
+        source: intentPath,
+      ).buildNumber,
+      '8',
+    );
 
     final second = await SmfMigration.migrate(
       MigrationOptions(workingDirectory: root.path),

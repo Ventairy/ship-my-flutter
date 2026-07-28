@@ -61,7 +61,7 @@ store approves the submission.
 Open `smf/config.yaml` and verify:
 
 ```yaml
-schema_version: 3
+schema_version: 1
 app_id: my_app
 target_branch: main
 ```

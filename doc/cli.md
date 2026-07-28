@@ -19,10 +19,37 @@ Every command has its own help:
 ```bash
 smf init --help
 smf validate --help
+smf upgrade --help
 ```
 
 Use `smf <command> --help` whenever you need the complete, current list of
 options.
+
+## Keep the CLI current
+
+SMF checks pub.dev when an interactive CLI command finishes. When a newer
+version is published, it writes an informational notice to the terminal without
+changing the command's result:
+
+```text
+SMF 1.2.0 is available; this installation is 1.1.0. Run `smf upgrade` to update.
+```
+
+Upgrade the globally installed CLI with:
+
+```bash
+smf upgrade
+```
+
+The command checks the latest `smf_cli` version published on pub.dev and runs
+`dart install smf_cli <version> --overwrite`. It does not migrate files inside
+your Flutter repository. Run `smf migrate` separately when the newer version
+changes generated files or persisted SMF formats.
+
+Automatic checks are skipped in CI and in SMF's GitHub Action. A failed
+advisory check is silent and never changes the requested command's exit code.
+To disable the advisory check elsewhere, set
+`SMF_NO_UPDATE_CHECK=true`; `smf upgrade` still checks when explicitly run.
 
 ## Set up an app
 
@@ -116,9 +143,10 @@ Run this command from the repository root.
   root.
 - `--smf-path` selects an app that is already initialized.
 
-## Update after installing a newer SMF version
+## Update repository files after upgrading SMF
 
 ```bash
+smf upgrade
 smf migrate
 smf validate
 ```
@@ -150,13 +178,13 @@ would react to the same release branch and could upload concurrently.
 | `smf create-release` | Create/update the release PR and create its candidates    |
 | `smf ship`           | Ship the created release to its configured store targets |
 
-`smf create-release` detects `owner/name` from `GITHUB_REPOSITORY` or the
-current Git repository's `origin` remote. Use `--repository owner/name` only to
-override that detected repository. The command stops with an explanation when
-it cannot detect one. SMF derives the affected platforms from the release
-changes, creates or updates the release PR, checks out its release branch,
-builds, signs, uploads, and records every candidate, then restores your
-starting branch.
+`smf create-release` detects `owner/name` from the current Git repository's
+`origin` remote. Set `SMF_GITHUB_REPOSITORY` or use
+`--repository owner/name` only to override that detected repository. The
+command stops with an explanation when it cannot detect one. SMF derives the
+affected platforms from the release changes, creates or updates the release
+PR, checks out its release branch, builds, signs, uploads, and records every
+candidate, then restores your starting branch.
 
 `smf ship` must run after that release PR has been reviewed, tested, and merged.
 It fetches the repository into an isolated temporary checkout, reads the
@@ -170,7 +198,7 @@ The manual sequence is:
 ```bash
 git switch main
 git pull --ff-only origin main
-smf create-release --github-token-file "/secure/github-token"
+smf create-release
 ```
 
 Install and test every candidate from its configured TestFlight or Google Play
@@ -178,7 +206,7 @@ testing destination. Review and merge the release PR. Then ship from anywhere
 inside the same Git repository:
 
 ```bash
-smf ship --github-token-file "/secure/github-token"
+smf ship
 ```
 
 `create-release` requires a clean checkout. `ship` does not read or modify the
@@ -196,7 +224,7 @@ also useful when building a custom automation wrapper.
 Read [How releases work](how-it-works.md) and
 [Release operations and recovery](operations.md) before a live release.
 
-## Supply environment variables manually
+## Supply credentials
 
 Export the store and signing variables described in the platform setup guides
 before running a release command. `create-release` needs store API credentials
@@ -204,19 +232,24 @@ and signing credentials for every selected candidate. `ship` needs the store
 API credentials but does not need signing credentials because it never
 rebuilds.
 
-On macOS or Linux, place variables immediately before the command to make them
-available only to that command:
+Every public SMF environment variable starts with `SMF_`. Generic provider
+names such as `GITHUB_TOKEN` and `GITHUB_REPOSITORY` are not aliases and are
+ignored by the CLI.
+
+For production and shared machines, use environment variables. Process
+arguments may be visible to other local processes, shell history, job
+diagnostics, or monitoring tools.
+
+On macOS or Linux, read sensitive text without echoing it, export it for the
+release, and remove it afterward:
 
 ```bash
-SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json" \
-smf ship --platform android --github-token-file "/secure/github-token"
-```
+read -r -s SMF_GITHUB_TOKEN
+export SMF_GITHUB_TOKEN
+echo
 
-For several commands in the same terminal session, export the variable once:
-
-```bash
-export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH="/secure/service-account.json"
-export SMF_ANDROID_KEYSTORE_PATH="/secure/upload-keystore.jks"
+export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
+export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
 export SMF_ANDROID_KEY_ALIAS="upload"
 
 read -r -s SMF_ANDROID_KEYSTORE_PASSWORD
@@ -227,10 +260,11 @@ read -r -s SMF_ANDROID_KEY_PASSWORD
 export SMF_ANDROID_KEY_PASSWORD
 echo
 
-smf create-release --github-token-file "/secure/github-token"
+smf create-release
 
-unset SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH \
-  SMF_ANDROID_KEYSTORE_PATH \
+unset SMF_GITHUB_TOKEN \
+  SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON \
+  SMF_ANDROID_KEYSTORE_BASE64 \
   SMF_ANDROID_KEY_ALIAS \
   SMF_ANDROID_KEYSTORE_PASSWORD \
   SMF_ANDROID_KEY_PASSWORD
@@ -239,27 +273,30 @@ unset SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH \
 In Windows PowerShell:
 
 ```powershell
-$env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH = "C:\secure\service-account.json"
-$env:SMF_ANDROID_KEYSTORE_PATH = "C:\secure\upload-keystore.jks"
+$env:SMF_GITHUB_TOKEN = Read-Host "GitHub token" -MaskInput
+$env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = Get-Content "C:\secure\service-account.json" -Raw
+$env:SMF_ANDROID_KEYSTORE_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\upload-keystore.jks"))
 $env:SMF_ANDROID_KEY_ALIAS = "upload"
 $env:SMF_ANDROID_KEYSTORE_PASSWORD = Read-Host "Keystore password" -MaskInput
 $env:SMF_ANDROID_KEY_PASSWORD = Read-Host "Key password" -MaskInput
 
-smf create-release --github-token-file "C:\secure\github-token"
+smf create-release
 
-Remove-Item Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH,Env:SMF_ANDROID_KEYSTORE_PATH,Env:SMF_ANDROID_KEY_ALIAS,Env:SMF_ANDROID_KEYSTORE_PASSWORD,Env:SMF_ANDROID_KEY_PASSWORD
+Remove-Item Env:SMF_GITHUB_TOKEN,Env:SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,Env:SMF_ANDROID_KEYSTORE_BASE64,Env:SMF_ANDROID_KEY_ALIAS,Env:SMF_ANDROID_KEYSTORE_PASSWORD,Env:SMF_ANDROID_KEY_PASSWORD
 ```
 
-Prefer a documented `_PATH` variable for secret files. It points SMF to the
-protected file without placing the file's contents in shell history. For
-example:
+For a quick local run, every credential also has a direct option:
 
-```text
-SMF_APP_STORE_CONNECT_AUTH_KEY_PATH
-SMF_IOS_CERTIFICATE_PATH
-SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH
-SMF_ANDROID_KEYSTORE_PATH
+```bash
+smf ship \
+  --platform android \
+  --github-token "<token>" \
+  --google-play-service-account-json '<complete JSON>'
 ```
+
+Use `smf create-release --help` and `smf ship --help` for the complete option
+list. SMF rejects an option when its matching `SMF_*` variable is also set.
+SMF does not accept credential-file options or credential `_PATH` variables.
 
 Run release commands only from the branch and repository state described in
 [Release operations and recovery](operations.md). The platform setup guides
@@ -267,8 +304,8 @@ list the complete set of variables required by Apple and Android.
 
 Do not:
 
-- pass a secret as a command option;
-- paste a secret directly into a command that shell history may save;
+- use direct credential options in production automation;
+- paste direct credential options into shell history on shared machines;
 - commit secrets in a `.env` file; or
 - add release secrets permanently to a shell startup file.
 

@@ -23,7 +23,7 @@ abstract class SmfConfig with _$SmfConfig {
   const SmfConfig._();
 
   /// Current `smf/config.yaml` contract version.
-  static const int currentSchemaVersion = 3;
+  static const int currentSchemaVersion = 1;
 
   /// Enabled release platforms in deterministic workflow order.
   List<Platform> get enabledPlatforms => <Platform>[

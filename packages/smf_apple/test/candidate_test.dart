@@ -214,6 +214,82 @@ void main() {
       );
       expect(client.closed, isFalse);
 
+      final receiptPath = paths.candidatePath(
+        platform: Platform.ios,
+        version: '1.1.0',
+      );
+      final intentPath = paths.candidateIntentPath(
+        platform: Platform.ios,
+        version: '1.1.0',
+      );
+      await File(receiptPath).delete();
+      await writeObject(
+        intentPath,
+        CandidateIntent(
+          platform: Platform.ios,
+          version: '1.1.0',
+          buildNumber: '7',
+          applicationId: 'dev.example.app',
+          storeApplicationId: 'app-1',
+          sourceSha: await GitClient(root: root.path).currentSha(),
+          sourceFingerprint: await SourceFingerprint.calculate(root.path),
+          artifactSha256: receipt.artifactSha256,
+          preparedAt: DateTime.utc(2026, 7, 26),
+        ).toJson(),
+      );
+      await GitClient(root: root.path).run(const <String>['add', '--all']);
+      await GitClient(root: root.path).run(const <String>[
+        'commit',
+        '-m',
+        'test: preserve interrupted upload intent',
+      ]);
+      await GitClient(root: root.path).run(
+        const <String>['push', 'origin', 'smf/example/release'],
+      );
+
+      final recovered = await AppleCandidate.create(
+        AppleCandidateOptions(
+          workingDirectory: root.path,
+          appleCredentials: const AppleCredentials(
+            keyId: 'unused',
+            issuerId: 'unused',
+            privateKey: 'unused',
+          ),
+          signingCredentials: const AppleSigningCredentials(
+            certificateBase64: 'unused',
+            certificatePassword: 'unused',
+          ),
+          client: client,
+          dependencies: AppleCandidateDependencies(
+            runBeforeBuild: ({required workingDirectory}) async => false,
+            upload: ({required ipaPath, required credentials}) async {
+              fail('a recovered App Store build must not be uploaded again');
+            },
+          ),
+        ),
+      );
+
+      expect(recovered.artifactId, 'build-7');
+      expect(await File(intentPath).exists(), isFalse);
+      expect(await File(receiptPath).exists(), isTrue);
+      expect(
+        await GitClient(root: origin.path).run(const <String>[
+          'show',
+          'smf/example/release:smf/candidates/ios-1.1.0.json',
+        ]),
+        contains('"artifactId": "build-7"'),
+      );
+      expect(
+        await GitClient(root: origin.path).run(
+          const <String>[
+            'show',
+            'smf/example/release:smf/candidates/ios-1.1.0.intent.json',
+          ],
+          allowFailure: true,
+        ),
+        isEmpty,
+      );
+
       await GitClient(root: root.path).run(const <String>['checkout', 'main']);
       await expectLater(
         AppleCandidate.create(

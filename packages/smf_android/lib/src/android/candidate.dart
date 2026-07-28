@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:smf_android/src/android/build.dart';
 import 'package:smf_android/src/android/client.dart';
@@ -98,8 +100,27 @@ final class AndroidCandidateOptions {
 final class AndroidCandidate {
   const AndroidCandidate._();
 
+  static Future<CandidateIntent?> _matchingIntent(
+    String intentPath, {
+    required String fingerprint,
+    required String packageName,
+    required String version,
+  }) async {
+    if (!(await SmfFileSystem.exists(intentPath))) return null;
+    final intent = await CandidateIntent.read(intentPath);
+    if (intent.platform != Platform.android ||
+        intent.version != version ||
+        intent.applicationId != packageName ||
+        intent.storeApplicationId != packageName ||
+        intent.sourceFingerprint != fingerprint) {
+      return null;
+    }
+    return intent;
+  }
+
   static Future<void> _recordReceipt({
     required String repositoryRoot,
+    required String intentPath,
     required String receiptPath,
     required CandidateReceipt receipt,
     required bool commitReceipt,
@@ -107,10 +128,13 @@ final class AndroidCandidate {
     required bool refreshed,
   }) async {
     await SmfFileSystem.writeJson(receiptPath, receipt.toJson());
+    final intent = File(intentPath);
+    if (await intent.exists()) await intent.delete();
     if (!commitReceipt) return;
     try {
-      await CandidateGit.commitReceipt(
+      await CandidateGit.finalizeReceipt(
         repositoryRoot: repositoryRoot,
+        intentPath: intentPath,
         receiptPath: receiptPath,
         platform: Platform.android,
         version: receipt.version,
@@ -122,6 +146,33 @@ final class AndroidCandidate {
         'The Google Play candidate is valid, but its $description could not be '
             'committed. Do not merge the release PR until this is repaired.',
         'CANDIDATE_RECEIPT_COMMIT',
+        cause: error,
+      );
+    }
+  }
+
+  static Future<void> _recordIntent({
+    required String repositoryRoot,
+    required String intentPath,
+    required CandidateIntent intent,
+    required bool commitIntent,
+    required GitHubContext? github,
+  }) async {
+    await SmfFileSystem.writeJson(intentPath, intent.toJson());
+    if (!commitIntent) return;
+    try {
+      await CandidateGit.commitIntent(
+        repositoryRoot: repositoryRoot,
+        intentPath: intentPath,
+        platform: Platform.android,
+        version: intent.version,
+        github: github,
+      );
+    } on Exception catch (error) {
+      throw SmfError(
+        'The Android candidate was built, but its upload intent could not be '
+            'committed. Nothing was uploaded to Google Play.',
+        'CANDIDATE_INTENT_COMMIT',
         cause: error,
       );
     }
@@ -253,6 +304,10 @@ final class AndroidCandidate {
       platform: Platform.android,
       version: state.version,
     );
+    final intentPath = paths.candidateIntentPath(
+      platform: Platform.android,
+      version: state.version,
+    );
     final ownsClient = options.client == null;
     final client = options.client ?? await GooglePlayClient.open(options.googlePlayCredentials);
     try {
@@ -272,6 +327,7 @@ final class AndroidCandidate {
         );
         await _recordReceipt(
           repositoryRoot: repositoryRoot,
+          intentPath: intentPath,
           receiptPath: receiptPath,
           receipt: refreshed,
           commitReceipt: options.commitReceipt,
@@ -281,68 +337,120 @@ final class AndroidCandidate {
         return refreshed;
       }
 
+      final sourceSha = await gitClient.currentSha();
+      final previousIntent = await _matchingIntent(
+        intentPath,
+        fingerprint: fingerprint,
+        packageName: packageName,
+        version: state.version,
+      );
       final edit = await client.createEdit(packageName);
       var committed = false;
       try {
-        final existingVersionCodes = await client.listArtifactVersionCodes(
+        final existingBundles = await client.listBundles(
           packageName: packageName,
           editId: edit.id,
         );
-        final nextVersionCode =
-            existingVersionCodes.fold<int>(
-              0,
-              (maximum, versionCode) => versionCode > maximum ? versionCode : maximum,
-            ) +
-            1;
-        SmfError.check(
-          nextVersionCode <= 2100000000,
-          'Google Play versionCode has reached its supported maximum.',
-          'VERSION_CODE_EXHAUSTED',
-        );
-        final signing = await options.dependencies.installSigning(
-          options.signingCredentials,
-        );
-        late final String aabPath;
-        try {
-          aabPath = await options.dependencies.buildAab(
-            projectRoot: paths.appRoot,
-            command: await AndroidBuild.resolveCommand(
-              paths.appRoot,
-              configuredCommand: config.android.buildCommand,
-            ),
-            aabOutputPath: config.android.aabOutputPath,
+        var uploadIntent = previousIntent;
+        final intentVersionCode = previousIntent == null ? null : int.parse(previousIntent.buildNumber);
+        var uploaded = intentVersionCode == null
+            ? null
+            : existingBundles
+                  .where(
+                    (bundle) => bundle.versionCode == intentVersionCode,
+                  )
+                  .firstOrNull;
+        if (uploaded != null) {
+          SmfError.check(
+            uploaded.sha256 == previousIntent!.artifactSha256,
+            'Google Play contains versionCode $intentVersionCode, but its '
+                'bundle checksum does not match the committed candidate '
+                'intent.',
+            'CANDIDATE_INTENT_ARTIFACT_MISMATCH',
+          );
+        }
+        if (uploaded == null) {
+          final existingVersionCodes = await client.listArtifactVersionCodes(
+            packageName: packageName,
+            editId: edit.id,
+          );
+          final nextVersionCode = previousIntent == null
+              ? existingVersionCodes.fold<int>(
+                      0,
+                      (maximum, versionCode) => versionCode > maximum ? versionCode : maximum,
+                    ) +
+                    1
+              : int.parse(previousIntent.buildNumber);
+          SmfError.check(
+            nextVersionCode <= 2100000000,
+            'Google Play versionCode has reached its supported maximum.',
+            'VERSION_CODE_EXHAUSTED',
+          );
+          final signing = await options.dependencies.installSigning(
+            options.signingCredentials,
+          );
+          late final String aabPath;
+          try {
+            aabPath = await options.dependencies.buildAab(
+              projectRoot: paths.appRoot,
+              command: await AndroidBuild.resolveCommand(
+                paths.appRoot,
+                configuredCommand: config.android.buildCommand,
+              ),
+              aabOutputPath: config.android.aabOutputPath,
+              version: state.version,
+              buildNumber: nextVersionCode.toString(),
+              signing: signing,
+              credentials: options.signingCredentials,
+              flavor: config.flavor,
+            );
+            SmfError.check(
+              await gitClient.isClean(),
+              'The Flutter build changed tracked or unignored repository '
+                  'files. Commit deterministic generated inputs before '
+                  'producing a candidate.',
+              'BUILD_DIRTY_WORKTREE',
+            );
+            SmfError.check(
+              await SourceFingerprint.calculate(paths.directory) == fingerprint,
+              'A tracked build input changed while producing the AAB.',
+              'BUILD_INPUT_CHANGED',
+            );
+          } finally {
+            await signing.cleanup();
+          }
+          final localSha256 = await FileDigest.sha256(aabPath);
+          uploadIntent = CandidateIntent(
+            platform: Platform.android,
             version: state.version,
             buildNumber: nextVersionCode.toString(),
-            signing: signing,
-            credentials: options.signingCredentials,
-            flavor: config.flavor,
+            applicationId: packageName,
+            storeApplicationId: packageName,
+            sourceSha: sourceSha,
+            sourceFingerprint: fingerprint,
+            artifactSha256: localSha256,
+            preparedAt: options.dependencies.currentTime().toUtc(),
+          );
+          await _recordIntent(
+            repositoryRoot: repositoryRoot,
+            intentPath: intentPath,
+            intent: uploadIntent,
+            commitIntent: options.commitReceipt,
+            github: options.github,
+          );
+          uploaded = await client.uploadBundle(
+            packageName: packageName,
+            editId: edit.id,
+            aabPath: aabPath,
           );
           SmfError.check(
-            await gitClient.isClean(),
-            'The Flutter build changed tracked or unignored repository files. '
-                'Commit deterministic generated inputs before producing a '
-                'candidate.',
-            'BUILD_DIRTY_WORKTREE',
+            uploaded.versionCode == nextVersionCode && uploaded.sha256 == localSha256,
+            'Google Play bundle evidence does not match the signed local AAB.',
+            'GOOGLE_PLAY_BUNDLE_MISMATCH',
           );
-          SmfError.check(
-            await SourceFingerprint.calculate(paths.directory) == fingerprint,
-            'A tracked build input changed while producing the AAB.',
-            'BUILD_INPUT_CHANGED',
-          );
-        } finally {
-          await signing.cleanup();
         }
-        final localSha256 = await FileDigest.sha256(aabPath);
-        final uploaded = await client.uploadBundle(
-          packageName: packageName,
-          editId: edit.id,
-          aabPath: aabPath,
-        );
-        SmfError.check(
-          uploaded.versionCode == nextVersionCode && uploaded.sha256 == localSha256,
-          'Google Play bundle evidence does not match the signed local AAB.',
-          'GOOGLE_PLAY_BUNDLE_MISMATCH',
-        );
+        final finalizedIntent = uploadIntent!;
+        final versionCode = uploaded.versionCode;
         final notes = await SmfState.storeReleaseNotes(paths.directory);
         for (final testingTrack in testingTracks) {
           await client.updateTrack(
@@ -353,7 +461,7 @@ final class AndroidCandidate {
               releases: <GooglePlayRelease>[
                 _testingRelease(
                   state.version,
-                  nextVersionCode,
+                  versionCode,
                   notes.forRelease(
                     platform: Platform.android,
                     version: state.version,
@@ -377,18 +485,19 @@ final class AndroidCandidate {
         final receipt = CandidateReceipt(
           platform: Platform.android,
           version: state.version,
-          buildNumber: nextVersionCode.toString(),
-          artifactId: nextVersionCode.toString(),
+          buildNumber: finalizedIntent.buildNumber,
+          artifactId: finalizedIntent.buildNumber,
           applicationId: packageName,
           storeApplicationId: packageName,
-          sourceSha: await gitClient.currentSha(),
-          sourceFingerprint: fingerprint,
-          artifactSha256: localSha256,
-          uploadedAt: options.dependencies.currentTime().toUtc(),
+          sourceSha: finalizedIntent.sourceSha,
+          sourceFingerprint: finalizedIntent.sourceFingerprint,
+          artifactSha256: finalizedIntent.artifactSha256,
+          uploadedAt: finalizedIntent.preparedAt,
           testingDestinations: testingTracks,
         );
         await _recordReceipt(
           repositoryRoot: repositoryRoot,
+          intentPath: intentPath,
           receiptPath: receiptPath,
           receipt: receipt,
           commitReceipt: options.commitReceipt,

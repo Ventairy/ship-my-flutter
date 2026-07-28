@@ -42,7 +42,16 @@ final class ReleaseRegistry {
           version: previousState.version,
         ),
       );
-      if (await candidate.exists()) await candidate.delete();
+      final candidateIntent = File(
+        paths.candidateIntentPath(
+          platform: plan.platform,
+          version: previousState.version,
+        ),
+      );
+      await Future.wait(<Future<void>>[
+        if (await candidate.exists()) candidate.delete(),
+        if (await candidateIntent.exists()) candidateIntent.delete(),
+      ]);
     }
     releases[plan.nextVersion] = ChangelogRelease(
       version: plan.nextVersion,

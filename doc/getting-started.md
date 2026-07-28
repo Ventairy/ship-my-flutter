@@ -40,6 +40,11 @@ smf --help
 The Flutter app does not add `smf_cli` or another SMF package to
 `dev_dependencies`.
 
+After installation, SMF prints an informational notice when a newer CLI is
+available. Run `smf upgrade` to install it, followed by `smf migrate` for each
+initialized app when the release notes for that SMF version require generated
+or persisted files to change.
+
 ## 3. Initialize from the Flutter app
 
 The initializer needs each platform's current version. This is the latest

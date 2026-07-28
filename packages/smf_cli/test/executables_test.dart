@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:smf_cli/src/executables.dart';
+import 'package:smf_cli/src/upgrade.dart';
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
@@ -12,6 +13,99 @@ void main() {
     final pubspec = loadYaml(await File('pubspec.yaml').readAsString()) as YamlMap;
     expect(pubspec['executables'], <Object?, Object?>{'smf': 'smf'});
     expect(await File('bin/smf.dart').exists(), isTrue);
+  });
+
+  test('upgrade is documented and installs a newer CLI', () async {
+    final output = <Object?>[];
+    final errors = <Object?>[];
+    final io = ExecutableIo(
+      environment: const <String, String>{},
+      workingDirectory: Directory.current.path,
+      writeOutput: output.add,
+      writeError: errors.add,
+      upgradeService: SmfUpgradeService(
+        latestVersionLoader: () async => '0.2.0',
+        installer: (_, _) async => ProcessResult(1, 0, '', ''),
+      ),
+    );
+
+    expect(await SmfExecutable.run(const <String>['--help'], io: io), 0);
+    expect(output.removeLast(), contains('upgrade'));
+    expect(
+      await SmfExecutable.run(
+        const <String>['upgrade', '--help'],
+        io: io,
+      ),
+      0,
+    );
+    expect(output.removeLast(), contains('Usage: smf upgrade [options]'));
+    expect(
+      output.singleOrNull,
+      isNull,
+    );
+    expect(await SmfExecutable.runUpgrade(const <String>[], io: io), 0);
+    expect(
+      jsonDecode(output.single! as String),
+      containsPair('version', '0.2.0'),
+    );
+    expect(errors, isEmpty);
+  });
+
+  test('prints an advisory update notice only outside CI', () async {
+    var checks = 0;
+    final output = <Object?>[];
+    final errors = <Object?>[];
+    SmfUpgradeService service() => SmfUpgradeService(
+      latestVersionLoader: () async {
+        checks += 1;
+        return '0.2.0';
+      },
+      installer: (_, _) async => ProcessResult(1, 0, '', ''),
+    );
+
+    expect(
+      await SmfExecutable.run(
+        const <String>['--help'],
+        io: ExecutableIo(
+          environment: const <String, String>{},
+          workingDirectory: Directory.current.path,
+          writeOutput: output.add,
+          writeError: errors.add,
+          upgradeService: service(),
+          checkForUpdates: true,
+        ),
+      ),
+      0,
+    );
+    expect(checks, 1);
+    expect(
+      errors.single,
+      'SMF 0.2.0 is available; this installation is $smfCliVersion. '
+      'Run `smf upgrade` to update.',
+    );
+
+    for (final environment in const <Map<String, String>>[
+      <String, String>{'CI': 'true'},
+      <String, String>{'SMF_NO_UPDATE_CHECK': 'true'},
+    ]) {
+      errors.clear();
+      expect(
+        await SmfExecutable.run(
+          const <String>['--help'],
+          io: ExecutableIo(
+            environment: environment,
+            workingDirectory: Directory.current.path,
+            writeOutput: output.add,
+            writeError: errors.add,
+            upgradeService: service(),
+            checkForUpdates: true,
+          ),
+        ),
+        0,
+      );
+      expect(checks, 1);
+      expect(errors, isEmpty);
+    }
   });
 
   test('CLI commands initialize and validate', () async {
@@ -225,11 +319,16 @@ void main() {
 
     expect(
       await SmfExecutable.runCreateRelease(
-        const <String>[],
+        <String>[
+          '--app-store-connect-auth-key-base64',
+          base64Encode(utf8.encode('private-key')),
+          '--app-store-connect-key-id',
+          'KEY123',
+        ],
         io: ExecutableIo(
           environment: const <String, String>{
-            'GITHUB_REPOSITORY': 'example/manual_app',
-            'GITHUB_TOKEN': 'token',
+            'SMF_GITHUB_REPOSITORY': 'example/manual_app',
+            'SMF_GITHUB_TOKEN': 'token',
           },
           workingDirectory: root.path,
           writeOutput: (_) {},
@@ -242,7 +341,10 @@ void main() {
     expect(errors.join('\n'), contains('[MISSING_CREDENTIAL]'));
     expect(
       errors.join('\n'),
-      contains('SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64'),
+      allOf(
+        contains('--app-store-connect-issuer-id'),
+        contains('SMF_APP_STORE_CONNECT_ISSUER_ID'),
+      ),
     );
   });
 
@@ -335,8 +437,8 @@ void main() {
         const <String>[],
         io: ExecutableIo(
           environment: const <String, String>{
-            'GITHUB_REPOSITORY': 'example/manual_app',
-            'GITHUB_TOKEN': 'token',
+            'SMF_GITHUB_REPOSITORY': 'example/manual_app',
+            'SMF_GITHUB_TOKEN': 'token',
           },
           workingDirectory: root.path,
           writeOutput: (_) {},
@@ -365,8 +467,8 @@ void main() {
         const <String>['--phase', 'ship', '--platform', 'ios'],
         io: ExecutableIo(
           environment: const <String, String>{
-            'GITHUB_REPOSITORY': 'example/manual_app',
-            'GITHUB_TOKEN': 'token',
+            'SMF_GITHUB_REPOSITORY': 'example/manual_app',
+            'SMF_GITHUB_TOKEN': 'token',
           },
           workingDirectory: root.path,
           writeOutput: (_) {},
@@ -395,8 +497,8 @@ void main() {
         const <String>[],
         io: ExecutableIo(
           environment: const <String, String>{
-            'GITHUB_REPOSITORY': 'example/manual_app',
-            'GITHUB_TOKEN': 'token',
+            'SMF_GITHUB_REPOSITORY': 'example/manual_app',
+            'SMF_GITHUB_TOKEN': 'token',
           },
           workingDirectory: root.path,
           writeOutput: (_) {},
@@ -466,10 +568,15 @@ void main() {
     expect(errors, isEmpty);
   });
 
-  test('does not accept raw secrets as command-line options', () async {
+  test('accepts a direct GitHub token without echoing it', () async {
     final errors = <Object?>[];
     final exitCode = await SmfExecutable.runCreateRelease(
-      const <String>['--github-token', 'visible-secret'],
+      const <String>[
+        '--github-token',
+        'visible-secret',
+        '--repository',
+        'example/repository',
+      ],
       io: ExecutableIo(
         environment: const <String, String>{},
         workingDirectory: Directory.current.path,
@@ -477,8 +584,32 @@ void main() {
         writeError: errors.add,
       ),
     );
-    expect(exitCode, 64);
+    expect(exitCode, 1);
     expect(errors.join('\n'), isNot(contains('visible-secret')));
+
+    errors.clear();
+    expect(
+      await SmfExecutable.runCreateRelease(
+        const <String>[
+          '--github-token',
+          'argument-secret',
+          '--repository',
+          'example/repository',
+        ],
+        io: ExecutableIo(
+          environment: const <String, String>{
+            'SMF_GITHUB_TOKEN': 'environment-secret',
+          },
+          workingDirectory: Directory.current.path,
+          writeOutput: (_) {},
+          writeError: errors.add,
+        ),
+      ),
+      1,
+    );
+    expect(errors.single, contains('[CONFLICTING_CREDENTIAL]'));
+    expect(errors.single, isNot(contains('argument-secret')));
+    expect(errors.single, isNot(contains('environment-secret')));
   });
 
   test(
@@ -493,7 +624,7 @@ void main() {
       );
       await Directory(p.join(root.path, 'smf')).create();
       await File(p.join(root.path, 'smf', 'config.yaml')).writeAsString('''
-schema_version: 3
+schema_version: 1
 app_id: "example"
 target_branch: production
 platforms:
@@ -512,8 +643,28 @@ platforms:
       );
       final output = <Object?>[];
       final errors = <Object?>[];
+      expect(
+        await SmfExecutable.runCreateRelease(
+          const <String>['--repository', 'example/repository'],
+          io: ExecutableIo(
+            environment: const <String, String>{
+              'GITHUB_TOKEN': 'ignored',
+              'INPUT_GITHUB_TOKEN': 'ignored',
+            },
+            workingDirectory: root.path,
+            writeOutput: output.add,
+            writeError: errors.add,
+          ),
+        ),
+        1,
+      );
+      expect(
+        errors.removeLast(),
+        allOf(contains('--github-token'), contains('SMF_GITHUB_TOKEN')),
+      );
+
       final io = ExecutableIo(
-        environment: const <String, String>{'GITHUB_TOKEN': 'token'},
+        environment: const <String, String>{'SMF_GITHUB_TOKEN': 'token'},
         workingDirectory: root.path,
         writeOutput: output.add,
         writeError: errors.add,
@@ -569,7 +720,8 @@ platforms:
     await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
     await Directory(p.join(root.path, 'smf')).create();
     await File(p.join(root.path, 'smf', 'config.yaml')).writeAsString('''
-schema_version: 1
+schema_version: 0
+app_id: example
 platforms:
   ios:
     enabled: true
@@ -696,7 +848,7 @@ platforms:
         output.single,
         contains('Update SMF files created by an older CLI'),
       );
-      expect(output.single, contains('Install the newer SMF CLI first'));
+      expect(output.single, contains('Run smf upgrade first'));
       expect(output.single, contains('--config'));
       expect(output.single, contains('--github-actions'));
       expect(output.single, contains('--registry'));
@@ -716,6 +868,22 @@ platforms:
       );
       expect(output.single, contains('--platform=<ios|android>'));
       expect(output.single, contains('--prepare-only'));
+      for (final option in <String>[
+        '--github-token=<value>',
+        '--app-store-connect-key-id=<value>',
+        '--app-store-connect-issuer-id=<value>',
+        '--app-store-connect-auth-key-base64=<base64>',
+        '--ios-certificate-base64=<base64>',
+        '--ios-certificate-password=<value>',
+        '--google-play-service-account-json=<json>',
+        '--android-keystore-base64=<base64>',
+        '--android-key-alias=<value>',
+        '--android-keystore-password=<value>',
+        '--android-key-password=<value>',
+      ]) {
+        expect(output.single, contains(option));
+      }
+      expect(output.single, isNot(contains('--github-token-file')));
       expect(errors, isEmpty);
     },
   );
@@ -723,6 +891,7 @@ platforms:
   test('documents every visible CLI option in command help', () async {
     final commands = <String>[
       'init',
+      'upgrade',
       'migrate',
       'validate',
       'create-release',

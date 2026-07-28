@@ -135,13 +135,17 @@ you only need to follow the path that matches your repository.
 - **Git-backed release state.** Configuration, platform manifests,
   changelogs, store notes, and candidate receipts live under the Flutter app's
   `smf/` directory.
-- **Credential boundaries.** Secrets use environment values and temporary
-  files, never command arguments or committed release state.
+- **Credential boundaries.** Production automation uses scoped environment
+  values and temporary signing files. Direct credential arguments are
+  available for local convenience but may be observable and are never
+  committed to release state.
 - **Safe retries.** Matching valid candidates and completed release resources
-  are reused where store contracts permit.
+  are reused where store contracts permit. SMF records the exact build identity
+  before uploading, so a fresh retry can finish a candidate whose store upload
+  succeeded but whose receipt was not committed.
 
-Candidate receipts are machine-owned evidence. Never edit one to work around a
-failed integrity check.
+Candidate receipts and in-progress candidate state are machine-owned evidence.
+Never edit them to work around a failed integrity check.
 
 ## User guide
 

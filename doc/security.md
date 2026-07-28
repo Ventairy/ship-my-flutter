@@ -9,21 +9,21 @@ and encoded value exactly like the original credential.
 
 | Secret                              | Contains                         |
 | ----------------------------------- | -------------------------------- |
-| `APP_STORE_CONNECT_KEY_ID`          | API key ID                       |
-| `APP_STORE_CONNECT_ISSUER_ID`       | API issuer ID                    |
-| `APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 `AuthKey_*.p8`            |
-| `IOS_CERTIFICATE_BASE64`            | Base64 Apple Distribution `.p12` |
-| `IOS_CERTIFICATE_PASSWORD`          | `.p12` password                  |
+| `SMF_APP_STORE_CONNECT_KEY_ID`          | API key ID                       |
+| `SMF_APP_STORE_CONNECT_ISSUER_ID`       | API issuer ID                    |
+| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 `AuthKey_*.p8`            |
+| `SMF_IOS_CERTIFICATE_BASE64`            | Base64 Apple Distribution `.p12` |
+| `SMF_IOS_CERTIFICATE_PASSWORD`          | `.p12` password                  |
 
 ### Android
 
 | Secret                             | Contains                      |
 | ---------------------------------- | ----------------------------- |
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete service-account JSON |
-| `ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore        |
-| `ANDROID_KEY_ALIAS`                | Upload-key alias              |
-| `ANDROID_KEYSTORE_PASSWORD`        | Keystore password             |
-| `ANDROID_KEY_PASSWORD`             | Key password                  |
+| `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete service-account JSON |
+| `SMF_ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore        |
+| `SMF_ANDROID_KEY_ALIAS`                | Upload-key alias              |
+| `SMF_ANDROID_KEYSTORE_PASSWORD`        | Keystore password             |
+| `SMF_ANDROID_KEY_PASSWORD`             | Key password                  |
 
 Base64 used for binary signing files is encoding, not encryption.
 
@@ -57,12 +57,26 @@ Creation instructions:
 - Android signs the AAB with the upload keystore, verifies the JAR signature,
   and compares the exact certificate SHA-256.
 - Temporary files are removed after the candidate operation.
-- Credentials are not placed in command arguments.
+- Generated automation keeps credentials out of command arguments. The CLI
+  accepts direct credential options for local convenience, but process
+  arguments may be observable; use `SMF_*` environment variables in
+  production.
 - Generated checkouts do not leave Git credentials available to builds.
 - Receipts contain identifiers and hashes, never private keys/passwords.
 
 Do not move a credential to a job-level environment variable. That would expose
 it to setup and project steps that do not need it.
+
+## CLI update checks
+
+Interactive CLI commands request public `smf_cli` package metadata from
+pub.dev and print a notice when a newer version exists. The request identifies
+the installed SMF version in its user agent but does not include repository or
+store credentials. SMF skips this check in CI and in its GitHub Action.
+
+Set `SMF_NO_UPDATE_CHECK=true` to disable advisory checks on another machine.
+The explicit `smf upgrade` command still contacts pub.dev and invokes Dart's
+package installer.
 
 ## Apple key separation
 
@@ -109,7 +123,7 @@ project/tool state unless it is deliberately reset.
 Generated jobs request:
 
 - pull request: Contents, Pull requests, and Issues write;
-- candidate: Contents write for receipts;
+- candidate: Contents write for pre-upload intents and final receipts;
 - ship: Contents write for tags/GitHub Releases.
 
 Enable:
@@ -118,7 +132,8 @@ Enable:
 create and approve pull requests**
 
 The default `GITHUB_TOKEN` is sufficient when repository policy permits those
-writes.
+writes. The Action passes GitHub's token to SMF as `SMF_GITHUB_TOKEN`; the CLI
+does not read `GITHUB_TOKEN` directly.
 
 GitHub may not trigger unrelated `pull_request` workflows for a PR created by
 the default token. If those checks must run, use a GitHub App installation
