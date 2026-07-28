@@ -120,7 +120,7 @@ Both receipt types record:
 - application identity;
 - source commit and tracked-input fingerprint;
 - artifact SHA-256;
-- upload time and processing state; and
+- pre-upload preparation time and processing state; and
 - testing destination.
 
 For iOS, `artifactId` is the App Store Connect build ID. For Android, it is the
@@ -158,9 +158,11 @@ After merge, each platform ship job:
 1. loads its committed receipt;
 2. verifies the merged tracked inputs still match;
 3. verifies application identity;
-4. confirms the exact store artifact still exists in the testing destination;
-5. applies the configured ship target, when present; and
-6. creates the platform tag and GitHub Release.
+4. confirms the exact store artifact is still valid and available;
+5. for Android, confirms the exact `versionCode` remains completed on every
+   configured candidate testing track;
+6. applies the configured ship target, when present; and
+7. creates the platform tag and GitHub Release.
 
 Tags are independent:
 
@@ -188,8 +190,13 @@ A tracked source or build-input change requires a new candidate. Ignored or
 untracked build outputs are outside the fingerprint and must not be required
 source inputs.
 
-Delivery-only changes—such as TestFlight groups, Play tracks/mode, processing
-timeout, or release notes—can reuse a candidate after SMF revalidates it.
+Delivery-only changes such as ship targets, TestFlight groups, processing
+timeout, or release notes do not change the source fingerprint. SMF can reuse
+a valid candidate and reapply its configured metadata or TestFlight groups.
+
+Changing an Android candidate testing track reuses the receipt only when the
+exact recorded `versionCode` is already a completed release on every newly
+configured track. Otherwise, SMF creates a new candidate.
 
 Tracked symbolic links must resolve to tracked files inside the repository.
 

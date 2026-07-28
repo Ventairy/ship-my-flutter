@@ -27,12 +27,13 @@ Run `smf --help` for the complete command list. The CLI wraps `smf_engine` and t
 available platform adapters; it is the only SMF package that exposes a terminal
 executable.
 
-Start with the definitive
-[Getting started guide](https://github.com/Ventairy/smf/blob/main/doc/getting-started.md).
-It explains store prerequisites, `smf init`, optional GitHub Actions
-automation, CLI-only releases, safe candidate-only defaults, candidate testing,
-and recovery. The Flutter application does not add `smf_cli` to
-`dev_dependencies`.
+Start with the [setup chooser](https://github.com/Ventairy/smf#get-started).
+Use the recommended
+[GitHub Actions setup](https://github.com/Ventairy/smf/blob/main/doc/github-actions-setup.md)
+for an automated workflow, or
+[CLI setup](https://github.com/Ventairy/smf/blob/main/doc/cli-setup.md) for
+human operation or custom automation. The Flutter application does not add
+`smf_cli` to `dev_dependencies`.
 
 The
 [`example`](https://github.com/Ventairy/smf/blob/main/packages/smf_cli/example/README.md)

@@ -180,9 +180,10 @@ explanation and cross-link it instead of duplicating partial procedures.
 
 Keep these user surfaces synchronized:
 
-- `README.md`: product overview, quick start, user-guide index, package
-  selection, guarantees, and common questions;
-- `doc/getting-started.md`: shortest safe setup path;
+- `README.md`: product overview, setup-path chooser, quick start, user-guide
+  index, package selection, guarantees, and common questions;
+- `doc/github-actions-setup.md`: complete recommended automated setup path;
+- `doc/cli-setup.md`: complete human-operated or custom-automation setup path;
 - `doc/apple-bootstrap.md`: beginner Apple and App Store Connect setup;
 - `doc/android-bootstrap.md`: beginner Android and Google Play setup;
 - `doc/configuration.md`: configuration fields and commit routing;

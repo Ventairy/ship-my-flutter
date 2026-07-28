@@ -20,12 +20,6 @@ TestFlight and Google Play for testing, and records exactly what was tested.
 After approval, merging the PR verifies or promotes those same store artifacts,
 according to your settings, without rebuilding them.
 
-> [!IMPORTANT]
-> SMF is currently under pre-release validation. The Dart packages and
-> `Ventairy/smf-action@v1` are not published yet, so the installation commands
-> below describe the intended stable interface and cannot be used from public
-> registries today.
-
 ## Why SMF
 
 Mobile release automation often stops at “build and upload.” The difficult
@@ -55,11 +49,11 @@ signing identities, policy answers, or product metadata for you.
 
 ## How it works
 
-| What happens | What SMF does | What your team controls |
-| --- | --- | --- |
-| A `fix:` or `feat:` commit reaches the target branch | Calculates each affected platform's next version and opens or updates the app's release PR | The code review and Conventional Commit message |
-| The release PR is open | Builds, signs, uploads, verifies, and records one candidate per planned platform | Testing the exact TestFlight or Play artifact and approving the release |
-| The release PR is merged | Revalidates each recorded artifact, then applies the platform's optional `ship` target | Branch protection, merge approval, and the selected store destination |
+| What happens                                         | What SMF does                                                                              | What your team controls                                                 |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| A `fix:` or `feat:` commit reaches the target branch | Calculates each affected platform's next version and opens or updates the app's release PR | The code review and Conventional Commit message                         |
+| The release PR is open                               | Builds, signs, uploads, verifies, and records one candidate per planned platform           | Testing the exact TestFlight or Play artifact and approving the release |
+| The release PR is merged                             | Revalidates each recorded artifact, then applies the platform's optional `ship` target     | Branch protection, merge approval, and the selected store destination   |
 
 ```text
 normal feature and fix PRs
@@ -92,14 +86,14 @@ updates the same app-scoped release PR until you are ready to release.
 SMF uses Conventional Commits to decide which platforms need a release and how
 their versions change:
 
-| Commit on the target branch | Result |
-| --- | --- |
-| `fix: prevent startup crash` | Patch release for every enabled platform |
-| `feat(auth): add passkeys` | Minor release for every enabled platform |
-| `fix(ios): repair camera permission` | iOS patch only |
-| `fix(android): repair back navigation` | Android patch only |
-| `feat(ios,android)!: replace storage` | Major release for both |
-| `chore: update documentation` | No release |
+| Commit on the target branch            | Result                                   |
+| -------------------------------------- | ---------------------------------------- |
+| `fix: prevent startup crash`           | Patch release for every enabled platform |
+| `feat(auth): add passkeys`             | Minor release for every enabled platform |
+| `fix(ios): repair camera permission`   | iOS patch only                           |
+| `fix(android): repair back navigation` | Android patch only                       |
+| `feat(ios,android)!: replace storage`  | Major release for both                   |
+| `chore: update documentation`          | No release                               |
 
 Feature scopes such as `auth` apply to every enabled platform. The special
 `ios` and `android` scopes select platforms. Each platform's configured
@@ -117,11 +111,32 @@ Review, App Review, and Play Console Managed publishing.
 
 ## Get started
 
-Follow the [Getting started guide](doc/getting-started.md) from beginning to
-end. It is the single setup path for installation, initialization, store
-access, credentials, GitHub configuration, the first candidate, and the first
-safe merge. It keeps standard-repository and monorepo instructions separate so
-you only need to follow the path that matches your repository.
+SMF supports two setup paths. Choose how you want releases to run:
+
+| Setup                                         | Best for                             | How releases run                                                     |
+| --------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------- |
+| [GitHub Actions](doc/github-actions-setup.md) | Most teams; recommended              | A generated workflow prepares candidates and ships approved releases |
+| [CLI](doc/cli-setup.md)                       | Local operation or custom automation | A human or another system runs the same release phases directly      |
+
+### Recommended: GitHub Actions
+
+Choose [GitHub Actions setup](doc/github-actions-setup.md) for an automated
+release workflow. SMF opens or updates the release PR when qualifying commits
+reach the target branch, creates candidates for testing, and ships the exact
+approved artifacts after merge.
+
+The workflow is a wrapper around the public SMF CLI. Release behavior and
+safety checks are the same as when the phases are run manually.
+
+### Alternative: CLI
+
+Choose [CLI setup](doc/cli-setup.md) when you want a human or your own
+automation to invoke each release phase. SMF still uses GitHub release pull
+requests, candidate receipts, exact-artifact verification, and the configured
+stores, but no generated GitHub Actions workflow is required.
+
+You can add GitHub Actions later without replacing the existing SMF
+configuration or release history.
 
 ## What SMF guarantees
 
@@ -151,33 +166,36 @@ Never edit them to work around a failed integrity check.
 
 Start with one guide based on what you are trying to do:
 
-| I need to... | Read |
-| --- | --- |
-| Set up SMF for the first time | [Getting started](doc/getting-started.md) |
-| Prepare App Store Connect, TestFlight, signing, and Apple secrets | [Apple setup](doc/apple-bootstrap.md) |
-| Prepare Google Play, testing, upload signing, and Android secrets | [Android setup](doc/android-bootstrap.md) |
-| Understand the release PR and exact-candidate lifecycle | [How releases work](doc/how-it-works.md) |
-| Change versions, paths, flavors, build commands, candidate targets, or ship targets | [Configuration](doc/configuration.md) |
-| Write, localize, or generate customer-facing store notes | [Store release notes](doc/store-release-notes.md) |
-| Automate the proven path from a qualifying change through production delivery | [End-to-end release automation](doc/end-to-end-automation.md) |
-| Generate project files or release notes during the workflow | [Typed hooks](doc/hooks.md) |
-| Review, merge, retry, recover, or abandon a release | [Operations and recovery](doc/operations.md) |
-| Run SMF directly or integrate custom automation | [CLI reference](doc/cli.md) |
-| Review credentials, permissions, trusted code, or incident response | [Security guide](doc/security.md) |
+| I need to...                                                                        | Read                                                          |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Choose an SMF setup                                                                 | [Get started](#get-started)                                   |
+| Set up the recommended automated workflow                                           | [GitHub Actions setup](doc/github-actions-setup.md)           |
+| Set up a human-operated or custom workflow                                          | [CLI setup](doc/cli-setup.md)                                 |
+| Prepare App Store Connect, TestFlight, signing, and Apple secrets                   | [Apple setup](doc/apple-bootstrap.md)                         |
+| Prepare Google Play, testing, upload signing, and Android secrets                   | [Android setup](doc/android-bootstrap.md)                     |
+| Understand the release PR and exact-candidate lifecycle                             | [How releases work](doc/how-it-works.md)                      |
+| Change versions, paths, flavors, build commands, candidate targets, or ship targets | [Configuration](doc/configuration.md)                         |
+| Write, localize, or generate customer-facing store notes                            | [Store release notes](doc/store-release-notes.md)             |
+| Automate the proven path from a qualifying change through production delivery       | [End-to-end release automation](doc/end-to-end-automation.md) |
+| Generate project files or release notes during the workflow                         | [Typed hooks](doc/hooks.md)                                   |
+| Review, merge, retry, recover, or abandon a release                                 | [Operations and recovery](doc/operations.md)                  |
+| Run SMF directly or integrate custom automation                                     | [CLI reference](doc/cli.md)                                   |
+| Review credentials, permissions, trusted code, or incident response                 | [Security guide](doc/security.md)                             |
 
-Most teams use the generated GitHub Actions workflow. Direct lifecycle commands
-exist for recovery and custom automation, not as additional setup steps.
+Most teams should use the generated GitHub Actions workflow. The CLI path
+exposes the same lifecycle for teams that deliberately prefer human operation
+or their own automation.
 
 ## Packages
 
 Most users install only `smf_cli`; the generated Action provides the release
 runtime. Add another package only when extending SMF:
 
-| Package | Use it for |
-| --- | --- |
-| `smf_hooks` | Lightweight typed repository hooks |
-| `smf_engine` | Custom platform-neutral planning and state |
-| `smf_apple` | Custom Apple delivery integrations |
+| Package       | Use it for                                  |
+| ------------- | ------------------------------------------- |
+| `smf_hooks`   | Lightweight typed repository hooks          |
+| `smf_engine`  | Custom platform-neutral planning and state  |
+| `smf_apple`   | Custom Apple delivery integrations          |
 | `smf_android` | Custom Android and Google Play integrations |
 
 ## Common questions
@@ -225,12 +243,7 @@ Run `smf validate`, then use
 SMF error code and message when asking for help, but never share credentials or
 encoded signing files.
 
-## Project status
-
-SMF is being validated before its first public package and Action release.
-Until the pre-release notice at the top is removed, treat the repository as an
-auditable preview of the intended stable workflow rather than an installable
-production dependency.
+---
 
 Contributor setup, architecture, and release procedures live in
 [CONTRIBUTING.md](CONTRIBUTING.md), [ARCHITECTURE.md](ARCHITECTURE.md), and

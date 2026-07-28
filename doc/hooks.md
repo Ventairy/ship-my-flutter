@@ -1,9 +1,9 @@
 # Typed hooks
 
-Hooks let your Flutter repository prepare deterministic project files at two
-points in an SMF release. Most applications do not need them. Use a hook only
-when the standard workflow must generate or validate something specific to
-your project.
+Hooks let your Flutter repository prepare deterministic project files at
+specific points during an SMF release. Most applications do not need them. Use
+a hook only when the standard workflow must generate or validate something
+specific to your project.
 
 ## Before you start
 
@@ -91,7 +91,7 @@ next version, the change type, scope, description and body, plus
 `storeReleaseNotes.write(...)`. SMF's machine-owned changelog remains an
 internal release record.
 
-For a platform-specific hook, create `smf/hooks/before_build.dart`:
+For a hook that runs before each build, create `smf/hooks/before_build.dart`:
 
 ```dart
 import 'package:smf_hooks/smf_hooks.dart';

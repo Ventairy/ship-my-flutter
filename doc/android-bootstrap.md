@@ -25,7 +25,7 @@ By the end, you will have:
 3. an upload keystore held by your team;
 4. an internal testing tester list;
 5. a Google Cloud service account with limited Play Console permissions;
-6. five secrets in the app's GitHub Environment; and
+6. for GitHub Actions, five secrets in the app's GitHub Environment; and
 7. an Android section in `smf/config.yaml` that matches the Play app.
 
 The service-account JSON, keystore, aliases, and passwords never belong in Git,
@@ -46,8 +46,8 @@ YAML, an issue, a pull request, or a workflow log.
   Google checks it before accepting the bundle.
 - **Track:** a delivery channel such as `internal-testing`, `closed-testing`,
   or `production`.
-- **Service account:** a non-human Google identity used by GitHub Actions to
-  call the Google Play Developer API.
+- **Service account:** a non-human Google identity used by SMF to call the
+  Google Play Developer API.
 
 ## Before you begin
 
@@ -56,7 +56,8 @@ You need:
 - a verified Google Play developer account for the correct owner;
 - permission to create/manage the app and invite users;
 - access to Google Cloud Console;
-- permission to create a GitHub Environment and add its secrets;
+- for GitHub Actions, permission to create a GitHub Environment and add its
+  secrets;
 - the production package name;
 - a working Flutter Android project; and
 - an approved password manager or secret manager.
@@ -237,7 +238,7 @@ base64 -w 0 upload-keystore.jks
 Base64 is not encryption. Delete unprotected working copies after the GitHub
 secrets are verified and the originals are stored safely.
 
-## 8. Add the five GitHub Environment secrets
+## 8. For GitHub Actions, add the five Environment secrets
 
 Read `app_id` from the Flutter app's `smf/config.yaml`. Open the Flutter
 repository:
@@ -301,7 +302,7 @@ Finish or halt that release in Play Console first.
 
 ## Final checklist
 
-Before returning to [Getting Started](getting-started.md):
+Before returning to your selected setup:
 
 - the Play app uses the exact production package name;
 - Play App Signing is enabled;
@@ -311,9 +312,16 @@ Before returning to [Getting Started](getting-started.md):
 - at least one internal tester has opted in;
 - the Android Publisher API is enabled;
 - the service account is invited with only the required permissions;
-- all needed secrets exist under GitHub environment `smf-<app-id>`;
+- for GitHub Actions, all needed secrets exist under GitHub environment
+  `smf-<app-id>`, or for CLI operation the same values remain protected outside
+  the repository and are ready to supply as `SMF_*` environment variables;
 - `google_play.ship` is still omitted; and
 - `smf validate` succeeds.
+
+For the automated path, continue at
+[Allow the workflow to open release PRs](github-actions-setup.md#6-allow-actions-to-create-the-release-pr).
+For manual operation, continue at
+[Add an optional preparation hook](cli-setup.md#6-add-an-optional-preparation-hook).
 
 `smf validate` checks the local repository and configuration only. It cannot
 read the GitHub Environment secrets, authenticate to Play, or verify the upload

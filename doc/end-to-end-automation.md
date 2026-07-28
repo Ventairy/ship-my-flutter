@@ -21,8 +21,8 @@ Use it only after:
 - the configured automation identities already have the required permissions.
 
 For missing prerequisites, return to
-[Getting Started](getting-started.md), [Apple setup](apple-bootstrap.md), or
-[Android setup](android-bootstrap.md).
+[GitHub Actions setup](github-actions-setup.md),
+[Apple setup](apple-bootstrap.md), or [Android setup](android-bootstrap.md).
 
 ## What end-to-end means
 
@@ -61,7 +61,6 @@ store approves the submission.
 Open `smf/config.yaml` and verify:
 
 ```yaml
-schema_version: 1
 app_id: my_app
 target_branch: main
 ```

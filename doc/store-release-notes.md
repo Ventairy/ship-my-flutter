@@ -1,15 +1,26 @@
 # Store release notes
 
 SMF can attach localized customer-facing notes to the exact iOS and Android
-versions in a release pull request. Notes are optional, live in Git, and are
-reviewed before the candidate is shipped.
+versions in a release pull request. Notes are optional, live in Git, and remain
+reviewable before release.
 
-This guide explains how to write notes manually, generate them deterministically
-from Conventional Commits, and use AI to draft them for review.
+## Choose how to create notes
+
+Use the simplest approach that fits your team:
+
+| Approach                                                       | Use it when                                                    | Who writes the text          |
+| -------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------- |
+| [Manual](#write-notes-manually)                                | A release owner writes each release                            | A person                     |
+| [Deterministic hook](#generate-notes-from-commit-descriptions) | Conventional Commit descriptions are already customer-friendly | Repository code              |
+| [AI-assisted hook](#draft-notes-with-ai)                       | Commit descriptions need to be rewritten or translated         | AI drafts; a person approves |
+
+AI drafting is not built into SMF. Your repository-owned `before_create_pr`
+hook calls the approved AI provider, validates its response, and writes the
+draft through SMF's typed notes helper.
 
 ## What SMF publishes
 
-Store release notes are different from the machine-owned changelog and the
+Store release notes are different from SMF's machine-owned changelog and the
 GitHub Release body:
 
 | Content             | Source                         | Audience                       |
@@ -18,40 +29,31 @@ GitHub Release body:
 | Changelog           | `smf/changelog.json`           | Release-PR reviewers and SMF   |
 | GitHub Release body | Generated from the changelog   | Repository users               |
 
-For iOS, SMF applies the configured notes to the TestFlight build. When the
-ship target submits an App Store version, it also applies them as **What's New
-in This Version**.
+For iOS, SMF applies the notes to the TestFlight build. When the ship target
+submits an App Store version, SMF also applies them as **What's New in This
+Version**.
 
 For Android, SMF applies the notes to the testing-track release and to the
 destination track selected by `google_play.ship`.
 
-Only the notes under the exact platform and marketing version are used. Notes
-for other versions remain as history and do not affect the release.
+Only notes under the exact platform and marketing version are used. Older
+version entries remain as history.
 
-## 1. Let SMF select the versions
+## Understand the notes file
 
-Users do not choose or calculate the next versions. When a qualifying change
-reaches the target branch, SMF calculates each platform's version and records
-it in the release pull request. iOS and Android versions are independent and
-may differ.
+The file lives at:
 
-Store notes must use those exact versions. There are two supported ways to
-provide them:
+```text
+<flutter-app>/smf/store-release-notes.json
+```
 
-- Recommended for automation: a `before_create_pr` hook receives the versions
-  and changes directly from SMF and writes the correctly keyed notes file.
-- For manually written notes: wait for the SMF release pull request, copy the
-  versions shown there, and add the notes through a normal reviewed pull
-  request into the target branch. SMF then refreshes the release pull request.
+Its structure is:
 
-Do not invent a version entry to force a release. If SMF does not open or
-update the release pull request, first check that a real `fix:`, `feat:`, or
-breaking Conventional Commit changed the app or one of its configured shared
-paths.
+```text
+platform -> marketing version -> store locale -> customer-facing text
+```
 
-## 2. Create or update the notes file
-
-Create `<flutter-app>/smf/store-release-notes.json`:
+For example:
 
 ```json
 {
@@ -70,43 +72,38 @@ Create `<flutter-app>/smf/store-release-notes.json`:
 }
 ```
 
-The structure is:
+Use only `ios` and `android` as platform keys. iOS and Android versions are
+independent and may differ.
 
-```text
-platform -> marketing version -> store locale -> customer-facing text
-```
+Do not guess the version. SMF calculates it from qualifying Conventional
+Commits and displays it in the release pull request. A hook receives that exact
+version directly.
 
-Use only `ios` and `android` as platform keys. Locale keys must be identifiers
-supported by the corresponding store, such as `en-US` or `pt-BR`. A locale must
-already exist for the relevant App Store version before SMF can update it.
-Google Play accepts BCP-47 language tags for localized release notes.
+Locale keys must be supported by the corresponding store, such as `en-US` or
+`pt-BR`. The locale must already exist for the relevant App Store version
+before SMF can update it. Google Play accepts BCP-47 language tags.
 
-SMF requires every note to be nonempty and enforces the corresponding store
-limit before any store operation:
+SMF rejects empty notes and enforces the store limits:
 
 - Google Play: at most 500 characters per locale.
 - App Store: at most 4,000 characters per locale.
 
-Store rules can become narrower, so keep notes concise and verify every
-configured locale in the store.
+Keep notes concise because individual stores may enforce narrower rules.
 
 References:
 
 - [Apple platform version information](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information)
 - [Google Play track release notes](https://developers.google.com/android-publisher/api-ref/rest/v3/edits.tracks)
 
-## 3. Write useful notes
+## Write customer-facing text
 
-Release notes should describe customer-visible outcomes, not the release
-machinery that produced them.
-
-Prefer:
+Describe the result customers can notice:
 
 ```text
 Finding nearby jobs is faster, and filters now remain selected.
 ```
 
-Avoid:
+Do not describe implementation work:
 
 ```text
 Refactored FeedBloc, upgraded dependencies, and fixed SMF-184.
@@ -117,40 +114,35 @@ For every locale:
 - mention only behavior supported by the included changes;
 - translate meaning rather than word order;
 - omit commit hashes, ticket IDs, package names, and implementation details;
-- avoid promises about performance, security, or availability that were not
-  verified;
+- avoid unverified performance, security, or availability claims;
 - use plain text and short sentences; and
-- do not include secrets, private issue text, customer data, or unreleased
-  business plans.
+- exclude secrets, private issue text, customer data, and unreleased plans.
 
-## 4. Validate and review
+## Write notes manually
 
-Run:
+Use this workflow when a release owner writes the notes:
 
-```bash
-smf validate
-git diff -- smf/store-release-notes.json
-```
+1. Wait for SMF to open or update the release pull request.
+2. Copy the exact iOS and Android versions shown in that PR.
+3. Add those version entries to `smf/store-release-notes.json` on the target
+   branch through a normal reviewed pull request.
+4. Merge the notes PR.
+5. Let SMF refresh the existing release pull request.
+6. Review the notes displayed by the candidate before approving the release.
 
-Commit the file through a normal reviewed PR. The SMF release PR then contains
-the notes file alongside the selected version and changelog.
+Finish the notes before allowing candidate creation to start. With the CLI,
+wait to run `smf release --phase release-candidate`. With GitHub Actions, use
+the app's protected environment to hold candidate jobs for approval. If that
+pause is not part of your workflow, use a hook so the notes are present when
+SMF first creates the release pull request.
 
-Finalize notes before candidate approval whenever possible. If notes change
-after a candidate already exists, let SMF refresh the release PR and rerun its
-jobs, then verify both the testing destination and the final destination.
+Do not edit the SMF release branch by hand. Adding the notes through the target
+branch keeps the source of truth and release history reviewable.
 
-Before merging the release PR, check:
+## Generate notes from commit descriptions
 
-1. every version key matches the PR;
-2. every locale exists in its store;
-3. translations describe the same verified changes;
-4. the candidate's displayed notes are correct; and
-5. no internal-only information appears in the file.
-
-## 5. Generate deterministic notes from SMF's release context
-
-Use a `before_create_pr` hook when Conventional Commit descriptions are already
-written for customers and a predictable transformation is sufficient.
+Use a deterministic `before_create_pr` hook when Conventional Commit
+descriptions are already suitable for customers.
 
 Add the hook SDK from the Flutter app:
 
@@ -166,23 +158,21 @@ import 'package:smf_hooks/smf_hooks.dart';
 final class WriteStoreReleaseNotes extends SmfHook {
   @override
   Future<void> run(SmfBeforeCreatePrContext context) async {
-    final iosRelease = context.release.ios;
-
-    if (iosRelease != null) {
-      iosRelease.storeReleaseNotes.write(
+    final ios = context.release.ios;
+    if (ios != null) {
+      ios.storeReleaseNotes.write(
         locale: 'en-US',
-        message: iosRelease.changes
+        message: ios.changes
             .map((change) => '- ${change.description}')
             .join('\n'),
       );
     }
 
-    final androidRelease = context.release.android;
-
-    if (androidRelease != null) {
-      androidRelease.storeReleaseNotes.write(
+    final android = context.release.android;
+    if (android != null) {
+      android.storeReleaseNotes.write(
         locale: 'en-US',
-        message: androidRelease.changes
+        message: android.changes
             .map((change) => '- ${change.description}')
             .join('\n'),
       );
@@ -198,164 +188,209 @@ Format, analyze, and commit the hook:
 ```bash
 dart format smf/hooks
 dart analyze smf/hooks
-git add smf/hooks/before_create_pr.dart
+git add pubspec.yaml pubspec.lock smf/hooks/before_create_pr.dart
 git commit -m "chore: generate store release notes"
 ```
 
-SMF runs the hook after calculating the next versions and commits its output to
-the release branch. The transformation is deterministic: the same release plan
-produces the same notes.
+SMF runs the hook after calculating the next versions. The typed
+`storeReleaseNotes.write(...)` helper selects the correct platform and version,
+checks the platform's character limit, and preserves existing versions and
+locales.
 
-`storeReleaseNotes.write(...)` preserves existing platforms, versions, and
-locales in `smf/store-release-notes.json`.
+Do not use this transformation unchanged when commit descriptions contain
+developer jargon. Write better commit descriptions or use AI only as the
+reviewed drafting step described next.
 
-Do not use this example unchanged when commit descriptions contain developer
-jargon. Improve the transformation or use the AI-assisted workflow below, and
-keep release-PR review as the quality gate.
+Read [Typed hooks](hooks.md) for the complete hook lifecycle and recovery
+rules.
 
-Read [Typed hooks](hooks.md) for the complete hook lifecycle, commit handling,
-validation, and recovery rules.
+## Draft notes with AI
 
-## 6. Draft notes with AI
+The AI integration belongs to your hook, not to SMF:
 
-Use AI as a drafting step before SMF creates the candidate, not as an
-unreviewed publishing authority.
+```text
+SMF calculates the platform version and included changes
+                         |
+                         v
+before_create_pr sends those changes to your AI provider
+                         |
+                         v
+the hook validates the draft and writes it with the typed helper
+                         |
+                         v
+SMF commits the draft to the release pull request
+                         |
+                         v
+people review the text and test the candidate
+```
 
-SMF intentionally strips its Apple, Google Play, and GitHub credentials from
-repository hooks. Project-specific values explicitly supplied to the SMF
-Action step remain available because hooks are trusted repository code. An
-authenticated `before_create_pr` hook can therefore use a dedicated,
-least-privilege AI or gateway token without receiving store signing
-credentials.
+The model drafts text only. It does not choose versions, select platforms,
+publish to a store, approve a candidate, or merge the release pull request.
 
-The safe workflow is:
+### 1. Decide the input and output
 
-1. create a provider or gateway credential that can only generate release
-   notes;
-2. store it in the GitHub Environment used by the pull-request job;
-3. pass it through `env` only on the `Ventairy/smf-action` pull-request step;
-4. send only the non-null `context.release.ios` and
-   `context.release.android` changes to the trusted generator;
-5. require structured JSON with locale-to-message text for each platform;
-6. write the approved text through each platform's `storeReleaseNotes` helper;
-   and
-7. review the generated notes in the SMF release pull request before approving
-   its candidate.
+For each non-null platform release, the hook receives:
 
-Each typed platform release contains only the inputs the current generator
-needs:
+- `nextVersion`;
+- the Conventional Commit type, scope, description, and body; and
+- a typed writer already bound to that platform and version.
+
+The hook does not receive commit SHAs, issue contents, customer data, or SMF's
+Apple, Google Play, GitHub, and signing credentials.
+
+Send only the change descriptions needed to write the notes. Ask the provider
+to return a locale-to-message JSON object:
 
 ```json
 {
-  "nextVersion": "2.4.0",
-  "changes": [
-    {
-      "type": "feat",
-      "scope": "search",
-      "description": "keep selected filters between searches",
-      "body": null
-    },
-    {
-      "type": "fix",
-      "scope": "ios",
-      "description": "preserve scroll position after returning to results",
-      "body": null
-    }
-  ]
+  "en-US": "Selected search filters now stay in place.",
+  "pt-BR": "Os filtros de busca selecionados agora permanecem ativos."
 }
 ```
 
-The hook does not receive commit SHAs, bump metadata, repository files, issue
-text, or customer data. The iOS and Android objects have the same shape.
+Do not ask the model to return a platform or version. The typed SMF context
+already provides both, so the model cannot accidentally write notes under an
+invented release.
 
-### Prompt contract
+### 2. Use a bounded prompt
 
-Give the generator a bounded task:
+Keep the reviewed prompt in repository code. For example:
 
 ```text
-Draft customer-facing mobile store release notes from the supplied SMF
-changelog entries.
+Draft customer-facing mobile store release notes from the supplied change
+descriptions.
 
-Return JSON only. The root keys must be "ios" and/or "android". Each platform
-value must contain locale keys and customer-facing text values, for example
-{"en-US":"..."}.
+Return JSON only as an object whose keys are the requested store locales and
+whose values are plain-text release notes.
 
-Describe only customer-visible outcomes supported by the supplied changes.
-Do not invent features, fixes, measurements, security claims, or availability.
-Omit commit hashes, ticket IDs, code identifiers, and release-process details.
-Use plain text, at most 500 characters per locale. If the changes do not support
-a truthful customer-facing note, return no entry for that platform.
+Describe only customer-visible outcomes supported by the input. Do not invent
+features, fixes, measurements, security claims, or availability. Omit commit
+hashes, ticket IDs, code names, and release-process details.
+
+Keep every locale at or below the supplied character limit. If the changes do
+not support a truthful customer-facing note, return an empty object.
 ```
 
-Use a structured-output or JSON-schema feature when the chosen provider offers
-one. Validate the response locally even when the provider guarantees its
-shape.
+Use structured output or a JSON-schema response when the provider supports it.
+Still decode and validate the complete response locally before changing the
+notes file.
 
-The Action step can expose only the project-specific credential:
+### 3. Give only the pull-request phase access to the AI token
+
+Create a dedicated, least-privilege provider or gateway token. Do not reuse a
+store, signing, or broad organization credential.
+
+For a CLI-operated release on macOS or Linux:
+
+```bash
+export RELEASE_NOTES_AI_TOKEN="<token>"
+smf release --phase pull-request
+```
+
+In Windows PowerShell:
+
+```powershell
+$env:RELEASE_NOTES_AI_TOKEN = "<token>"
+smf release --phase pull-request
+```
+
+The hook reads the exported value:
+
+```dart
+import 'dart:io';
+
+final token = Platform.environment['RELEASE_NOTES_AI_TOKEN'];
+if (token == null || token.isEmpty) {
+  throw StateError('RELEASE_NOTES_AI_TOKEN is required.');
+}
+```
+
+SMF does not load `.env` files. The custom token is inherited from the process
+that starts `smf`. SMF removes its own Apple, Google Play, GitHub, and signing
+credentials before the hook runs.
+
+For GitHub Actions, save `RELEASE_NOTES_AI_TOKEN` as a repository Actions
+secret. Expose it only to the `Ventairy/smf-action` step whose phase is
+`pull-request`:
 
 ```yaml
-- uses: Ventairy/smf-action@v1
+- id: smf
+  uses: Ventairy/smf-action@v1
   env:
     RELEASE_NOTES_AI_TOKEN: ${{ secrets.RELEASE_NOTES_AI_TOKEN }}
   with:
     phase: pull-request
+    smf-path: ${{ env.SMF_PATH }}
 ```
 
-The repository-owned hook may call OpenAI's
-[Responses API](https://developers.openai.com/api/docs/api-reference/responses/create),
-a gateway, or another approved provider, but it must:
+The generated workflow does not expose custom secrets automatically. Review
+this workflow customization whenever regenerating or migrating the managed
+workflow.
 
-- read its API credential from the local secret manager or CI secret;
-- never print prompts containing private data or the provider response when
-  either may be sensitive;
-- use a pinned, reviewed prompt and output schema;
-- reject unknown platforms, versions, and locales;
-- enforce length limits;
-- preserve previously approved version entries;
-- fail without changing the notes file when the provider fails; and
-- leave the generated JSON for human review.
+### 4. Validate before writing
 
-For the sample plan above, an acceptable generated fragment is:
+Your hook should:
 
-```json
-{
-  "android": {
-    "2.4.0": {
-      "en-US": "Selected search filters now stay in place, and returning to results preserves your scroll position."
-    }
-  }
+1. call the provider before changing `store-release-notes.json`;
+2. reject non-JSON responses, unexpected locales, non-string values, and empty
+   messages;
+3. validate every message against
+   `release.storeReleaseNotes.characterLimit`;
+4. write only after the complete response is valid; and
+5. throw when the provider or validation fails so SMF stops the release.
+
+After validation, write each locale:
+
+```dart
+for (final entry in draft.entries) {
+  release.storeReleaseNotes.write(
+    locale: entry.key,
+    message: entry.value,
+  );
 }
 ```
 
-### Automating the AI draft in CI
+Never print the token. Avoid logging prompts or responses when change
+descriptions may contain private information.
 
-The authenticated `before_create_pr` hook writes its draft into the SMF release
-PR. The release PR remains the human approval boundary:
+### 5. Review the result
 
-```text
-SMF calculates release -> AI hook drafts notes -> people review and test
+The AI output is a draft. In the SMF release pull request, verify:
+
+- every statement is supported by an included change;
+- translations have the same meaning;
+- the correct platform versions and locales were updated;
+- no internal information appears; and
+- the candidate displays the expected text.
+
+Do not approve the candidate until the notes are correct. Teams that do not
+allow network access from repository hooks can generate the draft in a
+separate trusted workflow and submit it through the
+[manual notes process](#write-notes-manually).
+
+## Validate and recover
+
+Run:
+
+```bash
+smf validate
+git diff -- smf/store-release-notes.json
 ```
 
-Teams that do not want network access in repository hooks can instead run
-generation in a separate trusted workflow and open a normal notes PR. Never
-commit the provider credential, place it in a command argument, or expose it
-to candidate and ship steps that do not need it.
+If validation fails:
 
-## Recovery
-
-If `smf validate` rejects the file:
-
-1. confirm the file is valid JSON;
-2. keep only `ios` and `android` at the root;
+1. confirm the file contains valid JSON;
+2. keep only `ios` and `android` as root keys;
 3. confirm every version contains a locale-to-string object;
-4. remove empty notes and shorten Android notes over 500 characters or iOS
-   notes over 4,000 characters; and
-5. rerun `smf validate`.
+4. remove empty notes;
+5. shorten Android notes over 500 characters and iOS notes over 4,000; and
+6. rerun `smf validate`.
 
-If a store rejects a locale, add that localization in the store or remove the
-locale from the version entry. If displayed notes are wrong, stop the release,
-correct the file on the target branch, and let SMF update the release PR. Never
-edit a candidate receipt to force the change.
+If a store rejects a locale, add that localization in the store or remove it
+from the version entry. If displayed notes are wrong, stop the release, correct
+the file on the target branch, and let SMF update the release pull request.
+Never edit a candidate receipt to force the change.
 
-Continue with [End-to-end release automation](end-to-end-automation.md) when
-the notes process is ready.
+Continue with
+[End-to-end release automation](end-to-end-automation.md) when the notes
+process is ready.

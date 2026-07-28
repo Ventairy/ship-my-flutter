@@ -301,6 +301,7 @@ Recognized platform scopes are `ios` and `android`. Feature scopes such as `auth
 | ---------------------------------- | ----------- | ----- |
 | `fix: prevent crash`               | all enabled | patch |
 | `feat(auth): add passkeys`         | all enabled | minor |
+| `feat!: replace account model`     | all enabled | major |
 | `fix(ios): repair entitlement`     | iOS         | patch |
 | `fix(android): repair navigation`  | Android     | patch |
 | `perf(ios,android): speed startup` | both        | patch |
@@ -313,8 +314,7 @@ Conventional Commits. Commit messages cannot override the next version.
 ## Hooks
 
 Hooks are optional Dart files discovered at
-`smf/hooks/before_create_pr.dart` and `smf/hooks/before_build.dart`. They are
-not configured in `config.yaml`.
+`smf/hooks`. They are not configured in `config.yaml`.
 
 Use the complete [Typed hooks guide](hooks.md) to install `smf_hooks`, choose a
 phase, implement the typed context, verify the hook, and recover from a

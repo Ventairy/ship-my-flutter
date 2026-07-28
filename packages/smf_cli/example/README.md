@@ -17,6 +17,6 @@ smf release --phase ship
 Add `--no-github-actions` to `smf init` when the release will be operated only
 through these CLI commands.
 
-Follow the
-[Getting started guide](https://github.com/Ventairy/smf/blob/main/doc/getting-started.md)
-before creating a release or running a shipping command.
+Follow
+[CLI setup](https://github.com/Ventairy/smf/blob/main/doc/cli-setup.md) before
+creating a release or running a shipping command.

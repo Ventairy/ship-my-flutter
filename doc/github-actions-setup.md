@@ -1,8 +1,12 @@
-# Getting started
+# GitHub Actions setup
 
-This is the complete setup path for a standard Flutter repository. The
-generated GitHub Actions workflow is the default automation wrapper, but it is
-not required: the CLI can create candidates and ship releases directly.
+This is the recommended setup path. The generated GitHub Actions workflow
+prepares release pull requests, uploads exact candidates for testing, and
+delivers approved releases after the release PR is merged.
+
+For a human-operated or custom-automation workflow instead, choose
+[CLI setup](cli-setup.md). Return to [Get started](../README.md#get-started) to
+compare the two paths.
 
 The safe first run uploads candidates only:
 
@@ -60,13 +64,13 @@ app's real current version.
 
 Before running `smf init`, write down these different identities:
 
-| Identity | Example | What it controls |
-| --- | --- | --- |
-| Flutter package name | `customer_app` | Dart package name in `pubspec.yaml`; the default `app_id` |
-| SMF `app_id` | `customer` | Permanent release branches, tags, workflow filename, and GitHub Environment |
-| Display name | `Customer` | Name shown to people; SMF does not use it as identity |
-| iOS bundle ID | `com.acme.customer` | Permanent App Store identity |
-| Android package name | `com.acme.customer` | Permanent Google Play identity |
+| Identity             | Example             | What it controls                                                            |
+| -------------------- | ------------------- | --------------------------------------------------------------------------- |
+| Flutter package name | `customer_app`      | Dart package name in `pubspec.yaml`; the default `app_id`                   |
+| SMF `app_id`         | `customer`          | Permanent release branches, tags, workflow filename, and GitHub Environment |
+| Display name         | `Customer`          | Name shown to people; SMF does not use it as identity                       |
+| iOS bundle ID        | `com.acme.customer` | Permanent App Store identity                                                |
+| Android package name | `com.acme.customer` | Permanent Google Play identity                                              |
 
 Do not register or release a placeholder such as `com.example.*`. Choose the
 production bundle ID and package name with the app owner first. The iOS and
@@ -99,18 +103,6 @@ This creates:
 smf/config.yaml
 .github/workflows/smf-<app-id>.yml
 ```
-
-To operate entirely from the CLI, add `--no-github-actions`. Initialization
-then creates `smf/config.yaml` without a workflow:
-
-```bash
-smf init --version 1.0.0 --ios-bundle-id com.acme.myapp --android-package-name com.acme.myapp --no-github-actions
-```
-
-All store, signing, GitHub, and release-safety prerequisites still apply.
-Follow [Run a release from the CLI](cli.md#run-a-release-from-the-cli) for the
-manual commands. You can add the wrapper later with
-`smf init --github-actions`.
 
 The initializer reads the Flutter package name from `pubspec.yaml`, stores it
 as `app_id`, and uses it in the workflow filename. Pass an explicit `--app-id`
@@ -153,9 +145,6 @@ This creates:
 apps/mobile/smf/config.yaml
 .github/workflows/smf-<app-id>.yml
 ```
-
-For a CLI-only monorepo app, add `--no-github-actions` to the same command. SMF
-creates `apps/mobile/smf/config.yaml` and no app workflow.
 
 For iOS only, omit `--android-package-name`. For Android only, omit
 `--ios-bundle-id`.

@@ -4,8 +4,9 @@ The SMF command is named `smf`. It can run the complete release lifecycle
 locally. The generated GitHub Actions workflow is an optional automated wrapper
 around the same release operations.
 
-For the complete setup process, follow
-[Getting started](getting-started.md).
+For the complete human-operated setup process, follow
+[CLI setup](cli-setup.md). For the recommended automated workflow, follow
+[GitHub Actions setup](github-actions-setup.md).
 
 ## Install
 
@@ -41,15 +42,14 @@ Upgrade the globally installed CLI with:
 smf upgrade
 ```
 
-The command checks the latest `smf_cli` version published on pub.dev and runs
-`dart install smf_cli <version> --overwrite`. It does not migrate files inside
-your Flutter repository. Run `smf migrate` separately when the newer version
+The command checks the latest `smf_cli` version published on pub.dev.
+It does not migrate files inside your Flutter repository.
+Run `smf migrate` separately when the newer version
 changes generated files or persisted SMF formats.
 
-Automatic checks are skipped in CI and in SMF's GitHub Action. A failed
-advisory check is silent and never changes the requested command's exit code.
-To disable the advisory check elsewhere, set
-`SMF_NO_UPDATE_CHECK=true`; `smf upgrade` still checks when explicitly run.
+Automatic checks are skipped in CI and in SMF's GitHub Action.
+A failed advisory check is silent and never changes the requested command's exit code.
+To disable the advisory check elsewhere, set `SMF_NO_UPDATE_CHECK=true`; `smf upgrade` still checks when explicitly run.
 
 ## Set up an app
 
@@ -238,7 +238,6 @@ On macOS or Linux, export the credentials for the release:
 
 ```bash
 export SMF_GITHUB_TOKEN="<token>"
-
 export SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(<"/secure/service-account.json")"
 export SMF_ANDROID_KEYSTORE_BASE64="$(base64 <"/secure/upload-keystore.jks" | tr -d '\n')"
 export SMF_ANDROID_KEY_ALIAS="upload"

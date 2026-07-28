@@ -7,8 +7,8 @@ and encoded value exactly like the original credential.
 
 ### Apple
 
-| Secret                              | Contains                         |
-| ----------------------------------- | -------------------------------- |
+| Secret                                  | Contains                         |
+| --------------------------------------- | -------------------------------- |
 | `SMF_APP_STORE_CONNECT_KEY_ID`          | API key ID                       |
 | `SMF_APP_STORE_CONNECT_ISSUER_ID`       | API issuer ID                    |
 | `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64` | Base64 `AuthKey_*.p8`            |
@@ -17,8 +17,8 @@ and encoded value exactly like the original credential.
 
 ### Android
 
-| Secret                             | Contains                      |
-| ---------------------------------- | ----------------------------- |
+| Secret                                 | Contains                      |
+| -------------------------------------- | ----------------------------- |
 | `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Complete service-account JSON |
 | `SMF_ANDROID_KEYSTORE_BASE64`          | Base64 upload keystore        |
 | `SMF_ANDROID_KEY_ALIAS`                | Upload-key alias              |

@@ -1,8 +1,8 @@
 # Set up Apple delivery
 
 This guide takes a Flutter app from “it builds locally” to “SMF can upload an
-exact, signed build to App Store Connect and TestFlight from GitHub Actions.”
-It assumes no previous App Store experience.
+exact, signed build to App Store Connect and TestFlight,” either from GitHub
+Actions or through the CLI. It assumes no previous App Store experience.
 
 Keep the generated `release_candidate` configuration and leave
 `app_store.ship` omitted for the first live run. Do not add `ship` until the
@@ -23,10 +23,10 @@ By the end, you will have:
 
 1. one Apple App ID for the main app and each embedded extension;
 2. one App Store Connect app record for the main app;
-3. one App Store Connect API key used by GitHub Actions;
+3. one App Store Connect API key used by SMF;
 4. one Apple Distribution identity exported as a password-protected `.p12`;
 5. optionally, one internal TestFlight group; and
-6. five secrets in the app's GitHub Environment.
+6. for GitHub Actions, five secrets in the app's GitHub Environment.
 
 None of the `.p8`, `.p12`, or password values belong in Git, YAML, an issue, a
 pull request, or a build log.
@@ -61,8 +61,8 @@ You need:
 - the latest Apple agreements accepted by the Account Holder;
 - a Mac with Xcode and Keychain Access;
 - the Flutter app's Git repository and working iOS project;
-- permission to create a GitHub Environment, add its secrets, and change
-  Actions settings;
+- for GitHub Actions, permission to create a GitHub Environment, add its
+  secrets, and change Actions settings;
 - a password manager or secret manager; and
 - access to the people who own product metadata, privacy answers, export
   compliance, pricing, and review information.
@@ -131,9 +131,10 @@ Use the project's normal FVM command instead when the repository uses FVM.
 
 ## 2. Confirm the existing SMF configuration
 
-Complete steps 1–4 of [Getting started](getting-started.md) before continuing.
-Those steps install and run `smf init` exactly once. Do not initialize again
-when you return to this page.
+Complete steps 1–4 of your selected setup before continuing:
+[GitHub Actions setup](github-actions-setup.md) or
+[CLI setup](cli-setup.md). Those steps install and run `smf init` exactly
+once. Do not initialize again when you return to this page.
 
 Open `<flutter-app>/smf/config.yaml` and confirm that `bundle_id` is the main
 `Runner` bundle ID recorded in step 1:
@@ -532,7 +533,7 @@ Leave `groups: []` if the first run should only upload and process the build.
 > exact build to Beta App Review. Follow Apple's
 > [external testing procedure](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/).
 
-## 8. Add the five GitHub Environment secrets
+## 8. For GitHub Actions, add the five Environment secrets
 
 Base64 is transport encoding, not encryption. Anyone who obtains the encoded
 value can recover the credential.
@@ -577,7 +578,7 @@ Universal Clipboard and clipboard-manager history can retain copied values;
 disable or clear them according to team policy. On Linux, use
 `base64 -w 0 "/absolute/path/FILE"`.
 
-## 9. Return to Getting Started
+## 9. Return to your selected setup
 
 Apple setup is complete when:
 
@@ -590,13 +591,16 @@ Apple setup is complete when:
 - every signed target has a registered App ID on the same team;
 - an internal TestFlight group exists when the team will install the candidate;
   and
-- all five secret names appear under GitHub environment `smf-<app-id>`.
+- for GitHub Actions, all five secret names appear under GitHub environment
+  `smf-<app-id>`; or
+- for CLI operation, the credentials remain protected outside the repository
+  and are ready to supply as `SMF_*` environment variables.
 
-Continue at [Allow the workflow to open release
-PRs](getting-started.md#6-allow-actions-to-create-the-release-pr). Getting
-Started owns validation, committing the generated files, triggering the first
-candidate, and routing approval through the operations checklist. Do not
-trigger or merge a release from this Apple setup page.
+For the automated path, continue at
+[Allow the workflow to open release PRs](github-actions-setup.md#6-allow-actions-to-create-the-release-pr).
+For manual operation, continue at
+[Add an optional preparation hook](cli-setup.md#6-add-an-optional-preparation-hook).
+Do not trigger or merge a release from this Apple setup page.
 
 ## Troubleshooting and credential maintenance
 
