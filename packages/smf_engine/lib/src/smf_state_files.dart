@@ -55,6 +55,8 @@ final class _SmfStateFiles {
     'version',
     'endCommitHash',
     'isReleasePending',
+    'baselineSha',
+    'pendingRelease',
   };
   static const Set<String> _changelogRootFields = <String>{
     'schemaVersion',
@@ -677,16 +679,50 @@ final class _SmfStateFiles {
     String path,
   ) {
     _rejectUnknownFields(value, _platformManifestFields, path);
+    final usesCurrentNames = value.containsKey('endCommitHash') || value.containsKey('isReleasePending');
+    final usesLegacyNames = value.containsKey('baselineSha') || value.containsKey('pendingRelease');
+    if (usesCurrentNames && usesLegacyNames) {
+      _fail('$path must not mix current and pre-v1 manifest field names');
+    }
+    final endCommitHash = _manifestField(
+      value,
+      current: 'endCommitHash',
+      legacy: 'baselineSha',
+      path: path,
+    );
+    final isReleasePending = _manifestField(
+      value,
+      current: 'isReleasePending',
+      legacy: 'pendingRelease',
+      path: path,
+    );
     return PlatformManifestDto(
       version: _stableVersion(value['version'], '$path.version'),
       endCommitHash: _gitCommitHash(
-        value['endCommitHash'],
-        '$path.endCommitHash',
+        endCommitHash.value,
+        '$path.${endCommitHash.field}',
       ),
       isReleasePending: _boolean(
-        value['isReleasePending'],
-        '$path.isReleasePending',
+        isReleasePending.value,
+        '$path.${isReleasePending.field}',
       ),
+    );
+  }
+
+  static ({Object? value, String field}) _manifestField(
+    Map<String, Object?> value, {
+    required String current,
+    required String legacy,
+    required String path,
+  }) {
+    final hasCurrent = value.containsKey(current);
+    final hasLegacy = value.containsKey(legacy);
+    if (hasCurrent && hasLegacy) {
+      _fail('$path must not mix current and pre-v1 manifest field names');
+    }
+    return (
+      value: hasCurrent ? value[current] : value[legacy],
+      field: hasCurrent ? current : legacy,
     );
   }
 
