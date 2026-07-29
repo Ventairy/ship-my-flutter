@@ -899,6 +899,11 @@ $credentialGuidance
     final repositoryRoot = await localGit.run(
       const <String>['rev-parse', '--show-toplevel'],
     );
+    final localPaths = SmfPaths.resolve(
+      repositoryRoot,
+      smfPath: smfPath,
+    );
+    final localConfig = await SmfState.config(localPaths.directory);
     final remoteUrl = await localGit.run(
       const <String>['remote', 'get-url', 'origin'],
     );
@@ -911,7 +916,6 @@ $credentialGuidance
       );
     }
     final cloneUrl = remoteRepository == null ? remoteUrl : 'https://github.com/$remoteRepository.git';
-    final defaultBranch = await localGit.remoteDefaultBranch(github.token);
     final canonicalWorkingDirectory = dart_io.Directory(
       workingDirectory,
     ).resolveSymbolicLinksSync();
@@ -938,7 +942,7 @@ $credentialGuidance
       await localGit.authenticated(<String>[
         'clone',
         '--branch',
-        defaultBranch,
+        localConfig.targetBranch,
         '--single-branch',
         '--no-tags',
         cloneUrl,
@@ -947,39 +951,24 @@ $credentialGuidance
       final remoteWorkingDirectory = relativeWorkingDirectory == '.'
           ? checkoutRoot
           : p.join(checkoutRoot, relativeWorkingDirectory);
-      var paths = SmfPaths.resolve(
+      final paths = SmfPaths.resolve(
         remoteWorkingDirectory,
         smfPath: smfPath,
       );
-      var config = await SmfState.config(paths.directory);
+      final config = await SmfState.config(paths.directory);
       final gitClient = GitClient(root: checkoutRoot);
-      if (config.targetBranch != defaultBranch) {
-        final targetRefSpec = 'refs/heads/${config.targetBranch}:refs/remotes/origin/${config.targetBranch}';
-        await gitClient.authenticated(<String>[
-          'fetch',
-          'origin',
-          targetRefSpec,
-        ], github.token);
-        await gitClient.run(<String>[
-          'checkout',
-          '-B',
-          config.targetBranch,
-          'origin/${config.targetBranch}',
-        ]);
-        paths = SmfPaths.resolve(
-          remoteWorkingDirectory,
-          smfPath: smfPath,
-        );
-        final targetConfig = await SmfState.config(paths.directory);
-        SmfError.check(
-          targetConfig.targetBranch == config.targetBranch,
-          'The remote target branch changed its own target_branch from '
-          '${config.targetBranch} to ${targetConfig.targetBranch}. Update '
-          'the default branch configuration before shipping.',
-          SmfErrorCode.remoteTargetBranchMismatch,
-        );
-        config = targetConfig;
-      }
+      SmfError.check(
+        config.targetBranch == localConfig.targetBranch,
+        'The remote target branch changed its own target_branch from '
+        '${localConfig.targetBranch} to ${config.targetBranch}.',
+        SmfErrorCode.remoteTargetBranchMismatch,
+      );
+      SmfError.check(
+        config.appId == localConfig.appId,
+        'The remote target branch changed app_id from '
+        '${localConfig.appId} to ${config.appId}.',
+        SmfErrorCode.remoteTargetBranchMismatch,
+      );
       final manifest = await SmfState.manifest(paths.directory);
       final result = await operation(
         remoteWorkingDirectory,

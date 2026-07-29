@@ -1059,6 +1059,122 @@ platforms:
   );
 
   test(
+    'when the target is not the default branch, it should read only the remote target configuration',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'smf-non-default-target-',
+      );
+      final origin = await Directory.systemTemp.createTemp(
+        'smf-non-default-target-origin-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      addTearDown(() => origin.delete(recursive: true));
+      await GitClient(root: origin.path).run(
+        const <String>['init', '--bare', '-b', 'main'],
+      );
+      await Directory(p.join(root.path, 'ios')).create();
+      await File(
+        p.join(root.path, 'ios', '.gitkeep'),
+      ).writeAsString('');
+      await File(
+        p.join(root.path, 'pubspec.yaml'),
+      ).writeAsString('name: remote_app\nversion: 1.0.0+1\n');
+      await File(
+        p.join(root.path, 'pubspec.lock'),
+      ).writeAsString('# fixture\n');
+      final git = GitClient(root: root.path);
+      await git.run(const <String>['init', '-b', 'main']);
+      await git.run(const <String>['config', 'user.name', 'Test']);
+      await git.run(
+        const <String>['config', 'user.email', 'test@example.com'],
+      );
+      await git.run(const <String>['add', '.']);
+      await git.run(const <String>['commit', '-m', 'chore: bootstrap']);
+      await RepositoryInitializer.initialize(
+        InitOptions(
+          appRoot: root.path,
+          iosBundleId: 'dev.example.remote',
+          shouldCreateGitHubActions: false,
+        ),
+      );
+      await git.run(const <String>['add', '.']);
+      await git.run(
+        const <String>['commit', '-m', 'chore: configure releases'],
+      );
+      await git.run(<String>['remote', 'add', 'origin', origin.path]);
+      await git.run(const <String>['push', '-u', 'origin', 'main']);
+
+      await git.run(const <String>['switch', '-c', 'release-target']);
+      final configFile = File(p.join(root.path, 'smf', 'config.yaml'));
+      await configFile.writeAsString(
+        (await configFile.readAsString()).replaceFirst(
+          'target_branch: main',
+          'target_branch: release-target',
+        ),
+      );
+      await git.run(const <String>['add', 'smf/config.yaml']);
+      await git.run(
+        const <String>['commit', '-m', 'chore: target release branch'],
+      );
+      await git.run(
+        const <String>['push', '-u', 'origin', 'release-target'],
+      );
+
+      await git.run(const <String>['switch', 'main']);
+      await configFile.writeAsString(
+        (await configFile.readAsString()).replaceFirst(
+          RegExp(r'^app_id:.*\n', multiLine: true),
+          '',
+        ),
+      );
+      await git.run(const <String>['add', 'smf/config.yaml']);
+      await git.run(
+        const <String>['commit', '-m', 'test: make default config invalid'],
+      );
+      await git.run(const <String>['push', 'origin', 'main']);
+      await git.run(const <String>['switch', 'release-target']);
+
+      final output = <Object?>[];
+      final errors = <Object?>[];
+      final exitCode = await SmfExecutable.runRelease(
+        const <String>[
+          '--phase',
+          'pull-request',
+          '--repository',
+          'example/remote_app',
+        ],
+        io: ExecutableIo(
+          environment: const <String, String>{
+            'SMF_GITHUB_TOKEN': 'token',
+          },
+          workingDirectory: root.path,
+          writeOutput: output.add,
+          writeError: errors.add,
+        ),
+      );
+
+      expect(
+        (
+          exitCode: exitCode,
+          nextPhase: output.isEmpty
+              ? null
+              : (jsonDecode(output.single! as String) as Map<String, Object?>)['nextPhase'],
+          branch: await git.currentBranch(),
+          clean: await git.isClean(),
+          errors: errors.join('\n'),
+        ),
+        (
+          exitCode: 0,
+          nextPhase: 'noop',
+          branch: 'release-target',
+          clean: true,
+          errors: '',
+        ),
+      );
+    },
+  );
+
+  test(
     'validate discovers every app and optionally selects one',
     () async {
       final root = await Directory.systemTemp.createTemp(
