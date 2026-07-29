@@ -1,7 +1,7 @@
 # Releasing SMF packages
 
-This runbook covers repeat releases of SMF's independently versioned pub.dev
-packages. It assumes Release Please and trusted publishing are configured.
+This runbook covers repeat releases of SMF's coordinated pub.dev packages. It
+assumes Release Please and trusted publishing are configured.
 
 | Package      | Release tag         |
 | ------------ | ------------------- |
@@ -10,7 +10,9 @@ packages. It assumes Release Please and trusted publishing are configured.
 | `smf_cli`    | `smf_cli-vX.Y.Z`    |
 
 Release Please maintains package versions, changelogs, component tags, and
-GitHub Releases. Each component tag triggers publication of its package.
+GitHub Releases. The packages use one linked version: a releasable change to
+any package updates and publishes all three. Each component retains its own tag
+and pub.dev publication.
 
 ## 1. Prepare the release
 
@@ -25,9 +27,10 @@ manual version commit or tag.
 
 ## 2. Review the release pull request
 
-For every included package:
+For every package:
 
-1. Confirm the proposed version matches its Conventional Commits.
+1. Confirm all three packages propose the same version and that its bump is at
+   least as large as the strongest Conventional Commit in the release.
 2. Review the changelog as user-facing release notes.
 3. Confirm `pubspec.yaml`, `CHANGELOG.md`, and the release manifest agree.
 4. Confirm internal dependency constraints admit the released versions.
@@ -35,13 +38,14 @@ For every included package:
 6. Inspect the package's `dart pub publish --dry-run` archive.
 7. Confirm the exact release pull-request commit passed CI.
 
-Release automation does not infer downstream releases from Dart dependency
-constraints. When a change requires dependent code or a higher minimum
-version, include the affected packages in the same release cycle:
+Package dependencies remain hosted semver constraints so published packages
+work outside this repository. During development, `resolution: workspace`
+selects the local workspace packages. Do not replace publishable dependencies
+with `path:` dependencies.
 
-```text
-smf_hooks -> smf_engine -> smf_cli
-```
+The linked release policy keeps this dependency chain on one release version:
+
+`smf_hooks` → `smf_engine` → `smf_cli`
 
 ## 3. Merge and publish
 
@@ -88,5 +92,7 @@ separately; package publication does not prove store acceptance.
 - Stop before releasing dependents if the release commit, tag, GitHub Release,
   workflow result, and pub.dev archive do not agree.
 
-The adjacent `smf-action` repository has its own release workflow. Updating its
-vendored SMF checkout is a separate release task.
+The adjacent `smf-action` repository checks hourly for the newest stable
+`smf_cli` GitHub Release. When its recorded CLI version differs, it opens or
+updates a reviewed synchronization pull request. The Action is not merged or
+published automatically.

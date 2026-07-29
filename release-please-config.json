@@ -6,6 +6,17 @@
   "release-type": "dart",
   "separate-pull-requests": false,
   "group-pull-request-title-pattern": "chore: release ${branch}",
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "SMF",
+      "components": [
+        "smf_hooks",
+        "smf_engine",
+        "smf_cli"
+      ]
+    }
+  ],
   "packages": {
     "packages/smf_hooks": {
       "component": "smf_hooks",
