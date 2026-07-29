@@ -118,10 +118,7 @@ void main() {
       );
       expect(
         configText,
-        contains(
-          'https://raw.githubusercontent.com/Ventairy/smf/smf_engine-v0.1.0/'
-          'packages/smf_engine/schemas/config.schema.json',
-        ),
+        contains(SmfTemplates.configSchemaUrl),
       );
       expect(configText, isNot(contains('build_command:')));
       expect(configText, isNot(contains('ipa_output_path:')));
