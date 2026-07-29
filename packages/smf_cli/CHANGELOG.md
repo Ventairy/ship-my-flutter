@@ -5,7 +5,6 @@
 
 ### Bug Fixes
 
-* **cli:** honor non-default remote target configuration ([37fda30](https://github.com/Ventairy/smf/commit/37fda308a3639f305222410d1283170d421bcf26))
 * **cli:** honor non-default remote target configuration ([6e616ee](https://github.com/Ventairy/smf/commit/6e616ee22b8d3f34b4e427e4f7525d51f03f9d05))
 
 ## 1.0.0 (2026-07-29)
