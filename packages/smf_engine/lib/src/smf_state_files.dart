@@ -70,6 +70,13 @@ final class _SmfStateFiles {
     'endCommitHash',
     'changes',
   };
+  static const Set<String> _legacyChangelogReleaseFields = <String>{
+    'version',
+    'preparedAt',
+    'baseSha',
+    'headSha',
+    'changes',
+  };
   static const Set<String> _conventionalChangeFields = <String>{
     'commitHash',
     'type',
@@ -78,6 +85,16 @@ final class _SmfStateFiles {
     'body',
     'isBreaking',
     'versionBumpType',
+    'platforms',
+  };
+  static const Set<String> _legacyConventionalChangeFields = <String>{
+    'sha',
+    'type',
+    'scope',
+    'description',
+    'body',
+    'breaking',
+    'versionBump',
     'platforms',
   };
 
@@ -764,25 +781,34 @@ final class _SmfStateFiles {
     final value = _objectMap(platforms[platform.value], prefix);
     _rejectUnknownFields(value, _changelogPlatformFields, prefix);
     final releases = value['releases'];
-    if (releases is! List<Object?>) {
-      _fail('$prefix.releases must be a list');
-    }
+    final isLegacy = releases is Map<Object?, Object?>;
+    final releaseEntries = switch (releases) {
+      final List<Object?> values => <MapEntry<String, Object?>>[
+        for (var index = 0; index < values.length; index++) MapEntry<String, Object?>('$index', values[index]),
+      ],
+      final Map<Object?, Object?> values => _objectMap(values, '$prefix.releases').entries.toList(),
+      _ => _fail('$prefix.releases must be a list or pre-v1 release object'),
+    };
     final parsed = <ChangelogPlatformReleaseVersionDto>[];
     final versions = <String>{};
-    for (var releaseIndex = 0; releaseIndex < releases.length; releaseIndex++) {
+    for (final entry in releaseEntries) {
+      final releasePath = '$prefix.releases.${entry.key}';
       final release = _objectMap(
-        releases[releaseIndex],
-        '$prefix.releases.$releaseIndex',
+        entry.value,
+        releasePath,
       );
       _rejectUnknownFields(
         release,
-        _changelogReleaseFields,
-        '$prefix.releases.$releaseIndex',
+        isLegacy ? _legacyChangelogReleaseFields : _changelogReleaseFields,
+        releasePath,
       );
       final version = _stableVersion(
         release['version'],
-        '$prefix.releases.$releaseIndex.version',
+        '$releasePath.version',
       );
+      if (isLegacy && version != entry.key) {
+        _fail('$releasePath.version must match its release key ${entry.key}');
+      }
       if (!versions.add(version)) {
         _fail(
           '$prefix.releases contains duplicate version $version',
@@ -791,15 +817,15 @@ final class _SmfStateFiles {
       final changesValue = release['changes'];
       if (changesValue is! List<Object?> || changesValue.isEmpty) {
         _fail(
-          '$prefix.releases.$releaseIndex.changes must contain at least one '
-          'change',
+          '$releasePath.changes must contain at least one change',
         );
       }
       final changes = <ConventionalChangeDto>[
         for (var changeIndex = 0; changeIndex < changesValue.length; changeIndex++)
           _parseChange(
             changesValue[changeIndex],
-            '$prefix.releases.$releaseIndex.changes.$changeIndex',
+            '$releasePath.changes.$changeIndex',
+            isLegacy: isLegacy,
           ),
       ];
       parsed.add(
@@ -807,15 +833,15 @@ final class _SmfStateFiles {
           version: version,
           preparedAt: _dateTime(
             release['preparedAt'],
-            '$prefix.releases.$releaseIndex.preparedAt',
+            '$releasePath.preparedAt',
           ),
           baseCommitHash: _gitCommitHash(
-            release['baseCommitHash'],
-            '$prefix.releases.$releaseIndex.baseCommitHash',
+            release[isLegacy ? 'baseSha' : 'baseCommitHash'],
+            '$releasePath.${isLegacy ? 'baseSha' : 'baseCommitHash'}',
           ),
           endCommitHash: _gitCommitHash(
-            release['endCommitHash'],
-            '$prefix.releases.$releaseIndex.endCommitHash',
+            release[isLegacy ? 'headSha' : 'endCommitHash'],
+            '$releasePath.${isLegacy ? 'headSha' : 'endCommitHash'}',
           ),
           changes: changes,
         ),
@@ -861,24 +887,37 @@ final class _SmfStateFiles {
     }
   }
 
-  static ConventionalChangeDto _parseChange(Object? value, String path) {
+  static ConventionalChangeDto _parseChange(
+    Object? value,
+    String path, {
+    required bool isLegacy,
+  }) {
     final change = _objectMap(value, path);
-    _rejectUnknownFields(change, _conventionalChangeFields, path);
+    _rejectUnknownFields(
+      change,
+      isLegacy ? _legacyConventionalChangeFields : _conventionalChangeFields,
+      path,
+    );
     final platformsValue = change['platforms'];
     if (platformsValue is! List<Object?>) {
       _fail('$path.platforms must be a list');
     }
     return ConventionalChangeDto(
       commitHash: _gitCommitHash(
-        change['commitHash'],
-        '$path.commitHash',
+        change[isLegacy ? 'sha' : 'commitHash'],
+        '$path.${isLegacy ? 'sha' : 'commitHash'}',
       ),
       type: _nonEmptyString(change['type'], '$path.type'),
       scope: _nullableString(change['scope'], '$path.scope'),
       description: _nonEmptyString(change['description'], '$path.description'),
       body: _nullableString(change['body'], '$path.body'),
-      isBreaking: _boolean(change['isBreaking'], '$path.isBreaking'),
-      versionBumpType: VersionBumpType.maybeParse(change['versionBumpType']),
+      isBreaking: _boolean(
+        change[isLegacy ? 'breaking' : 'isBreaking'],
+        '$path.${isLegacy ? 'breaking' : 'isBreaking'}',
+      ),
+      versionBumpType: VersionBumpType.maybeParse(
+        change[isLegacy ? 'versionBump' : 'versionBumpType'],
+      ),
       platforms: platformsValue
           .map(
             (item) => ReleasePlatform.parse(_nonEmptyString(item, '$path.platforms')),
