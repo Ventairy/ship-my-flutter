@@ -686,6 +686,109 @@ void main() {
       );
     });
 
+    test('accepts the complete pre-v1 changelog shape', () {
+      final changelog = SmfState.parseChangelog(<String, Object?>{
+        'schemaVersion': 1,
+        'platforms': <String, Object?>{
+          'ios': <String, Object?>{
+            'releases': <String, Object?>{
+              '1.2.0': <String, Object?>{
+                'version': '1.2.0',
+                'preparedAt': '2026-07-28T17:04:40.224001Z',
+                'baseSha': repeated('a', 40),
+                'headSha': repeated('b', 40),
+                'changes': <Object?>[
+                  <String, Object?>{
+                    'sha': repeated('c', 40),
+                    'type': 'feat',
+                    'scope': 'ios',
+                    'description': 'verify the release',
+                    'body': null,
+                    'breaking': false,
+                    'versionBump': 'minor',
+                    'platforms': <Object?>['ios'],
+                  },
+                ],
+              },
+            },
+          },
+          'android': <String, Object?>{
+            'releases': <String, Object?>{},
+          },
+        },
+      });
+      final release = changelog.platforms.ios.releases.single;
+      final change = release.changes.single;
+
+      expect(
+        (
+          version: release.version,
+          baseCommitHash: release.baseCommitHash,
+          endCommitHash: release.endCommitHash,
+          commitHash: change.commitHash,
+          isBreaking: change.isBreaking,
+          versionBumpType: change.versionBumpType,
+          platforms: change.platforms.map((platform) => platform.value).join(),
+          androidReleaseCount: changelog.platforms.android.releases.length,
+        ),
+        (
+          version: '1.2.0',
+          baseCommitHash: repeated('a', 40),
+          endCommitHash: repeated('b', 40),
+          commitHash: repeated('c', 40),
+          isBreaking: false,
+          versionBumpType: VersionBumpType.minor,
+          platforms: 'ios',
+          androidReleaseCount: 0,
+        ),
+      );
+    });
+
+    test('rejects a pre-v1 changelog whose version disagrees with its key', () {
+      expect(
+        () => SmfState.parseChangelog(<String, Object?>{
+          'schemaVersion': 1,
+          'platforms': <String, Object?>{
+            'ios': <String, Object?>{
+              'releases': <String, Object?>{
+                '1.2.0': <String, Object?>{
+                  'version': '1.3.0',
+                  'preparedAt': '2026-07-28T17:04:40.224001Z',
+                  'baseSha': repeated('a', 40),
+                  'headSha': repeated('b', 40),
+                  'changes': <Object?>[
+                    <String, Object?>{
+                      'sha': repeated('c', 40),
+                      'type': 'feat',
+                      'scope': null,
+                      'description': 'verify the release',
+                      'body': null,
+                      'breaking': false,
+                      'versionBump': 'minor',
+                      'platforms': <Object?>['ios'],
+                    },
+                  ],
+                },
+              },
+            },
+            'android': <String, Object?>{
+              'releases': <String, Object?>{},
+            },
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'platforms.ios.releases.1.2.0.version must match its '
+              'release key 1.2.0',
+            ),
+          ),
+        ),
+      );
+    });
+
     test('enforces platform-specific store release note limits', () {
       expect(
         () => SmfState.parseStoreReleaseNotes(<String, Object?>{
