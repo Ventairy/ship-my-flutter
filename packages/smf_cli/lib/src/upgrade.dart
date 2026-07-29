@@ -12,4 +12,4 @@ part 'smf_upgrade_types.dart';
 /// `packages/smf_cli/pubspec.yaml` remains the source of truth. A test keeps
 /// this embedded value aligned so compiled `dart install` executables can
 /// compare themselves with pub.dev without reading package source files.
-const String smfCliVersion = '1.0.0'; // x-release-please-version
+const String smfCliVersion = '1.0.1'; // x-release-please-version
