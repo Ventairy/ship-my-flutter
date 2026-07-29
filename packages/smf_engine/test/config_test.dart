@@ -50,15 +50,31 @@ void main() {
       final schema = jsonDecode(schemaFile.readAsStringSync()) as Map<String, Object?>;
       final properties = schema['properties']! as Map<String, Object?>;
       final schemaVersion = properties['schema_version']! as Map<String, Object?>;
+      final platforms = properties['platforms']! as Map<String, Object?>;
+      final platformProperties = platforms['properties']! as Map<String, Object?>;
+      final android = platformProperties['android']! as Map<String, Object?>;
+      final androidProperties = android['properties']! as Map<String, Object?>;
+      final googlePlay = androidProperties['google_play']! as Map<String, Object?>;
+      final googlePlayProperties = googlePlay['properties']! as Map<String, Object?>;
+      final releaseCandidate = googlePlayProperties['release_candidate']! as Map<String, Object?>;
+      final allOf = releaseCandidate['allOf']! as List<Object?>;
+      final closedTestingCondition = allOf.first! as Map<String, Object?>;
+      final condition = closedTestingCondition['if']! as Map<String, Object?>;
 
       expect(
-        schemaVersion['const'],
-        SmfConfig.currentSchemaVersion,
+        (
+          schemaVersion: schemaVersion['const'],
+          closedTestingRequired: jsonEncode(condition['required']),
+        ),
+        (
+          schemaVersion: SmfConfig.currentSchemaVersion,
+          closedTestingRequired: '["target"]',
+        ),
       );
     });
 
     test('accepts the minimal generated configuration', () {
-      expect(SmfState.parseConfig(validConfig()).ios.enabled, isTrue);
+      expect(SmfState.parseConfig(validConfig()).ios.isEnabled, isTrue);
     });
 
     test('accepts safe release trigger paths and removes duplicates', () {
@@ -96,8 +112,8 @@ void main() {
         },
       });
 
-      expect(config.ios.enabled, isFalse);
-      expect(config.android.enabled, isTrue);
+      expect(config.ios.isEnabled, isFalse);
+      expect(config.android.isEnabled, isTrue);
     });
 
     test('accepts one optional global Flutter flavor', () {
@@ -176,8 +192,8 @@ void main() {
         () {
           final config = validConfig();
           final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
-          final candidate = appStore['release_candidate']! as Map<String, Object?>;
-          candidate['unexpected'] = true;
+          final releaseCandidate = appStore['release_candidate']! as Map<String, Object?>;
+          releaseCandidate['unexpected'] = true;
           return config;
         },
         () {
@@ -223,8 +239,8 @@ void main() {
     test('rejects unsupported App Store release-candidate targets', () {
       final config = validConfig();
       final appStore = iosConfig(config)['app_store']! as Map<String, Object?>;
-      final candidate = appStore['release_candidate']! as Map<String, Object?>;
-      candidate['target'] = 'private-testing';
+      final releaseCandidate = appStore['release_candidate']! as Map<String, Object?>;
+      releaseCandidate['target'] = 'private-testing';
       expect(
         () => SmfState.parseConfig(config),
         throwsA(
@@ -255,12 +271,12 @@ void main() {
     });
 
     test('requires external TestFlight groups beside their phase', () {
-      final candidateConfig = validConfig();
-      final candidateAppStore = iosConfig(candidateConfig)['app_store']! as Map<String, Object?>;
-      candidateAppStore['release_candidate'] = <String, Object?>{
+      final releaseCandidateConfig = validConfig();
+      final releaseCandidateAppStore = iosConfig(releaseCandidateConfig)['app_store']! as Map<String, Object?>;
+      releaseCandidateAppStore['release_candidate'] = <String, Object?>{
         'target': 'external-testing',
       };
-      expect(() => SmfState.parseConfig(candidateConfig), throwsA(isA<SmfError>()));
+      expect(() => SmfState.parseConfig(releaseCandidateConfig), throwsA(isA<SmfError>()));
 
       final shipConfig = validConfig();
       final shipAppStore = iosConfig(shipConfig)['app_store']! as Map<String, Object?>;
@@ -428,10 +444,8 @@ void main() {
       }
     });
 
-    test('rejects older configuration contracts with migration guidance', () {
-      final config = validConfig()
-        ..remove('schema_version')
-        ..['schemaVersion'] = 1;
+    test('rejects configuration contracts outside schema v1', () {
+      final config = validConfig()..['schema_version'] = 0;
 
       expect(
         () => SmfState.parseConfig(config),
@@ -452,8 +466,13 @@ void main() {
           'platforms': <String, Object?>{
             'ios': <String, Object?>{
               'version': '2.0.0-beta.1',
-              'baselineSha': repeated('a', 40),
-              'pendingRelease': false,
+              'endCommitHash': repeated('a', 40),
+              'isReleasePending': false,
+            },
+            'android': <String, Object?>{
+              'version': '1.0.0',
+              'endCommitHash': repeated('a', 40),
+              'isReleasePending': false,
             },
           },
         }),
@@ -467,40 +486,40 @@ void main() {
       );
     });
 
-    test('validates changelog identity and nonempty localized notes', () {
+    test('rejects duplicate changelog versions and empty localized notes', () {
+      final release = <String, Object?>{
+        'version': '1.2.3',
+        'preparedAt': '2026-07-26T00:00:00.000Z',
+        'baseCommitHash': repeated('a', 40),
+        'endCommitHash': repeated('b', 40),
+        'changes': <Object?>[
+          <String, Object?>{
+            'commitHash': repeated('c', 40),
+            'type': 'fix',
+            'scope': 'ios',
+            'description': 'Fix launch',
+            'body': null,
+            'isBreaking': false,
+            'versionBumpType': 'patch',
+            'platforms': <Object?>['ios'],
+          },
+        ],
+      };
       expect(
         () => SmfState.parseChangelog(<String, Object?>{
           'schemaVersion': 1,
           'platforms': <String, Object?>{
             'ios': <String, Object?>{
-              'releases': <String, Object?>{
-                '1.2.3': <String, Object?>{
-                  'version': '1.2.4',
-                  'preparedAt': '2026-07-26T00:00:00.000Z',
-                  'baseSha': repeated('a', 40),
-                  'headSha': repeated('b', 40),
-                  'changes': <Object?>[
-                    <String, Object?>{
-                      'sha': repeated('c', 40),
-                      'type': 'fix',
-                      'scope': 'ios',
-                      'description': 'Fix launch',
-                      'body': null,
-                      'breaking': false,
-                      'versionBump': 'patch',
-                      'platforms': <Object?>['ios'],
-                    },
-                  ],
-                },
-              },
+              'releases': <Object?>[release, Map<String, Object?>.of(release)],
             },
+            'android': <String, Object?>{'releases': <Object?>[]},
           },
         }),
         throwsA(
           isA<SmfError>().having(
             (error) => error.message,
             'message',
-            contains('must match its release key'),
+            contains('duplicate version 1.2.3'),
           ),
         ),
       );
@@ -511,6 +530,96 @@ void main() {
           },
         }),
         throwsA(isA<SmfError>()),
+      );
+    });
+
+    test('rejects manifests without every platform object', () {
+      expect(
+        () => SmfState.parseManifest(<String, Object?>{
+          'schemaVersion': 1,
+          'platforms': <String, Object?>{
+            'ios': <String, Object?>{
+              'version': '1.0.0',
+              'endCommitHash': repeated('a', 40),
+              'isReleasePending': false,
+            },
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains('platforms.android must be an object'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects unknown manifest fields', () {
+      expect(
+        () => SmfState.parseManifest(<String, Object?>{
+          'schemaVersion': 1,
+          'platforms': <String, Object?>{
+            'ios': <String, Object?>{
+              'version': '1.0.0',
+              'endCommitHash': repeated('a', 40),
+              'isReleasePending': false,
+              'legacy': true,
+            },
+            'android': <String, Object?>{
+              'version': '1.0.0',
+              'endCommitHash': repeated('a', 40),
+              'isReleasePending': false,
+            },
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains('platforms.ios contains unknown field "legacy"'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects changelogs without every platform object', () {
+      expect(
+        () => SmfState.parseChangelog(<String, Object?>{
+          'schemaVersion': 1,
+          'platforms': <String, Object?>{
+            'ios': <String, Object?>{'releases': <Object?>[]},
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains('platforms.android must be an object'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects unknown changelog fields', () {
+      expect(
+        () => SmfState.parseChangelog(<String, Object?>{
+          'schemaVersion': 1,
+          'platforms': <String, Object?>{
+            'ios': <String, Object?>{
+              'releases': <Object?>[],
+              'legacy': true,
+            },
+            'android': <String, Object?>{'releases': <Object?>[]},
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains('platforms.ios contains unknown field "legacy"'),
+          ),
+        ),
       );
     });
 

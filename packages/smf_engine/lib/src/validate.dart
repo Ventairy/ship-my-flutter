@@ -7,7 +7,7 @@ import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/git.dart';
 import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/paths.dart';
-import 'package:smf_engine/src/serialization.dart';
+import 'package:smf_engine/src/yaml_file.dart';
 
 /// Validates repository state required by release operations.
 final class RepositoryValidator {
@@ -40,23 +40,25 @@ final class RepositoryValidator {
 
   static Future<void> _validateStatePaths(SmfPaths paths) async {
     SmfError.check(
-      await SmfFileSystem.exists(paths.config),
+      await File(paths.config).exists(),
       '${p.relative(paths.config, from: paths.repositoryRoot)} is missing.',
-      'STATE_PATH_MISSING',
+      SmfErrorCode.statePathMissing,
     );
     for (final statePath in <String>[
       paths.config,
       paths.manifest,
       paths.changelog,
       paths.storeReleaseNotes,
-      paths.candidates,
+      paths.releaseCandidates,
     ]) {
-      if (!(await SmfFileSystem.exists(statePath))) continue;
+      if (await FileSystemEntity.type(statePath) == FileSystemEntityType.notFound) {
+        continue;
+      }
       SmfError.check(
         !(await Link(statePath).exists()),
         '${p.relative(statePath, from: paths.repositoryRoot)} must not be a '
-            'symbolic link.',
-        'STATE_PATH_SYMLINK',
+        'symbolic link.',
+        SmfErrorCode.statePathSymlink,
       );
     }
   }
@@ -67,15 +69,13 @@ final class RepositoryValidator {
   ) async {
     for (final directory in SmfPaths.discover(paths.repositoryRoot)) {
       if (p.equals(directory, paths.directory)) continue;
-      final value = await SmfFileSystem.readYaml(
-        p.join(directory, SmfPaths.configFileName),
-      );
+      final value = await YamlFile(p.join(directory, SmfPaths.configFileName)).read();
       final siblingAppId = value is Map<String, Object?> ? value['app_id'] : null;
       SmfError.check(
         siblingAppId != config.appId,
         'app_id "${config.appId}" is also used by '
-            '${p.relative(p.dirname(directory), from: paths.repositoryRoot)}.',
-        'APP_ID_CONFLICT',
+        '${p.relative(p.dirname(directory), from: paths.repositoryRoot)}.',
+        SmfErrorCode.appIdConflict,
       );
     }
   }
@@ -97,17 +97,17 @@ final class RepositoryValidator {
       SmfError.check(
         type == FileSystemEntityType.file,
         '$relativePath must be a regular Dart file and must not be a '
-            'symbolic link.',
-        'INVALID_HOOK_FILE',
+        'symbolic link.',
+        SmfErrorCode.invalidHookFile,
       );
       SmfError.check(
         (await GitClient(root: paths.repositoryRoot).run(<String>[
           'ls-files',
           '--error-unmatch',
           relativePath,
-        ], allowFailure: true)).isNotEmpty,
+        ], isFailureAllowed: true)).isNotEmpty,
         '$relativePath must be committed before SMF can execute it.',
-        'UNTRACKED_HOOK',
+        SmfErrorCode.untrackedHook,
       );
     }
   }
@@ -118,7 +118,7 @@ final class RepositoryValidator {
     SmfError.check(
       await Directory(projectRoot).exists(),
       'The Flutter app directory does not exist.',
-      'APP_PATH_NOT_FOUND',
+      SmfErrorCode.appPathNotFound,
     );
     final (repositoryRealPath, projectRealPath) = await (
       Directory(repositoryRoot).resolveSymbolicLinks(),
@@ -127,12 +127,12 @@ final class RepositoryValidator {
     SmfError.check(
       projectRealPath == repositoryRealPath || p.isWithin(repositoryRealPath, projectRealPath),
       'The Flutter app directory resolves outside the repository.',
-      'APP_PATH_ESCAPE',
+      SmfErrorCode.appPathEscape,
     );
     SmfError.check(
-      await SmfFileSystem.exists(p.join(projectRoot, 'pubspec.yaml')),
+      await File(p.join(projectRoot, 'pubspec.yaml')).exists(),
       'No pubspec.yaml exists in the Flutter app directory.',
-      'PUBSPEC_NOT_FOUND',
+      SmfErrorCode.pubspecNotFound,
     );
     final lockfile = await _findWorkspaceLockfile(
       repositoryRoot: repositoryRoot,
@@ -141,8 +141,8 @@ final class RepositoryValidator {
     if (lockfile == null) {
       throw const SmfError(
         'No committed pubspec.lock exists at the Flutter project or workspace '
-            'root.',
-        'LOCKFILE_NOT_FOUND',
+        'root.',
+        SmfErrorCode.lockfileNotFound,
       );
     }
     final relativeLockfile = p.relative(lockfile, from: repositoryRoot);
@@ -151,21 +151,24 @@ final class RepositoryValidator {
         'ls-files',
         '--error-unmatch',
         relativeLockfile,
-      ], allowFailure: true)).isNotEmpty,
+      ], isFailureAllowed: true)).isNotEmpty,
       '$relativeLockfile must be committed before release builds.',
-      'LOCKFILE_UNTRACKED',
+      SmfErrorCode.lockfileUntracked,
     );
   }
 
   static Future<void> _validatePlatformProject({
     required SmfPaths paths,
-    required Platform platform,
+    required ReleasePlatform platform,
   }) async {
     final platformPath = p.join(paths.appRoot, platform.value);
     SmfError.check(
       await Directory(platformPath).exists(),
       'No ${platform.value} directory exists in the Flutter app.',
-      '${platform.value.toUpperCase()}_PROJECT_NOT_FOUND',
+      switch (platform) {
+        ReleasePlatform.ios => SmfErrorCode.iosProjectNotFound,
+        ReleasePlatform.android => SmfErrorCode.androidProjectNotFound,
+      },
     );
     final projectRealPath = await Directory(
       paths.appRoot,
@@ -176,26 +179,39 @@ final class RepositoryValidator {
     SmfError.check(
       p.isWithin(projectRealPath, platformRealPath),
       'The ${platform.value} directory resolves outside the Flutter project.',
-      '${platform.value.toUpperCase()}_PATH_ESCAPE',
+      switch (platform) {
+        ReleasePlatform.ios => SmfErrorCode.iosPathEscape,
+        ReleasePlatform.android => SmfErrorCode.androidPathEscape,
+      },
     );
   }
 
   static void _validateReleaseState({
-    required Platform platform,
-    required SmfManifest manifest,
-    required ChangelogManifest changelog,
+    required ReleasePlatform platform,
+    required ManifestDto manifest,
+    required ChangelogDto changelog,
   }) {
     final state = manifest.forPlatform(platform);
     SmfError.check(
       state.version.isNotEmpty,
       'The ${platform.displayName} manifest version is empty.',
     );
-    if (state.pendingRelease) {
+    if (state.isReleasePending) {
+      final release = changelog.platforms
+          .select(platform)
+          .releaseVersion(
+            state.version,
+          );
       SmfError.check(
-        changelog.releasesFor(platform).containsKey(state.version),
+        release != null,
         'The pending ${platform.displayName} version ${state.version} has no '
-            'changelog entry.',
-        'PENDING_CHANGELOG_MISSING',
+        'changelog entry.',
+        SmfErrorCode.pendingChangelogMissing,
+      );
+      SmfError.check(
+        release?.endCommitHash == state.endCommitHash,
+        'The pending ${platform.displayName} version ${state.version} has '
+        'different ending commits in the manifest and changelog.',
       );
     }
   }
@@ -207,7 +223,7 @@ final class RepositoryValidator {
     var directory = projectRoot;
     while (directory == repositoryRoot || p.isWithin(repositoryRoot, directory)) {
       final lockfile = p.join(directory, 'pubspec.lock');
-      if (await SmfFileSystem.exists(lockfile)) return lockfile;
+      if (await File(lockfile).exists()) return lockfile;
       if (directory == repositoryRoot) break;
       directory = p.dirname(directory);
     }

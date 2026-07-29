@@ -15,4 +15,5 @@ resolution: workspace
 
 dev_dependencies:
   path: ^1.9.1
+  # Keep aligned with smf_engine; see its analyzer compatibility note.
   test: 1.30.0

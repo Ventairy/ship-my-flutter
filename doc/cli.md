@@ -42,10 +42,9 @@ Upgrade the globally installed CLI with:
 smf upgrade
 ```
 
-The command checks the latest `smf_cli` version published on pub.dev.
-It does not migrate files inside your Flutter repository.
-Run `smf migrate` separately when the newer version
-changes generated files or persisted SMF formats.
+The command checks the latest `smf_cli` version published on pub.dev and
+replaces the installed executable. Review that version's release notes before
+using it in an existing repository.
 
 Automatic checks are skipped in CI and in SMF's GitHub Action.
 A failed advisory check is silent and never changes the requested command's exit code.
@@ -145,32 +144,10 @@ You can run the command from anywhere inside the repository.
   root.
 - `--smf-path` limits validation to one app that is already initialized.
 
-## Update repository files after upgrading SMF
-
-```bash
-smf upgrade
-smf migrate
-smf validate
-```
-
-With no extra option, `smf migrate` updates the configuration and release
-records, plus the generated workflow when that workflow already exists. It
-does not add a workflow to a CLI-only repository, build, upload, or publish the
-app.
-
-In a monorepo:
-
-```bash
-smf migrate --smf-path apps/mobile/smf
-```
-
-Use `smf migrate --help` when you need to update only the configuration,
-workflow, or SMF release records.
-
 ## Run a release from the CLI
 
 Use this mode when the generated workflow is absent or disabled. Do not run
-manual candidate creation while the automated wrapper is also active; both
+manual release candidate creation while the automated wrapper is also active; both
 would react to the same release branch and could upload concurrently.
 
 Every release operation uses `--phase`:
@@ -178,14 +155,14 @@ Every release operation uses `--phase`:
 | Phase               | Purpose                                                        |
 | ------------------- | -------------------------------------------------------------- |
 | `pull-request`      | Create or update the release PR and report planned platforms   |
-| `release-candidate` | Build, upload, verify, and record the planned store candidates |
-| `ship`              | Ship the exact tested candidates after the release PR merges   |
+| `release-candidate` | Build, upload, verify, and record the planned store release candidates |
+| `ship`              | Ship the exact tested release candidates after the release PR merges   |
 
 The `pull-request` phase detects `owner/name` from the current Git repository's
 `origin` remote. Set `SMF_GITHUB_REPOSITORY` or use `--repository owner/name`
 only to override that detected repository. It derives the affected platforms
 from the release changes and returns the release branch in its JSON result.
-The result's `phase` field reports the next work to run
+The result's `nextPhase` field reports the next work to run
 (`release-candidate` or `ship`), or `noop`; it does not merely echo
 `pull-request`.
 
@@ -203,7 +180,7 @@ smf release --phase pull-request --smf-path apps/customer/smf
 smf release --phase release-candidate --smf-path apps/customer/smf
 ```
 
-Install and test every candidate from its configured TestFlight or Google Play
+Install and test every release candidate from its configured TestFlight or Google Play
 testing destination. Review and merge the release PR. Then ship from anywhere
 inside the same Git repository:
 
@@ -221,8 +198,8 @@ The `pull-request` and `ship` phases fetch the configured remote target branch
 into an isolated temporary checkout. The `release-candidate` phase does the
 same with the remote release branch. Every phase deletes its checkout when
 finished and does not depend on or switch your local branch. Local uncommitted
-files and unpushed commits do not participate. An iOS candidate requires macOS
-and the local Flutter/iOS toolchain. Android candidates can run on a supported
+files and unpushed commits do not participate. An iOS release candidate requires macOS
+and the local Flutter/iOS toolchain. Android release candidates can run on a supported
 Android build machine.
 
 Omit `--platform` to process every eligible platform. Add `--platform ios` or

@@ -24,8 +24,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - id: tested-head
+        name: Verify the tested commit is still main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)"
+          if [[ "$current_sha" == "$TESTED_SHA" ]]; then
+            echo "is-current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - id: release
         name: Open or publish the release
+        if: steps.tested-head.outputs.is-current == 'true'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

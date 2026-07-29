@@ -60,30 +60,30 @@ void main() {
         return const RunResult(stdout: '', stderr: '', exitCode: 0);
       },
     );
-    const plan = ReleasePlan(
-      platform: Platform.ios,
+    const plan = ReleasePlanDto(
+      platform: ReleasePlatform.ios,
       currentVersion: '1.0.0',
       nextVersion: '1.1.0',
-      versionBump: VersionBump.minor,
-      baseSha: 'base',
-      headSha: 'head',
-      changes: <ConventionalChange>[
-        ConventionalChange(
-          sha: 'commit',
+      versionBumpType: VersionBumpType.minor,
+      baseCommitHash: 'base',
+      endCommitHash: 'head',
+      changes: <ConventionalChangeDto>[
+        ConventionalChangeDto(
+          commitHash: 'commit',
           type: 'feat',
           scope: 'ios',
           description: 'Improve search',
           body: 'Show nearby work sooner.',
-          breaking: false,
-          versionBump: VersionBump.minor,
-          platforms: <Platform>[Platform.ios],
+          isBreaking: false,
+          versionBumpType: VersionBumpType.minor,
+          platforms: <ReleasePlatform>[ReleasePlatform.ios],
         ),
       ],
     );
 
     final commit = await RepositoryHooks.beforeCreatePullRequest(
       workingDirectory: repository.path,
-      plans: <ReleasePlan>[plan],
+      plans: <ReleasePlanDto>[plan],
       processRunner: runner,
     );
 
@@ -149,15 +149,15 @@ void main() {
     expect(
       await RepositoryHooks.beforeCreatePullRequest(
         workingDirectory: paths.directory,
-        plans: const <ReleasePlan>[
-          ReleasePlan(
-            platform: Platform.ios,
+        plans: const <ReleasePlanDto>[
+          ReleasePlanDto(
+            platform: ReleasePlatform.ios,
             currentVersion: '0.0.0',
             nextVersion: '0.0.1',
-            versionBump: VersionBump.patch,
-            baseSha: 'base',
-            headSha: 'head',
-            changes: <ConventionalChange>[],
+            versionBumpType: VersionBumpType.patch,
+            baseCommitHash: 'base',
+            endCommitHash: 'head',
+            changes: <ConventionalChangeDto>[],
           ),
         ],
       ),

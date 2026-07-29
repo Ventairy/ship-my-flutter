@@ -1,4 +1,4 @@
-import 'package:smf_engine/src/models/release_enums.dart';
+import 'package:smf_engine/src/enums/release_platform.dart';
 
 /// Stable Git references owned by one app's release lifecycle.
 final class ReleaseReference {
@@ -8,5 +8,5 @@ final class ReleaseReference {
   static String branch(String appId) => 'smf/$appId/release';
 
   /// Immutable tag identifying one released platform version.
-  static String tag(String appId, Platform platform, String version) => '$appId/${platform.value}-v$version';
+  static String tag(String appId, ReleasePlatform platform, String version) => '$appId/${platform.value}-v$version';
 }

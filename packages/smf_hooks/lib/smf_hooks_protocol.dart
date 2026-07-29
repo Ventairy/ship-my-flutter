@@ -1,29 +1,13 @@
-/// Internal wire contract shared by the SMF engine and hook runtime.
+/// Low-level wire contract shared by matching SMF engine and hook-runtime
+/// versions.
 ///
 /// Application hooks should import `package:smf_hooks/smf_hooks.dart` instead.
+/// This library is public only because `smf_engine` consumes it across a
+/// package boundary; it is not application-facing API. Its schema and the
+/// consuming engine version evolve together.
 library;
 
-/// Hook phase encoded by the engine.
-enum SmfHookProtocolPhase {
-  /// Runs before creating or updating the release pull request.
-  beforeCreatePr('before_create_pr'),
-
-  /// Runs before fingerprinting and building one store candidate.
-  beforeBuild('before_build');
-
-  const SmfHookProtocolPhase(this.value);
-
-  /// Stable wire value.
-  final String value;
-
-  /// Parses one exact wire value.
-  static SmfHookProtocolPhase parse(String value) {
-    for (final phase in values) {
-      if (phase.value == value) return phase;
-    }
-    throw FormatException('Unsupported SMF hook phase "$value".');
-  }
-}
+export 'src/enums/smf_hook_protocol_phase.dart';
 
 /// Single owner for hook environment names and JSON fields.
 abstract final class SmfHookProtocol {

@@ -23,6 +23,11 @@ final class _ReleasePlanFixture {
     await gitClient.run(
       const <String>['commit', '-m', 'chore: bootstrap'],
     );
+    final remote = await Directory.systemTemp.createTemp('smf-plan-remote-');
+    addTearDown(() => remote.delete(recursive: true));
+    await GitClient(root: remote.path).run(const <String>['init', '--bare']);
+    await gitClient.run(<String>['remote', 'add', 'origin', remote.path]);
+    await gitClient.run(const <String>['push', '-u', 'origin', 'main']);
     return (
       directory,
       await gitClient.run(const <String>['rev-parse', 'HEAD']),
@@ -54,16 +59,24 @@ final class _ReleasePlanFixture {
     await gitClient.run(<String>['commit', '-m', message]);
   }
 
-  static SmfManifest manifest(
+  static ManifestDto manifest(
     String version,
-    String baselineSha, {
-    bool pendingRelease = false,
+    String endCommitHash, {
+    bool isReleasePending = false,
   }) {
-    return SmfManifest(
-      ios: PlatformManifest(
-        version: version,
-        baselineSha: baselineSha,
-        pendingRelease: pendingRelease,
+    return ManifestDto(
+      schemaVersion: 1,
+      platforms: ManifestPlatformsDto(
+        ios: PlatformManifestDto(
+          version: version,
+          endCommitHash: endCommitHash,
+          isReleasePending: isReleasePending,
+        ),
+        android: PlatformManifestDto(
+          version: '0.0.0',
+          endCommitHash: endCommitHash,
+          isReleasePending: false,
+        ),
       ),
     );
   }
@@ -100,7 +113,7 @@ void main() {
 
   group('release planning', () {
     test('bumps iOS independently and excludes Android-only changes', () async {
-      final (directory, baselineSha) = await _ReleasePlanFixture.repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       await _ReleasePlanFixture.commit(directory.path, 'feat(ios): add widgets', 'ios\n');
       await _ReleasePlanFixture.commit(
         directory.path,
@@ -112,8 +125,12 @@ void main() {
           await _ReleasePlanFixture.planner(
             directory.path,
           ).create(
-            manifest: _ReleasePlanFixture.manifest('1.2.3', baselineSha),
-            platform: Platform.ios,
+            manifest: _ReleasePlanFixture.manifest(
+              '1.2.3',
+              endCommitHash,
+            ),
+            platform: ReleasePlatform.ios,
+            gitHubToken: 'token',
           );
 
       expect(plan?.nextVersion, '1.3.0');
@@ -124,30 +141,35 @@ void main() {
     });
 
     test('plans iOS and Android independently from the same history', () async {
-      final (directory, baselineSha) = await _ReleasePlanFixture.repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       await _ReleasePlanFixture.commit(directory.path, 'feat: shared capability', 'shared\n');
       await _ReleasePlanFixture.commit(directory.path, 'fix(android): Android repair', 'android\n');
-      final state = SmfManifest(
-        ios: PlatformManifest(
-          version: '2.0.0',
-          baselineSha: baselineSha,
-          pendingRelease: false,
-        ),
-        android: PlatformManifest(
-          version: '1.4.2',
-          baselineSha: baselineSha,
-          pendingRelease: false,
+      final state = ManifestDto(
+        schemaVersion: 1,
+        platforms: ManifestPlatformsDto(
+          ios: PlatformManifestDto(
+            version: '2.0.0',
+            endCommitHash: endCommitHash,
+            isReleasePending: false,
+          ),
+          android: PlatformManifestDto(
+            version: '1.4.2',
+            endCommitHash: endCommitHash,
+            isReleasePending: false,
+          ),
         ),
       );
 
       final planner = _ReleasePlanFixture.planner(directory.path);
       final ios = await planner.create(
         manifest: state,
-        platform: Platform.ios,
+        platform: ReleasePlatform.ios,
+        gitHubToken: 'token',
       );
       final android = await planner.create(
         manifest: state,
-        platform: Platform.android,
+        platform: ReleasePlatform.android,
+        gitHubToken: 'token',
       );
 
       expect(ios?.nextVersion, '2.1.0');
@@ -162,65 +184,86 @@ void main() {
     });
 
     test('uses the platform tag as the next release baseline', () async {
-      final (directory, baselineSha) = await _ReleasePlanFixture.repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       await _ReleasePlanFixture.commit(directory.path, 'feat: already released', 'released\n');
       await GitClient(root: directory.path).run(<String>[
         'tag',
-        ReleaseReference.tag('example', Platform.ios, '2.0.0'),
+        ReleaseReference.tag('example', ReleasePlatform.ios, '2.0.0'),
+      ]);
+      await GitClient(root: directory.path).run(const <String>[
+        'push',
+        'origin',
+        'example/ios-v2.0.0',
+      ]);
+      await GitClient(root: directory.path).run(const <String>[
+        'tag',
+        '--delete',
+        'example/ios-v2.0.0',
       ]);
       await _ReleasePlanFixture.commit(directory.path, 'fix: new patch', 'patch\n');
-      final state = _ReleasePlanFixture.manifest('2.0.0', baselineSha, pendingRelease: true);
+      final state = _ReleasePlanFixture.manifest(
+        '2.0.0',
+        endCommitHash,
+        isReleasePending: true,
+      );
 
       final planner = _ReleasePlanFixture.planner(directory.path);
       final plan = await planner.create(
         manifest: state,
-        platform: Platform.ios,
+        platform: ReleasePlatform.ios,
+        gitHubToken: 'token',
       );
 
       expect(plan?.nextVersion, '2.0.1');
       expect(plan?.changes, hasLength(1));
       expect(
-        await planner.needsPromotion(
+        await planner.isPromotionNeeded(
           manifest: state,
-          platform: Platform.ios,
+          platform: ReleasePlatform.ios,
+          gitHubToken: 'token',
         ),
         isFalse,
       );
     });
 
     test('recognizes a merged pending release without a tag', () async {
-      final (directory, baselineSha) = await _ReleasePlanFixture.repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       expect(
         await _ReleasePlanFixture.planner(
           directory.path,
-        ).needsPromotion(
+        ).isPromotionNeeded(
           manifest: _ReleasePlanFixture.manifest(
             '1.0.0',
-            baselineSha,
-            pendingRelease: true,
+            endCommitHash,
+            isReleasePending: true,
           ),
-          platform: Platform.ios,
+          platform: ReleasePlatform.ios,
+          gitHubToken: 'token',
         ),
         isTrue,
       );
     });
 
     test('returns no plan for non-releasable commits', () async {
-      final (directory, baselineSha) = await _ReleasePlanFixture.repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       await _ReleasePlanFixture.commit(directory.path, 'chore: update tooling', 'tooling\n');
       expect(
         await _ReleasePlanFixture.planner(
           directory.path,
         ).create(
-          manifest: _ReleasePlanFixture.manifest('1.0.0', baselineSha),
-          platform: Platform.ios,
+          manifest: _ReleasePlanFixture.manifest(
+            '1.0.0',
+            endCommitHash,
+          ),
+          platform: ReleasePlatform.ios,
+          gitHubToken: 'token',
         ),
         isNull,
       );
     });
 
     test('does not allow a commit footer to override the version', () async {
-      final (directory, baselineSha) = await _ReleasePlanFixture.repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       await _ReleasePlanFixture.commit(
         directory.path,
         'feat(android): prepare migration\n\nRelease-As-android: 4.0.0',
@@ -233,21 +276,29 @@ void main() {
             manifest:
                 _ReleasePlanFixture.manifest(
                   '1.2.3',
-                  baselineSha,
+                  endCommitHash,
                 ).copyWith(
-                  android: PlatformManifest(
-                    version: '1.2.3',
-                    baselineSha: baselineSha,
-                    pendingRelease: false,
+                  platforms: ManifestPlatformsDto(
+                    ios: PlatformManifestDto(
+                      version: '1.2.3',
+                      endCommitHash: endCommitHash,
+                      isReleasePending: false,
+                    ),
+                    android: PlatformManifestDto(
+                      version: '1.2.3',
+                      endCommitHash: endCommitHash,
+                      isReleasePending: false,
+                    ),
                   ),
                 ),
-            platform: Platform.android,
+            platform: ReleasePlatform.android,
+            gitHubToken: 'token',
           );
       expect(plan?.nextVersion, '1.3.0');
     });
 
     test('isolates app commits and includes configured shared paths', () async {
-      final (directory, baselineSha) = await _ReleasePlanFixture.repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       await _ReleasePlanFixture.commitPath(
         directory.path,
         'apps/customer/lib/main.dart',
@@ -273,8 +324,12 @@ void main() {
         releaseTriggerPaths: const <String>['apps/customer'],
       );
       final customer = await customerPlanner.create(
-        manifest: _ReleasePlanFixture.manifest('1.0.0', baselineSha),
-        platform: Platform.ios,
+        manifest: _ReleasePlanFixture.manifest(
+          '1.0.0',
+          endCommitHash,
+        ),
+        platform: ReleasePlatform.ios,
+        gitHubToken: 'token',
       );
       final customerWithShared =
           await _ReleasePlanFixture.planner(
@@ -285,8 +340,12 @@ void main() {
               'packages/shared_models/**',
             ],
           ).create(
-            manifest: _ReleasePlanFixture.manifest('1.0.0', baselineSha),
-            platform: Platform.ios,
+            manifest: _ReleasePlanFixture.manifest(
+              '1.0.0',
+              endCommitHash,
+            ),
+            platform: ReleasePlatform.ios,
+            gitHubToken: 'token',
           );
 
       expect(

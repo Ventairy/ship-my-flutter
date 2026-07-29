@@ -7,8 +7,6 @@ environment:
 workspace:
   - packages/smf_hooks
   - packages/smf_engine
-  - packages/smf_apple
-  - packages/smf_android
   - packages/smf_cli
 
 dev_dependencies:

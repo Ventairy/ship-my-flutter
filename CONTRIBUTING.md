@@ -33,13 +33,13 @@ git switch -c fix/short-description
 
 SMF is a Dart workspace with clear package ownership:
 
-| Package       | Contribute here when changing                                 |
-| ------------- | ------------------------------------------------------------- |
-| `smf_hooks`   | The typed repository hook SDK                                 |
-| `smf_engine`  | Planning, state, Git/GitHub behavior, or shared release logic |
-| `smf_apple`   | Apple signing or App Store Connect delivery                   |
-| `smf_android` | Android signing or Google Play delivery                       |
-| `smf_cli`     | Commands, arguments, terminal output, or package composition  |
+| Location                               | Contribute here when changing                   |
+| -------------------------------------- | ----------------------------------------------- |
+| `packages/smf_hooks`                   | The typed repository hook SDK                   |
+| `packages/smf_engine/lib/src`          | Shared planning, state, and Git/GitHub behavior |
+| `packages/smf_engine/lib/src/ios`    | Apple signing or App Store Connect delivery     |
+| `packages/smf_engine/lib/src/android`  | Android signing or Google Play delivery         |
+| `packages/smf_cli`                     | Commands, arguments, and terminal output        |
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing package boundaries or
 release behavior. Follow [AGENTS.md](AGENTS.md) for coding, testing, security,
@@ -77,7 +77,7 @@ Run the complete gate from the repository root before opening a pull request:
 ```bash
 dart pub get
 dart run melos run gen --no-select
-dart run melos run format
+dart run melos run format:check
 dart run melos run docs:check
 dart run melos run analyze
 dart run melos run test --no-select
@@ -114,7 +114,7 @@ Examples:
 
 ```text
 fix(android): reject an unsigned app bundle
-feat(cli): add candidate inspection
+feat(cli): add release candidate inspection
 docs: clarify hook recovery
 ```
 

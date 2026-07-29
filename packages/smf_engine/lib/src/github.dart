@@ -1,17 +1,22 @@
-import 'package:smf_engine/src/changelog.dart';
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
 import 'package:smf_engine/src/config.dart';
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/git.dart';
-import 'package:smf_engine/src/github/dtos/release_pull_request_result.dart';
+import 'package:smf_engine/src/github/dtos/release_pull_request_result_dto.dart';
 import 'package:smf_engine/src/github_api.dart';
+import 'package:smf_engine/src/github_rest_api.dart';
 import 'package:smf_engine/src/hooks.dart';
 import 'package:smf_engine/src/manifest_files.dart';
 import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/process_runner.dart';
 import 'package:smf_engine/src/release_branch.dart';
+import 'package:smf_engine/src/release_changelog.dart';
+import 'package:smf_engine/src/system_process_runner.dart';
 
-export 'github/dtos/release_pull_request_result.dart';
+export 'github/dtos/release_pull_request_result_dto.dart';
 
 /// Creates and finds the app-scoped release pull request.
 final class ReleasePullRequest {
@@ -54,7 +59,7 @@ final class ReleasePullRequest {
         'origin',
         'refs/heads/$branch:refs/remotes/origin/$branch',
       ], token);
-      await gitClient.run(<String>['checkout', '-B', branch, 'origin/$branch']);
+      await gitClient.run(<String>['checkout', '--detach', 'origin/$branch']);
       try {
         await gitClient.run(<String>[
           'merge',
@@ -64,15 +69,14 @@ final class ReleasePullRequest {
       } on SmfError {
         await gitClient.run(
           const <String>['merge', '--abort'],
-          allowFailure: true,
+          isFailureAllowed: true,
         );
         rethrow;
       }
     } else {
       await gitClient.run(<String>[
         'checkout',
-        '-B',
-        branch,
+        '--detach',
         'origin/${config.targetBranch}',
       ]);
     }
@@ -80,10 +84,10 @@ final class ReleasePullRequest {
   }
 
   /// Creates or updates the release pull request for [plans].
-  static Future<ReleasePullRequestResult> createOrUpdate({
+  static Future<ReleasePullRequestResultDto> createOrUpdate({
     required String workingDirectory,
     required SmfConfig config,
-    required List<ReleasePlan> plans,
+    required List<ReleasePlanDto> plans,
     required GitHubContext context,
     GitHubApi? githubApi,
     ProcessRunner hookProcessRunner = const SystemProcessRunner(),
@@ -91,30 +95,56 @@ final class ReleasePullRequest {
     SmfError.check(
       plans.isNotEmpty,
       'At least one platform release plan is required.',
-      'RELEASE_PLANS_EMPTY',
+      SmfErrorCode.releasePlansEmpty,
     );
-    final paths = SmfPaths.resolve(workingDirectory);
-    final repositoryRoot = paths.repositoryRoot;
-    final gitClient = GitClient(root: repositoryRoot);
-    if (!(await gitClient.isClean())) {
+    final callerPaths = SmfPaths.resolve(workingDirectory);
+    final callerGitClient = GitClient(root: callerPaths.repositoryRoot);
+    if (!(await callerGitClient.isClean())) {
       throw const SmfError(
         'The worktree must be clean before updating a release PR.',
-        'DIRTY_WORKTREE',
+        SmfErrorCode.dirtyWorktree,
       );
     }
     GitHubRestApi? ownedApi;
     final api = githubApi ?? (ownedApi = GitHubRestApi(context: context));
-    final startingBranch = await gitClient.currentBranch();
-    await gitClient.configureBotIdentity();
+    final temporaryDirectory = await Directory.systemTemp.createTemp(
+      'smf-pull-request-',
+    );
+    final checkoutRoot = p.join(temporaryDirectory.path, 'repository');
+    var isWorktreeCreated = false;
+    var didOperationFail = true;
     late final String branch;
     try {
+      await callerGitClient.run(<String>[
+        'worktree',
+        'add',
+        '--detach',
+        checkoutRoot,
+        'HEAD',
+      ]);
+      isWorktreeCreated = true;
+      final gitClient = GitClient(root: checkoutRoot);
+      await gitClient.configureBotIdentity();
+      final paths = SmfPaths.resolve(
+        p.join(
+          checkoutRoot,
+          p.relative(
+            callerPaths.directory,
+            from: callerPaths.repositoryRoot,
+          ),
+        ),
+      );
       branch = await _ensureReleaseBranch(
         gitClient: gitClient,
         config: config,
         token: context.token,
       );
       for (final plan in plans) {
-        await ReleaseRegistry.apply(root: paths.directory, plan: plan);
+        await ReleaseRegistry.apply(
+          root: paths.directory,
+          plan: plan,
+          gitHubToken: context.token,
+        );
       }
       final releaseSummary = plans.map((plan) => '${plan.platform.displayName} ${plan.nextVersion}').join(', ');
       await _commitAllChanges(
@@ -134,20 +164,19 @@ final class ReleasePullRequest {
       }
       await gitClient.authenticated(<String>[
         'push',
-        '--set-upstream',
         'origin',
-        branch,
+        'HEAD:refs/heads/$branch',
       ], context.token);
 
       final changelog = await SmfState.changelog(paths.directory);
-      final releases = <Platform, ChangelogRelease>{};
+      final releases = <ReleasePlatform, ChangelogPlatformReleaseVersionDto>{};
       for (final plan in plans) {
-        final release = changelog.releasesFor(plan.platform)[plan.nextVersion];
+        final release = changelog.platforms.select(plan.platform).releaseVersion(plan.nextVersion);
         if (release == null) {
           throw SmfError(
             'Missing changelog entry for ${plan.platform.value} '
-                '${plan.nextVersion}',
-            'MISSING_CHANGELOG',
+            '${plan.nextVersion}',
+            SmfErrorCode.missingChangelog,
           );
         }
         releases[plan.platform] = release;
@@ -183,18 +212,34 @@ final class ReleasePullRequest {
         issueNumber: pull.number,
         labels: const <String>[label],
       );
-      return ReleasePullRequestResult(
+      final result = ReleasePullRequestResultDto(
         branch: branch,
         pullRequestNumber: pull.number,
       );
+      didOperationFail = false;
+      return result;
     } finally {
       try {
-        if (await gitClient.isClean() &&
-            startingBranch.isNotEmpty &&
-            await gitClient.currentBranch() != startingBranch) {
-          await gitClient.run(<String>['checkout', startingBranch]);
+        if (isWorktreeCreated) {
+          await callerGitClient.run(
+            <String>['worktree', 'remove', '--force', checkoutRoot],
+            isFailureAllowed: didOperationFail,
+          );
+        }
+        if (await temporaryDirectory.exists()) {
+          try {
+            await temporaryDirectory.delete(recursive: true);
+          } on FileSystemException {
+            if (!didOperationFail) rethrow;
+          }
         }
       } finally {
+        if (isWorktreeCreated) {
+          await callerGitClient.run(
+            const <String>['worktree', 'prune'],
+            isFailureAllowed: true,
+          );
+        }
         ownedApi?.close();
       }
     }

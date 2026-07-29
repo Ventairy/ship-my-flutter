@@ -25,7 +25,7 @@ Future<void> _initializeValidationApp(
       appRoot: appRoot,
       appId: appName,
       iosBundleId: 'dev.example.$appName',
-      githubActions: false,
+      shouldCreateGitHubActions: false,
     ),
   );
 }
@@ -37,6 +37,28 @@ void main() {
     expect(await File('bin/smf.dart').exists(), isTrue);
   });
 
+  test('when version is requested, it should print the installed version', () async {
+    for (final flag in const <String>['--version', '-V']) {
+      final output = <Object?>[];
+      final errors = <Object?>[];
+
+      expect(
+        await SmfExecutable.run(
+          <String>[flag],
+          io: ExecutableIo(
+            environment: const <String, String>{},
+            workingDirectory: Directory.current.path,
+            writeOutput: output.add,
+            writeError: errors.add,
+          ),
+        ),
+        0,
+      );
+      expect(output, <Object?>[smfCliVersion]);
+      expect(errors, isEmpty);
+    }
+  });
+
   test('upgrade is documented and installs a newer CLI', () async {
     final output = <Object?>[];
     final errors = <Object?>[];
@@ -46,13 +68,15 @@ void main() {
       writeOutput: output.add,
       writeError: errors.add,
       upgradeService: SmfUpgradeService(
-        latestVersionLoader: () async => '0.2.0',
+        latestVersionLoader: () async => '2.0.0',
         installer: (_, _) async => ProcessResult(1, 0, '', ''),
       ),
     );
 
     expect(await SmfExecutable.run(const <String>['--help'], io: io), 0);
-    expect(output.removeLast(), contains('upgrade'));
+    final topLevelHelp = output.removeLast();
+    expect(topLevelHelp, contains('upgrade'));
+    expect(topLevelHelp, contains('--version'));
     expect(
       await SmfExecutable.run(
         const <String>['upgrade', '--help'],
@@ -68,7 +92,7 @@ void main() {
     expect(await SmfExecutable.runUpgrade(const <String>[], io: io), 0);
     expect(
       jsonDecode(output.single! as String),
-      containsPair('version', '0.2.0'),
+      containsPair('version', '2.0.0'),
     );
     expect(errors, isEmpty);
   });
@@ -80,7 +104,7 @@ void main() {
     SmfUpgradeService service() => SmfUpgradeService(
       latestVersionLoader: () async {
         checks += 1;
-        return '0.2.0';
+        return '2.0.0';
       },
       installer: (_, _) async => ProcessResult(1, 0, '', ''),
     );
@@ -94,7 +118,7 @@ void main() {
           writeOutput: output.add,
           writeError: errors.add,
           upgradeService: service(),
-          checkForUpdates: true,
+          shouldCheckForUpdates: true,
         ),
       ),
       0,
@@ -102,7 +126,7 @@ void main() {
     expect(checks, 1);
     expect(
       errors.single,
-      'SMF 0.2.0 is available; this installation is $smfCliVersion. '
+      'SMF 2.0.0 is available; this installation is $smfCliVersion. '
       'Run `smf upgrade` to update.',
     );
 
@@ -120,7 +144,7 @@ void main() {
             writeOutput: output.add,
             writeError: errors.add,
             upgradeService: service(),
-            checkForUpdates: true,
+            shouldCheckForUpdates: true,
           ),
         ),
         0,
@@ -177,17 +201,17 @@ void main() {
       0,
     );
     final initOutput = jsonDecode(output.removeLast()! as String) as Map<String, Object?>;
-    expect(initOutput, containsPair('initialized', true));
+    expect(initOutput, containsPair('isInitialized', true));
     expect(initOutput, containsPair('appId', 'example'));
     final initializedConfig = await SmfState.config(
       p.join(appRoot, 'smf'),
     );
     expect(
       (
-        iosEnabled: initializedConfig.ios.enabled,
-        androidEnabled: initializedConfig.android.enabled,
+        isIosEnabled: initializedConfig.ios.isEnabled,
+        isAndroidEnabled: initializedConfig.android.isEnabled,
       ),
-      (iosEnabled: true, androidEnabled: false),
+      (isIosEnabled: true, isAndroidEnabled: false),
     );
     final configPath = p.join(appRoot, 'smf', 'config.yaml');
     final config = '${await File(configPath).readAsString()}# preserved\n';
@@ -209,7 +233,7 @@ void main() {
     );
     expect(
       jsonDecode(output.removeLast()! as String),
-      containsPair('githubActionsCreated', true),
+      containsPair('isGitHubActionsWorkflowCreated', true),
     );
     expect(await File(configPath).readAsString(), config);
     final workflowTemplate = await File(
@@ -222,21 +246,6 @@ void main() {
         'SMF_PATH: "apps/mobile/smf"',
       ),
     );
-    await File(workflowPath).writeAsString('stale workflow\n');
-    expect(
-      await SmfExecutable.runMigrate(const <String>[
-        '--smf-path',
-        'apps/mobile/smf',
-        '--github-actions',
-      ], io: io),
-      0,
-    );
-    expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
-      'migrated': true,
-      'targets': <Object?>['githubActions'],
-      'changedFiles': <Object?>['.github/workflows/smf-example.yml'],
-    });
-    expect(await File(configPath).readAsString(), config);
     await GitClient(root: root.path).run(const <String>['add', '.']);
     await GitClient(root: root.path).run(const <String>[
       'commit',
@@ -246,79 +255,12 @@ void main() {
 
     expect(await SmfExecutable.runValidate(const <String>[], io: io), 0);
     expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
-      'valid': true,
+      'isValid': true,
       'smfPaths': <Object?>['apps/mobile/smf'],
     });
 
     expect(errors, isEmpty);
   });
-
-  test(
-    'when migrate runs below the repository root, it should resolve smf-path from the repository root',
-    () async {
-      final root = await Directory.systemTemp.createTemp(
-        'smf-migrate-path-',
-      );
-      addTearDown(() => root.delete(recursive: true));
-      final git = GitClient(root: root.path);
-      await git.run(const <String>['init', '-b', 'main']);
-      await git.run(const <String>['config', 'user.name', 'Test']);
-      await git.run(
-        const <String>['config', 'user.email', 'test@example.com'],
-      );
-      await File(
-        p.join(root.path, 'pubspec.lock'),
-      ).writeAsString('# fixture\n');
-      await _initializeValidationApp(root.path, 'mobile');
-      final workflow = File(
-        p.join(
-          root.path,
-          '.github',
-          'workflows',
-          'smf-mobile.yml',
-        ),
-      );
-      await workflow.parent.create(recursive: true);
-      await workflow.writeAsString('stale workflow\n');
-      await git.run(const <String>['add', '.']);
-      await git.run(
-        const <String>['commit', '-m', 'chore: configure releases'],
-      );
-      final output = <Object?>[];
-      final errors = <Object?>[];
-
-      final exitCode = await SmfExecutable.runMigrate(
-        const <String>[
-          '--smf-path',
-          'apps/mobile/smf',
-          '--github-actions',
-        ],
-        io: ExecutableIo(
-          environment: const <String, String>{},
-          workingDirectory: p.join(root.path, 'apps', 'mobile'),
-          writeOutput: output.add,
-          writeError: errors.add,
-        ),
-      );
-
-      expect(
-        (
-          exitCode: exitCode,
-          migrated: output.isEmpty ? null : (jsonDecode(output.single! as String) as Map<String, Object?>)['migrated'],
-          workflowUpdated: (await workflow.readAsString()).contains(
-            'SMF_PATH: "apps/mobile/smf"',
-          ),
-          errors: errors.join('\n'),
-        ),
-        (
-          exitCode: 0,
-          migrated: true,
-          workflowUpdated: true,
-          errors: '',
-        ),
-      );
-    },
-  );
 
   test('initializes a CLI-only repository without a workflow', () async {
     final root = await Directory.systemTemp.createTemp('smf-cli-only-');
@@ -350,7 +292,7 @@ void main() {
 
     expect(
       jsonDecode(output.single! as String),
-      containsPair('initialized', true),
+      containsPair('isInitialized', true),
     );
     expect(await File(p.join(root.path, 'smf', 'config.yaml')).exists(), isTrue);
     expect(
@@ -360,7 +302,7 @@ void main() {
     expect(errors, isEmpty);
   });
 
-  test('release-candidate runs a pending candidate without an Action', () async {
+  test('release-candidate runs a pending release candidate without an Action', () async {
     final root = await Directory.systemTemp.createTemp(
       'smf-manual-release-',
     );
@@ -387,7 +329,7 @@ void main() {
       InitOptions(
         appRoot: root.path,
         iosBundleId: 'dev.example.manual',
-        githubActions: false,
+        shouldCreateGitHubActions: false,
       ),
     );
     await git.run(const <String>['add', '.']);
@@ -399,26 +341,27 @@ void main() {
       '-b',
       'smf/manual_app/release',
     ]);
-    final sha = await git.currentSha();
+    final commitHash = await git.currentCommitHash();
     await ReleaseRegistry.apply(
       root: root.path,
-      plan: ReleasePlan(
-        platform: Platform.ios,
+      gitHubToken: 'github-token',
+      plan: ReleasePlanDto(
+        platform: ReleasePlatform.ios,
         currentVersion: '1.0.0',
         nextVersion: '1.1.0',
-        versionBump: VersionBump.minor,
-        baseSha: sha,
-        headSha: sha,
-        changes: <ConventionalChange>[
-          ConventionalChange(
-            sha: sha,
+        versionBumpType: VersionBumpType.minor,
+        baseCommitHash: commitHash,
+        endCommitHash: commitHash,
+        changes: <ConventionalChangeDto>[
+          ConventionalChangeDto(
+            commitHash: commitHash,
             type: 'feat',
             scope: 'ios',
             description: 'Manual release',
             body: null,
-            breaking: false,
-            versionBump: VersionBump.minor,
-            platforms: const <Platform>[Platform.ios],
+            isBreaking: false,
+            versionBumpType: VersionBumpType.minor,
+            platforms: const <ReleasePlatform>[ReleasePlatform.ios],
           ),
         ],
       ),
@@ -515,7 +458,7 @@ void main() {
       InitOptions(
         appRoot: root.path,
         iosBundleId: 'dev.example.manual',
-        githubActions: false,
+        shouldCreateGitHubActions: false,
       ),
     );
     final configFile = File(p.join(root.path, 'smf', 'config.yaml'));
@@ -527,26 +470,28 @@ void main() {
     );
     await git.run(const <String>['add', '.']);
     await git.run(const <String>['commit', '-m', 'chore: configure releases']);
-    final sha = await git.currentSha();
+    await git.run(<String>['remote', 'add', 'origin', origin.path]);
+    final commitHash = await git.currentCommitHash();
     await ReleaseRegistry.apply(
       root: root.path,
-      plan: ReleasePlan(
-        platform: Platform.ios,
+      gitHubToken: 'github-token',
+      plan: ReleasePlanDto(
+        platform: ReleasePlatform.ios,
         currentVersion: '1.0.0',
         nextVersion: '1.1.0',
-        versionBump: VersionBump.minor,
-        baseSha: sha,
-        headSha: sha,
-        changes: <ConventionalChange>[
-          ConventionalChange(
-            sha: sha,
+        versionBumpType: VersionBumpType.minor,
+        baseCommitHash: commitHash,
+        endCommitHash: commitHash,
+        changes: <ConventionalChangeDto>[
+          ConventionalChangeDto(
+            commitHash: commitHash,
             type: 'feat',
             scope: 'ios',
             description: 'Manual release',
             body: null,
-            breaking: false,
-            versionBump: VersionBump.minor,
-            platforms: const <Platform>[Platform.ios],
+            isBreaking: false,
+            versionBumpType: VersionBumpType.minor,
+            platforms: const <ReleasePlatform>[ReleasePlatform.ios],
           ),
         ],
       ),
@@ -556,23 +501,27 @@ void main() {
       const <String>['commit', '-m', 'chore(release): merge iOS 1.1.0'],
     );
     await git.run(const <String>['branch', 'stable']);
-    await git.run(<String>['remote', 'add', 'origin', origin.path]);
     await git.run(const <String>['push', '-u', 'origin', 'main', 'stable']);
 
     final remoteManifest = await SmfState.manifest(
       p.join(root.path, 'smf'),
     );
-    await SmfFileSystem.writeJson(
+    await JsonFile(
       p.join(root.path, 'smf', 'manifest.json'),
+    ).write(
       remoteManifest
           .copyWith(
-            ios: remoteManifest.ios.copyWith(pendingRelease: false),
+            platforms: remoteManifest.platforms.copyWith(
+              ios: remoteManifest.platforms.ios.copyWith(
+                isReleasePending: false,
+              ),
+            ),
           )
           .toJson(),
     );
     await git.run(<String>[
       'tag',
-      ReleaseReference.tag('manual_app', Platform.ios, '1.1.0'),
+      ReleaseReference.tag('manual_app', ReleasePlatform.ios, '1.1.0'),
     ]);
     final errors = <Object?>[];
 
@@ -600,7 +549,7 @@ void main() {
     expect(
       await SmfState.manifest(
         p.join(root.path, 'smf'),
-      ).then((manifest) => manifest.ios.pendingRelease),
+      ).then((manifest) => manifest.platforms.ios.isReleasePending),
       isFalse,
       reason: 'ship must not replace or read the caller checkout state',
     );
@@ -629,7 +578,7 @@ void main() {
 
     final releaseTag = ReleaseReference.tag(
       'manual_app',
-      Platform.ios,
+      ReleasePlatform.ios,
       '1.1.0',
     );
     await git.run(<String>['push', 'origin', 'refs/tags/$releaseTag']);
@@ -696,7 +645,7 @@ void main() {
     );
 
     final help = output.single! as String;
-    for (final command in <String>['init', 'migrate', 'validate']) {
+    for (final command in <String>['init', 'release', 'upgrade', 'validate']) {
       expect(
         help,
         matches(RegExp('^  ${RegExp.escape(command)}  +\\S', multiLine: true)),
@@ -861,7 +810,7 @@ platforms:
       );
       expect(
         jsonDecode(output.removeLast()! as String),
-        containsPair('phase', 'noop'),
+        containsPair('nextPhase', 'noop'),
       );
 
       await GitClient(root: root.path).run(<String>[
@@ -889,7 +838,7 @@ platforms:
       );
       expect(
         jsonDecode(output.removeLast()! as String),
-        containsPair('phase', 'noop'),
+        containsPair('nextPhase', 'noop'),
       );
 
       await GitClient(root: root.path).run(const <String>[
@@ -918,7 +867,7 @@ platforms:
       );
       expect(
         jsonDecode(output.removeLast()! as String),
-        containsPair('phase', 'noop'),
+        containsPair('nextPhase', 'noop'),
       );
     },
   );
@@ -1003,10 +952,12 @@ platforms:
       expect(
         (
           exitCode: exitCode,
-          phase: output.isEmpty ? null : (jsonDecode(output.single! as String) as Map<String, Object?>)['phase'],
+          nextPhase: output.isEmpty
+              ? null
+              : (jsonDecode(output.single! as String) as Map<String, Object?>)['nextPhase'],
           errors: errors.join('\n'),
         ),
-        (exitCode: 0, phase: 'noop', errors: ''),
+        (exitCode: 0, nextPhase: 'noop', errors: ''),
       );
     },
   );
@@ -1047,7 +998,7 @@ platforms:
         InitOptions(
           appRoot: root.path,
           iosBundleId: 'dev.example.remote',
-          githubActions: false,
+          shouldCreateGitHubActions: false,
         ),
       );
       await git.run(const <String>['add', '.']);
@@ -1089,14 +1040,16 @@ platforms:
       expect(
         (
           exitCode: exitCode,
-          phase: output.isEmpty ? null : (jsonDecode(output.single! as String) as Map<String, Object?>)['phase'],
+          nextPhase: output.isEmpty
+              ? null
+              : (jsonDecode(output.single! as String) as Map<String, Object?>)['nextPhase'],
           branch: await git.currentBranch(),
           clean: await git.isClean(),
           errors: errors.join('\n'),
         ),
         (
           exitCode: 0,
-          phase: 'noop',
+          nextPhase: 'noop',
           branch: 'main',
           clean: false,
           errors: '',
@@ -1141,7 +1094,7 @@ platforms:
 
       expect(await SmfExecutable.runValidate(const <String>[], io: io), 0);
       expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
-        'valid': true,
+        'isValid': true,
         'smfPaths': <Object?>[
           'apps/customer/smf',
           'apps/driver/smf',
@@ -1156,7 +1109,7 @@ platforms:
         0,
       );
       expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
-        'valid': true,
+        'isValid': true,
         'smfPaths': <Object?>['apps/driver/smf'],
       });
       expect(errors, isEmpty);
@@ -1186,7 +1139,7 @@ platforms:
         0,
       );
       expect(jsonDecode(output.removeLast()! as String), <String, Object?>{
-        'valid': true,
+        'isValid': true,
         'smfPaths': <Object?>['apps/customer/smf'],
       });
       expect(errors, isEmpty);
@@ -1244,7 +1197,7 @@ platforms:
 
     expect(exitCode, 1);
     expect(errors.join('\n'), contains('[INVALID_CONFIG]'));
-    expect(errors.join('\n'), contains('run smf migrate'));
+    expect(errors.join('\n'), contains('schema_version must be 1'));
     expect(errors.join('\n'), isNot(contains('ParallelWaitError')));
   });
 
@@ -1333,29 +1286,6 @@ platforms:
       expect(output.single, isNot(contains('--bundle-id ')));
       expect(output.single, isNot(contains('--package-name ')));
       expect(output.single, isNot(contains('--workflow-only')));
-      output.clear();
-
-      expect(
-        await SmfExecutable.runMigrate(
-          const <String>['--help'],
-          io: ExecutableIo(
-            environment: const <String, String>{},
-            workingDirectory: Directory.current.path,
-            writeOutput: output.add,
-            writeError: errors.add,
-          ),
-        ),
-        0,
-      );
-      expect(output.single, contains('Usage: smf migrate [options]'));
-      expect(
-        output.single,
-        contains('Update SMF files created by an older CLI'),
-      );
-      expect(output.single, contains('Run smf upgrade first'));
-      expect(output.single, contains('--config'));
-      expect(output.single, contains('--github-actions'));
-      expect(output.single, contains('--registry'));
       output.clear();
 
       expect(
@@ -1480,6 +1410,11 @@ platforms:
             'release-candidate, or ship.',
       ),
       (
+        const <String>['release', '--phase', 'noop'],
+        'smf release: Unsupported phase "noop". Choose pull-request, '
+            'release-candidate, or ship.',
+      ),
+      (
         const <String>[
           'release',
           '--phase',
@@ -1511,7 +1446,6 @@ platforms:
     final commands = <String, List<String>>{
       'init': <String>['init', '--help'],
       'upgrade': <String>['upgrade', '--help'],
-      'migrate': <String>['migrate', '--help'],
       'validate': <String>['validate', '--help'],
       'release phases': <String>[
         'release',
@@ -1552,43 +1486,6 @@ platforms:
           reason: '${entry.key} has an undocumented option: $line',
         );
       }
-    }
-  });
-
-  test('rejects removed release and candidate command names', () async {
-    for (final command in <String>[
-      'open-pr',
-      'create-release',
-      'ship',
-      'action',
-      'candidate',
-      'testflight',
-      'internal-testing',
-      'promote',
-      'app-store',
-      'google-play',
-      '--phase',
-    ]) {
-      final errors = <Object?>[];
-
-      expect(
-        await SmfExecutable.run(
-          <String>[command],
-          io: ExecutableIo(
-            environment: const <String, String>{},
-            workingDirectory: Directory.current.path,
-            writeOutput: (_) {},
-            writeError: errors.add,
-          ),
-        ),
-        64,
-        reason: command,
-      );
-      expect(
-        errors.join('\n'),
-        contains('unknown command "$command"'),
-        reason: command,
-      );
     }
   });
 }

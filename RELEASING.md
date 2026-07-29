@@ -3,13 +3,11 @@
 This runbook covers repeat releases of SMF's independently versioned pub.dev
 packages. It assumes Release Please and trusted publishing are configured.
 
-| Package       | Release tag          |
-| ------------- | -------------------- |
-| `smf_hooks`   | `smf_hooks-vX.Y.Z`   |
-| `smf_engine`  | `smf_engine-vX.Y.Z`  |
-| `smf_apple`   | `smf_apple-vX.Y.Z`   |
-| `smf_android` | `smf_android-vX.Y.Z` |
-| `smf_cli`     | `smf_cli-vX.Y.Z`     |
+| Package      | Release tag         |
+| ------------ | ------------------- |
+| `smf_hooks`  | `smf_hooks-vX.Y.Z`  |
+| `smf_engine` | `smf_engine-vX.Y.Z` |
+| `smf_cli`    | `smf_cli-vX.Y.Z`    |
 
 Release Please maintains package versions, changelogs, component tags, and
 GitHub Releases. Each component tag triggers publication of its package.
@@ -42,7 +40,7 @@ constraints. When a change requires dependent code or a higher minimum
 version, include the affected packages in the same release cycle:
 
 ```text
-smf_hooks -> smf_engine -> smf_apple/smf_android -> smf_cli
+smf_hooks -> smf_engine -> smf_cli
 ```
 
 ## 3. Merge and publish
@@ -58,8 +56,7 @@ When internal minimum versions change, verify publication in dependency order:
 
 1. `smf_hooks`;
 2. `smf_engine`;
-3. `smf_apple` and `smf_android`;
-4. `smf_cli`.
+3. `smf_cli`.
 
 Publication jobs are independent. If a dependent package runs before its new
 dependency is visible on pub.dev, wait for the dependency and rerun the failed

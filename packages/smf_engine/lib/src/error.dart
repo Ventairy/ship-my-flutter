@@ -1,3 +1,7 @@
+import 'package:smf_engine/src/enums/smf_error_code.dart';
+
+export 'package:smf_engine/src/enums/smf_error_code.dart';
+
 /// An actionable SMF domain failure with a stable automation code.
 final class SmfError implements Exception {
   /// Creates an SMF failure with a stable machine-readable [code].
@@ -7,22 +11,22 @@ final class SmfError implements Exception {
   final String message;
 
   /// Stable failure category used by automation.
-  final String code;
+  final SmfErrorCode code;
 
   /// Optional lower-level error that caused this failure.
   final Object? cause;
 
-  /// Throws an [SmfError] when [condition] is false.
+  /// Throws an [SmfError] when [isConditionSatisfied] is false.
   static void check(
     // This intentionally mirrors Dart's assert(condition, message) convention.
     // ignore: avoid_positional_boolean_parameters
-    bool condition,
+    bool isConditionSatisfied,
     String message, [
-    String code = 'INVALID_STATE',
+    SmfErrorCode code = SmfErrorCode.invalidState,
   ]) {
-    if (!condition) throw SmfError(message, code);
+    if (!isConditionSatisfied) throw SmfError(message, code);
   }
 
   @override
-  String toString() => 'SmfError($code): $message';
+  String toString() => 'SmfError(${code.value}): $message';
 }

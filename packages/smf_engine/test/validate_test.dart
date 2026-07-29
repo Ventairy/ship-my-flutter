@@ -39,6 +39,86 @@ Future<Directory> _createValidRepository() async {
 }
 
 void main() {
+  test(
+    'when pending manifest and changelog commits differ, it should reject '
+    'repository validation',
+    () async {
+      final root = await _createValidRepository();
+      addTearDown(() => root.delete(recursive: true));
+      final paths = SmfPaths.resolve(root.path);
+      final manifestCommit = List<String>.filled(40, 'a').join();
+      final changelogCommit = List<String>.filled(40, 'b').join();
+      await JsonFile(paths.manifest).write(
+        ManifestDto(
+          schemaVersion: 1,
+          platforms: ManifestPlatformsDto(
+            ios: PlatformManifestDto(
+              version: '1.1.0',
+              endCommitHash: manifestCommit,
+              isReleasePending: true,
+            ),
+            android: PlatformManifestDto(
+              version: '0.0.0',
+              endCommitHash: manifestCommit,
+              isReleasePending: false,
+            ),
+          ),
+        ).toJson(),
+      );
+      await JsonFile(paths.changelog).write(
+        ChangelogDto(
+          schemaVersion: 1,
+          platforms: ChangelogPlatformsDto(
+            ios: ChangelogPlatformDto(
+              releases: <ChangelogPlatformReleaseVersionDto>[
+                ChangelogPlatformReleaseVersionDto(
+                  version: '1.1.0',
+                  preparedAt: DateTime.utc(2026, 7, 28),
+                  baseCommitHash: manifestCommit,
+                  endCommitHash: changelogCommit,
+                  changes: <ConventionalChangeDto>[
+                    ConventionalChangeDto(
+                      commitHash: changelogCommit,
+                      type: 'feat',
+                      scope: 'ios',
+                      description: 'Add release',
+                      body: null,
+                      isBreaking: false,
+                      versionBumpType: VersionBumpType.minor,
+                      platforms: const <ReleasePlatform>[
+                        ReleasePlatform.ios,
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            android: const ChangelogPlatformDto(
+              releases: <ChangelogPlatformReleaseVersionDto>[],
+            ),
+          ),
+        ).toJson(),
+      );
+
+      await expectLater(
+        RepositoryValidator.validate(root.path),
+        throwsA(
+          isA<SmfError>()
+              .having(
+                (error) => error.code,
+                'code',
+                SmfErrorCode.invalidState,
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('different ending commits'),
+              ),
+        ),
+      );
+    },
+  );
+
   test('repository validation requires the release lockfile in Git', () async {
     final root = await Directory.systemTemp.createTemp('smf-validate-');
     addTearDown(() => root.delete(recursive: true));
@@ -111,7 +191,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'UNTRACKED_HOOK',
+            SmfErrorCode.untrackedHook,
           ),
         ),
       );
@@ -138,7 +218,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'INVALID_HOOK_FILE',
+            SmfErrorCode.invalidHookFile,
           ),
         ),
       );
@@ -181,7 +261,7 @@ platforms:
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'APP_ID_CONFLICT',
+          SmfErrorCode.appIdConflict,
         ),
       ),
     );

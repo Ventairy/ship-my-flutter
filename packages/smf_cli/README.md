@@ -12,20 +12,15 @@ Then initialize and operate SMF from a Flutter application repository:
 
 ```sh
 smf init
-smf migrate
 smf validate
 smf release --phase pull-request
 smf release --phase release-candidate
 smf release --phase ship
 ```
 
-Run `smf migrate` after installing a newer CLI in an existing SMF repository.
-It migrates configuration, an existing generated workflow, and machine-owned
-registry formats that changed.
-
-Run `smf --help` for the complete command list. The CLI wraps `smf_engine` and the
-available platform adapters; it is the only SMF package that exposes a terminal
-executable.
+Run `smf --help` for the complete command list. The CLI wraps the shared,
+Apple, and Android release behavior in `smf_engine`; it is the only SMF package
+that exposes a terminal executable.
 
 Start with the [setup chooser](https://github.com/Ventairy/smf#get-started).
 Use the recommended

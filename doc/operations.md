@@ -3,41 +3,14 @@
 Use this guide whenever an app's `smf/<app-id>/release` PR is open, a CLI or
 workflow operation failed, or a release must be abandoned.
 
-## Migrate after upgrading SMF
-
-Upgrade the CLI, then run from the Flutter app:
-
-```bash
-smf upgrade
-smf migrate
-smf validate
-```
-
-In a monorepo, select the initialized app:
-
-```bash
-smf migrate --smf-path apps/mobile/smf
-```
-
-The default migration updates configuration and SMF's machine-owned registry,
-plus the generated GitHub Actions workflow when one already exists. It does not
-add a workflow to a CLI-only repository, build, upload, promote, tag, publish,
-or contact a store.
-
-Review every changed file before committing. If migration fails, do not
-hand-edit manifests or receipts to bypass it. Keep the reported files intact,
-fix the validation error or restore them from Git, and rerun. Use
-[CLI guide: migrate](cli.md#update-repository-files-after-upgrading-smf) to
-select only `--config`, `--github-actions`, or `--registry` for diagnosis.
-
 ## Before merging
 
 For every platform listed in the PR:
 
 1. `release-candidate (<platform>)` succeeded;
-2. `smf/candidates/<platform>-<version>.json` is committed;
+2. `smf/release_candidates/<platform>-<version>.json` is committed;
 3. the store shows the same `version`, `buildNumber`, and `artifactId`;
-4. the exact candidate was installed from the store testing destination;
+4. the exact release candidate was installed from the store testing destination;
 5. the release test passed;
 6. localized notes are correct; and
 7. the authorized release owner approved it.
@@ -45,12 +18,12 @@ For every platform listed in the PR:
 Do not merge if one included platform is unapproved. If it should not be in the
 release, fix the target-branch commit/configuration and let SMF update the PR.
 
-## Find the exact candidate
+## Find the exact release candidate
 
 In GitHub:
 
 1. Open the selected app's release PR.
-2. Open the platform receipt under `smf/candidates/`.
+2. Open the platform receipt under `smf/release_candidates/`.
 3. Record `version`, `buildNumber`, `artifactId`, `artifactSha256`, and
    `testingDestinations`.
 4. Confirm the successful job outputs match.
@@ -78,7 +51,7 @@ Read the canonical [Apple targets](configuration.md#apple-targets) and
 platform's optional `ship` section in `smf/config.yaml`.
 
 Changing a release-candidate or ship target on the target branch refreshes the
-release PR. Wait for the candidate jobs and recheck every receipt before merge.
+release PR. Wait for the release candidate jobs and recheck every receipt before merge.
 
 ## While the release PR is open
 
@@ -90,10 +63,10 @@ New qualifying target-branch commits for the app update the same
   scopes do not release iOS or Android.
 - A nested app only considers commits that change its directory or one of its
   configured `release_trigger_paths`.
-- A change scoped away from one platform can still invalidate its candidate if
+- A change scoped away from one platform can still invalidate its release candidate if
   it modifies a tracked build input used by that platform.
 
-Candidate jobs are serialized when both platforms release so their receipt
+Release candidate jobs are serialized when both platforms release so their receipt
 commits do not race.
 
 ## Merge strategy
@@ -102,7 +75,7 @@ Conventional Commit messages on the target branch determine release versions.
 When squashing a feature PR, give the final commit a qualifying title.
 
 Merge commit, squash, and rebase are supported if the target branch receives
-all release PR contents, including every candidate receipt. Never discard or
+all release PR contents, including every release candidate receipt. Never discard or
 hand-edit machine-owned files while resolving conflicts.
 
 After merge:
@@ -116,14 +89,14 @@ After merge:
 
 The `pull-request` and `ship` phases clone the remote repository into a
 temporary directory and treat the configured remote target branch as their
-only release source. The candidate phase similarly uses the remote release
+only release source. The release candidate phase similarly uses the remote release
 branch. Local manifests, receipts, branches, tags, uncommitted files, and
 unpushed commits cannot change their decisions. If a release is not committed
 to the required remote branch, SMF does not process it.
 
 ## GitHub checks and branch protection
 
-The default `GITHUB_TOKEN` can update the shared branch and start candidate
+The default `GITHUB_TOKEN` can update the shared branch and start release candidate
 jobs in the same workflow. It may not trigger unrelated `pull_request`
 workflows for the PR it created.
 
@@ -132,7 +105,7 @@ independent PR checks must trigger. See
 [GitHub permissions](security.md#github-permissions).
 
 Protect the target branch with normal reviews/checks. Do not create a ruleset
-that prevents the workflow from updating `smf/<app-id>/release`; the candidate
+that prevents the workflow from updating `smf/<app-id>/release`; the release candidate
 receipt must be committed there.
 
 ## Test audiences
@@ -151,7 +124,7 @@ testers are.
 
 In a monorepo with multiple initialized apps, append
 `--smf-path apps/<app>/smf` to every CLI release command below. Keep the same
-app selector throughout the pull-request, candidate, and ship phases.
+app selector throughout the pull-request, release candidate, and ship phases.
 
 ### No release PR opened
 
@@ -166,16 +139,16 @@ If the result is `noop`, confirm a qualifying commit for at least one enabled
 platform is present on the configured remote target branch and affects this
 app or one of its `release_trigger_paths`.
 
-### Candidate build failed
+### Release candidate build failed
 
 For a source, build-configuration, or hook failure, commit and push the fix to
 the target branch so SMF can update the release PR. For a credential, runner,
 or toolchain failure, fix the environment that executes SMF. Tracked source or
-build-input changes cause SMF to generate a new candidate.
+build-input changes cause SMF to generate a new release candidate.
 
 For a CLI-only retry, run `smf release --phase release-candidate` again. SMF
 uses the remote release branch in an isolated checkout. Use `--platform ios`
-or `--platform android` when only one candidate needs its platform toolchain.
+or `--platform android` when only one release candidate needs its platform toolchain.
 
 Do not manually invent a receipt.
 
@@ -189,17 +162,17 @@ Confirm:
 - the store artifact still matches the source/identity.
 
 Do not delete or edit
-`smf/candidates/<platform>-<version>.intent.json`. It is the committed identity
+`smf/release_candidates/<platform>-<version>.intent.json`. It is the committed identity
 of the upload attempt, not a receipt or a file you need to complete.
 
-Fix the GitHub permission/ruleset and rerun the failed candidate job or
+Fix the GitHub permission/ruleset and rerun the failed release candidate job or
 `smf release --phase release-candidate --platform <platform>`. A fresh runner reads the intent,
 looks up that exact build in the store, completes any unfinished testing
 assignment, and replaces the intent with the final receipt. It never selects
 the newest unrelated store build.
 
 The retry is complete only when the intent is gone and
-`smf/candidates/<platform>-<version>.json` is committed on the release branch.
+`smf/release_candidates/<platform>-<version>.json` is committed on the release branch.
 If SMF reports an identity, fingerprint, or Android checksum mismatch, stop:
 the preserved store artifact is not valid evidence for this release.
 
@@ -211,7 +184,7 @@ the preserved store artifact is not valid evidence for this release.
 - Read Apple’s processing/compliance message.
 - Fix certificate, profile, entitlement, metadata, or source issues.
 
-A corrected IPA needs a new build number/candidate.
+A corrected IPA needs a new build number/release candidate.
 
 ### Google Play authentication or permission failed
 
@@ -269,7 +242,7 @@ Confirm:
 - the release PR receipt is the one actually tested; and
 - no tracked build input changed afterward.
 
-Restore the expected source or produce and retest a new candidate.
+Restore the expected source or produce and retest a new release candidate.
 
 ### Ship failed after merge
 
@@ -296,8 +269,8 @@ While investigating, keep:
 
 - `smf/<app-id>/release`;
 - workflow logs;
-- candidate receipts;
-- exact commit SHAs;
+- release candidate receipts;
+- exact commit hashes;
 - Apple build ID/build number; and
 - Google Play `versionCode` and track.
 

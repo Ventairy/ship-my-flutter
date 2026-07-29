@@ -11,7 +11,7 @@ app-scoped release pull request
         +-------+-------+
         |               |
         v               v
- iOS candidate     Android candidate
+ iOS release candidate     Android release candidate
    TestFlight      Play testing track
         |               |
         +-------+-------+
@@ -80,16 +80,16 @@ do not need to match.
 New target-branch commits refresh the same PR. Review versions, changelogs,
 store notes, and platform selection like any other production change.
 
-## 3. Candidate jobs run per platform
+## 3. Release candidate jobs run per platform
 
 The optional GitHub Actions wrapper uses one matrix entry for every platform in
-the PR. The CLI can perform the same candidate operations sequentially with
+the PR. The CLI can perform the same release candidate operations sequentially with
 `smf release --phase release-candidate`, or one platform at a time with
-`--platform`. Each candidate reads the remote release branch in an isolated
-checkout. Candidate jobs are serialized because each commits its receipt to
+`--platform`. Each release candidate reads the remote release branch in an isolated
+checkout. Release candidate jobs are serialized because each commits its receipt to
 that same remote branch.
 
-### iOS candidate
+### iOS release candidate
 
 SMF:
 
@@ -101,9 +101,9 @@ SMF:
 6. waits for a valid processed build;
 7. applies TestFlight notes/groups; and
 8. replaces the pending state with
-   `smf/candidates/ios-<version>.json`.
+   `smf/release_candidates/ios-<version>.json`.
 
-### Android candidate
+### Android release candidate
 
 SMF:
 
@@ -116,9 +116,9 @@ SMF:
 7. assigns the exact `versionCode` to the configured testing track;
 8. validates and commits the edit; and
 9. replaces the pending state with
-   `smf/candidates/android-<version>.json`.
+   `smf/release_candidates/android-<version>.json`.
 
-The Android candidate uses a testing track, not Internal App Sharing, because
+The Android release candidate uses a testing track, not Internal App Sharing, because
 the track artifact can be promoted without rebuilding.
 
 ## 4. Receipts bind source to store artifacts
@@ -140,18 +140,18 @@ Receipts are machine-owned. Editing one destroys the evidence and does not make
 an untested artifact safe.
 
 While an upload is unfinished, SMF may commit
-`candidates/<platform>-<version>.intent.json`. This temporary, machine-owned
+`release_candidates/<platform>-<version>.intent.json`. This temporary, machine-owned
 file binds the source, app identity, build number, and artifact digest before
 the store operation starts. A fresh runner uses it to find only that exact
 artifact, finish the testing destination, and replace the intent with the final
 receipt. If nothing was uploaded, SMF can retry the same reserved build
 identity.
 
-## 5. People approve exact candidates
+## 5. People approve exact release candidates
 
 Before merge, a release owner must:
 
-- confirm every candidate job succeeded;
+- confirm every release candidate job succeeded;
 - match the receipt to the store;
 - install from TestFlight or the Play testing opt-in link;
 - complete the release test;
@@ -170,7 +170,7 @@ After merge, each platform ship job:
 3. verifies application identity;
 4. confirms the exact store artifact is still valid and available;
 5. for Android, confirms the exact `versionCode` remains completed on every
-   configured candidate testing track;
+   configured release candidate testing track;
 6. applies the configured ship target, when present; and
 7. creates the platform tag and GitHub Release.
 
@@ -195,29 +195,29 @@ The `ship` phase reads the configured remote target branch in an isolated
 checkout. It does not use a local branch, manifest, receipt, or uncommitted
 file.
 
-## What changes invalidate a candidate
+## What changes invalidate a release candidate
 
 The fingerprint includes Git-tracked app/build inputs and binary-affecting
 configuration such as flavor, app identity, build command, and artifact path.
 
-A tracked source or build-input change requires a new candidate. Ignored or
+A tracked source or build-input change requires a new release candidate. Ignored or
 untracked build outputs are outside the fingerprint and must not be required
 source inputs.
 
 Delivery-only changes such as ship targets, TestFlight groups, processing
 timeout, or release notes do not change the source fingerprint. SMF can reuse
-a valid candidate and reapply its configured metadata or TestFlight groups.
+a valid release candidate and reapply its configured metadata or TestFlight groups.
 
-Changing an Android candidate testing track reuses the receipt only when the
+Changing an Android release candidate testing track reuses the receipt only when the
 exact recorded `versionCode` is already a completed release on every newly
-configured track. Otherwise, SMF creates a new candidate.
+configured track. Otherwise, SMF creates a new release candidate.
 
 Tracked symbolic links must resolve to tracked files inside the repository.
 
 ## Retries and concurrency
 
 - The shared branch is reused.
-- Candidate jobs commit receipts serially to avoid overwriting one another.
+- Release candidate jobs commit receipts serially to avoid overwriting one another.
 - Ship jobs can verify/promote platforms independently.
 - Existing valid store artifacts and GitHub Releases are reused when their
   identity matches.

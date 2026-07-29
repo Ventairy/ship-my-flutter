@@ -38,21 +38,25 @@ final class ReleasePlanner {
   final List<String> releaseTriggerPaths;
 
   /// Whether [platform] has a pending version without its immutable tag.
-  Future<bool> needsPromotion({
-    required SmfManifest manifest,
-    required Platform platform,
+  Future<bool> isPromotionNeeded({
+    required ManifestDto manifest,
+    required ReleasePlatform platform,
+    required String gitHubToken,
   }) async {
     final state = manifest.forPlatform(platform);
-    if (!state.pendingRelease) return false;
-    return !(await gitClient.tagExists(
-      ReleaseReference.tag(appId, platform, state.version),
-    ));
+    if (!state.isReleasePending) return false;
+    return await gitClient.remoteTagCommitHash(
+          ReleaseReference.tag(appId, platform, state.version),
+          gitHubToken,
+        ) ==
+        null;
   }
 
   /// Creates the next release for [platform], or `null` when no change applies.
-  Future<ReleasePlan?> create({
-    required SmfManifest manifest,
-    required Platform platform,
+  Future<ReleasePlanDto?> create({
+    required ManifestDto manifest,
+    required ReleasePlatform platform,
+    required String gitHubToken,
   }) async {
     final state = manifest.forPlatform(platform);
     final currentTag = ReleaseReference.tag(
@@ -60,42 +64,42 @@ final class ReleasePlanner {
       platform,
       state.version,
     );
-    final baseSha = await gitClient.tagExists(currentTag) ? await gitClient.tagSha(currentTag) : state.baselineSha;
-    final headSha = await gitClient.currentSha();
+    final baseCommitHash = await gitClient.remoteTagCommitHash(currentTag, gitHubToken) ?? state.endCommitHash;
+    final endCommitHash = await gitClient.currentCommitHash();
     final commits = await gitClient.commitsBetween(
-      baseSha,
-      headSha: headSha,
+      baseCommitHash,
+      endCommitHash: endCommitHash,
       paths: releaseTriggerPaths,
     );
     final changes = commits
         .map(
-          (commit) => ConventionalCommit.parse(commit.sha, commit.message),
+          (commit) => ConventionalCommit.parse(commit.commitHash, commit.message),
         )
         .where(
-          (change) => change.platforms.contains(platform) && change.versionBump != null,
+          (change) => change.platforms.contains(platform) && change.versionBumpType != null,
         )
         .toList(growable: false);
     if (changes.isEmpty) return null;
 
-    final versionBump = ConventionalCommit.highestVersionBump(changes) ?? VersionBump.patch;
+    final versionBumpType = ConventionalCommit.highestVersionBumpType(changes) ?? VersionBumpType.patch;
     final currentVersion = Version.parse(state.version);
-    final nextVersion = switch (versionBump) {
-      VersionBump.major => currentVersion.nextMajor.toString(),
-      VersionBump.minor => currentVersion.nextMinor.toString(),
-      VersionBump.patch => currentVersion.nextPatch.toString(),
+    final nextVersion = switch (versionBumpType) {
+      VersionBumpType.major => currentVersion.nextMajor.toString(),
+      VersionBumpType.minor => currentVersion.nextMinor.toString(),
+      VersionBumpType.patch => currentVersion.nextPatch.toString(),
     };
     SmfError.check(
       Version.parse(nextVersion) > currentVersion,
       'Requested version $nextVersion must be greater than ${state.version}',
-      'SEMVER_ORDER',
+      SmfErrorCode.semverOrder,
     );
-    return ReleasePlan(
+    return ReleasePlanDto(
       platform: platform,
       currentVersion: state.version,
       nextVersion: nextVersion,
-      versionBump: versionBump,
-      baseSha: baseSha,
-      headSha: headSha,
+      versionBumpType: versionBumpType,
+      baseCommitHash: baseCommitHash,
+      endCommitHash: endCommitHash,
       changes: changes,
     );
   }

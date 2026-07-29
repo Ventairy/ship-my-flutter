@@ -2,4 +2,4 @@
 
 ## 0.1.0
 
-- Initial standalone hook SDK.
+- Initial unpublished hook SDK baseline.

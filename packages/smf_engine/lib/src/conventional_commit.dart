@@ -23,70 +23,71 @@ final class ConventionalCommit {
     multiLine: true,
   );
 
-  /// Parses one Git [message] and associates it with [sha].
-  static ConventionalChange parse(String sha, String message) {
+  /// Parses one Git [message] and associates it with [commitHash].
+  static ConventionalChangeDto parse(String commitHash, String message) {
     final lines = message.split('\n');
     final header = lines.isEmpty ? '' : lines.first;
     final match = _headerPattern.firstMatch(header);
     final type = match?.group(1) ?? 'other';
     final scope = match?.group(2);
-    final breaking = match?.group(3) == '!' || _breakingFooterPattern.hasMatch(message);
+    final isBreaking = match?.group(3) == '!' || _breakingFooterPattern.hasMatch(message);
     final bodyText = lines.skip(1).join('\n').trim();
     final body = bodyText.isEmpty ? null : bodyText;
-    final platforms = List<Platform>.unmodifiable(_platformForScope(scope));
-    return ConventionalChange(
-      sha: sha,
+    final platforms = List<ReleasePlatform>.unmodifiable(_platformForScope(scope));
+    return ConventionalChangeDto(
+      commitHash: commitHash,
       type: type,
       scope: scope,
       description: match?.group(4) ?? header,
       body: body,
-      breaking: breaking,
-      versionBump: _versionBumpFor(type, breaking),
+      isBreaking: isBreaking,
+      versionBumpType: _versionBumpTypeFor(type, isBreaking),
       platforms: platforms,
     );
   }
 
   /// Returns the greatest semantic version impact in [changes].
-  static VersionBump? highestVersionBump(
-    Iterable<ConventionalChange> changes,
+  static VersionBumpType? highestVersionBumpType(
+    Iterable<ConventionalChangeDto> changes,
   ) {
-    VersionBump? result;
+    VersionBumpType? result;
     for (final change in changes) {
-      final versionBump = change.versionBump;
-      if (versionBump != null && (result == null || _versionBumpRank(versionBump) > _versionBumpRank(result))) {
-        result = versionBump;
+      final versionBumpType = change.versionBumpType;
+      if (versionBumpType != null &&
+          (result == null || _versionBumpTypeRank(versionBumpType) > _versionBumpTypeRank(result))) {
+        result = versionBumpType;
       }
     }
     return result;
   }
 
-  static List<Platform> _platformForScope(String? scope) {
-    if (scope == null) return Platform.values;
+  static List<ReleasePlatform> _platformForScope(String? scope) {
+    if (scope == null) return ReleasePlatform.values;
     final scopes = scope
         .toLowerCase()
         .split(RegExp(r'[,/\\|]'))
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty);
     final explicit = scopes.where((value) => _platformScopes.contains(value)).toList();
-    if (explicit.isEmpty) return Platform.values;
-    return <Platform>[
-      for (final platform in Platform.values)
+    if (explicit.isEmpty) return ReleasePlatform.values;
+    return <ReleasePlatform>[
+      for (final platform in ReleasePlatform.values)
         if (explicit.contains(platform.value)) platform,
     ];
   }
 
-  static VersionBump? _versionBumpFor(String type, bool breaking) {
-    if (breaking) return VersionBump.major;
+  static VersionBumpType? _versionBumpTypeFor(String type, bool isBreaking) {
+    if (isBreaking) return VersionBumpType.major;
     return switch (type.toLowerCase()) {
-      'feat' => VersionBump.minor,
-      'fix' || 'perf' || 'deps' => VersionBump.patch,
+      'feat' => VersionBumpType.minor,
+      'fix' || 'perf' || 'deps' => VersionBumpType.patch,
       _ => null,
     };
   }
 
-  static int _versionBumpRank(VersionBump versionBump) => switch (versionBump) {
-    VersionBump.patch => 1,
-    VersionBump.minor => 2,
-    VersionBump.major => 3,
+  static int _versionBumpTypeRank(VersionBumpType versionBumpType) => switch (versionBumpType) {
+    VersionBumpType.patch => 1,
+    VersionBumpType.minor => 2,
+    VersionBumpType.major => 3,
   };
 }

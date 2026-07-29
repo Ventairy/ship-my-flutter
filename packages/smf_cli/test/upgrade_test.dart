@@ -18,36 +18,36 @@ void main() {
 
   test('reports a newer published version', () async {
     final service = SmfUpgradeService(
-      latestVersionLoader: () async => '0.2.0',
+      latestVersionLoader: () async => '2.0.0',
       installer: (_, _) async => ProcessResult(1, 0, '', ''),
     );
 
-    expect(await service.newerVersion(), '0.2.0');
+    expect(await service.newerVersion(), '2.0.0');
   });
 
   test('does not reinstall an up-to-date CLI', () async {
-    var installed = false;
+    var wasInstallerCalled = false;
     final service = SmfUpgradeService(
       latestVersionLoader: () async => smfCliVersion,
       installer: (_, _) async {
-        installed = true;
+        wasInstallerCalled = true;
         return ProcessResult(1, 0, '', '');
       },
     );
 
     expect(await service.upgrade(), <String, Object?>{
-      'upgraded': false,
+      'isUpgraded': false,
       'version': smfCliVersion,
       'message': 'SMF is already up to date.',
     });
-    expect(installed, isFalse);
+    expect(wasInstallerCalled, isFalse);
   });
 
   test('installs the exact latest published version', () async {
     String? executable;
     List<String>? arguments;
     final service = SmfUpgradeService(
-      latestVersionLoader: () async => '0.2.0',
+      latestVersionLoader: () async => '2.0.0',
       installer: (value, values) async {
         executable = value;
         arguments = values;
@@ -56,15 +56,15 @@ void main() {
     );
 
     expect(await service.upgrade(), <String, Object?>{
-      'upgraded': true,
+      'isUpgraded': true,
       'previousVersion': smfCliVersion,
-      'version': '0.2.0',
+      'version': '2.0.0',
     });
     expect(executable, 'dart');
     expect(arguments, <String>[
       'install',
       'smf_cli',
-      '0.2.0',
+      '2.0.0',
       '--overwrite',
     ]);
   });
@@ -80,7 +80,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'UPGRADE_CHECK_FAILED',
+          SmfErrorCode.upgradeCheckFailed,
         ),
       ),
     );
@@ -95,20 +95,20 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'UPGRADE_CHECK_FAILED',
+          SmfErrorCode.upgradeCheckFailed,
         ),
       ),
     );
 
     final failed = SmfUpgradeService(
-      latestVersionLoader: () async => '0.2.0',
+      latestVersionLoader: () async => '2.0.0',
       installer: (_, _) async => ProcessResult(1, 1, '', 'failed'),
     );
     await expectLater(
       failed.upgrade(),
       throwsA(
         isA<SmfError>()
-            .having((error) => error.code, 'code', 'UPGRADE_FAILED')
+            .having((error) => error.code, 'code', SmfErrorCode.upgradeFailed)
             .having(
               (error) => error.message,
               'message',
@@ -118,7 +118,7 @@ void main() {
     );
 
     final missingDart = SmfUpgradeService(
-      latestVersionLoader: () async => '0.2.0',
+      latestVersionLoader: () async => '2.0.0',
       installer: (_, _) async => throw const ProcessException('dart', <String>[]),
     );
     await expectLater(
@@ -127,7 +127,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'UPGRADE_FAILED',
+          SmfErrorCode.upgradeFailed,
         ),
       ),
     );

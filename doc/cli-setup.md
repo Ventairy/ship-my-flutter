@@ -4,9 +4,9 @@ Use this setup when a human or custom automation will run SMF release phases
 directly. For the automated path recommended for most teams, follow
 [GitHub Actions setup](github-actions-setup.md).
 
-The safe first release creates candidates for testing before anything is
+The safe first release creates release candidates for testing before anything is
 shipped. Do not run the `ship` phase until the release PR is merged and the
-exact candidates have been approved.
+exact release candidates have been approved.
 
 ## 1. Confirm the repository is ready
 
@@ -80,7 +80,7 @@ Open `<flutter-app>/smf/config.yaml`. Confirm:
   this app.
 
 See [Configuration](configuration.md) before changing flavors, build commands,
-candidate destinations, or ship destinations.
+release candidate destinations, or ship destinations.
 
 Validate every initialized app:
 
@@ -116,7 +116,7 @@ Also export `SMF_GITHUB_TOKEN` as described in
 service-account JSON, certificates, or keystores.
 
 The pull-request phase needs the GitHub token, not store/signing credentials.
-The candidate phase needs the GitHub token plus every credential for the
+The release candidate phase needs the GitHub token plus every credential for the
 selected platform. The ship phase needs the GitHub token plus that platform's
 store API credentials, but not its certificate or keystore.
 
@@ -162,24 +162,28 @@ smf release --phase pull-request --smf-path apps/customer/smf
 ```
 
 SMF opens or updates `smf/<app-id>/release`. Review the planned platform
-versions and changelogs before creating candidates. The command's JSON output
-includes the exact release branch.
+versions and changelogs before creating release candidates. The command's JSON
+output names the selected `nextPhase`, its `targets`, and the exact
+`releaseBranch` when candidate creation is next.
 
-## 8. Create and test the candidates
+## 8. Create and test the release candidates
 
-Run the candidate phase on the required native host:
+Run the release candidate phase on the required native host:
 
 ```bash
 smf release --phase release-candidate
 ```
 
 SMF fetches the remote release branch into an isolated temporary checkout,
-builds and records candidates there, then deletes that checkout. It does not
+builds and records release candidates there, then deletes that checkout. It does not
 depend on or switch your local branch.
 
+Its JSON result contains the exact uploaded or reused candidate receipts under
+`releaseCandidateReceipts`.
+
 Use `--platform ios` or `--platform android` to process only one platform.
-Run iOS on macOS. Run Android candidates on macOS or Linux. Windows supports
-the pull-request and ship phases, but candidate builds currently require the
+Run iOS on macOS. Run Android release candidates on macOS or Linux. Windows supports
+the pull-request and ship phases, but release candidate builds currently require the
 POSIX command environment available on macOS or Linux.
 
 In a monorepo, keep selecting the same app:
@@ -188,13 +192,13 @@ In a monorepo, keep selecting the same app:
 smf release --phase release-candidate --smf-path apps/customer/smf
 ```
 
-Verify that the candidate receipt was committed under `smf/candidates/`. Match
+Verify that the release candidate receipt was committed under `smf/release_candidates/`. Match
 its version, build number, and artifact ID in TestFlight or Play Console,
-install that exact candidate, and complete the team's release test.
+install that exact release candidate, and complete the team's release test.
 
-Do not merge the release PR until every intended candidate is approved.
+Do not merge the release PR until every intended release candidate is approved.
 
-## 9. Merge and ship the exact candidates
+## 9. Merge and ship the exact release candidates
 
 Merge the approved release PR through the repository's normal review process.
 Then run from anywhere inside the same Git repository:
@@ -209,11 +213,14 @@ In a monorepo:
 smf release --phase ship --smf-path apps/customer/smf
 ```
 
-The command promotes the recorded candidate; it does not rebuild it. A missing
+The command promotes the recorded release candidate; it does not rebuild it. A missing
 merge, source mismatch, fingerprint mismatch, or artifact identity mismatch
 stops the operation.
 
-New configurations omit `ship`, so the first candidate-only cycle cannot move
+Its JSON result contains the exact platform-specific ship evidence under
+`shippedReleases`.
+
+New configurations omit `ship`, so the first release-candidate-only cycle cannot move
 an artifact toward public distribution. After that cycle is proven, configure
 an explicit destination using [Apple targets](configuration.md#apple-targets)
 or [Google Play targets](configuration.md#google-play-targets).
@@ -231,7 +238,7 @@ Also confirm the exact recorded artifacts have the intended store status. A
 successful CLI result does not replace checking App Store Connect or Play
 Console.
 
-For retries, failures, or abandonment, keep the release branch and candidate
+For retries, failures, or abandonment, keep the release branch and release candidate
 receipt intact and follow
 [Release operations and recovery](operations.md).
 

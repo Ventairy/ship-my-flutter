@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:smf_engine/src/config.dart';
 import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/json_file.dart';
 import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/release_branch.dart';
-import 'package:smf_engine/src/serialization.dart';
 
 /// Persists planned platform releases in the app-scoped registry.
 final class ReleaseRegistry {
@@ -14,7 +14,8 @@ final class ReleaseRegistry {
   /// Applies [plan] to the generated manifest and changelog.
   static Future<void> apply({
     required String root,
-    required ReleasePlan plan,
+    required ReleasePlanDto plan,
+    required String gitHubToken,
     DateTime? preparedAt,
   }) async {
     final paths = SmfPaths.resolve(root);
@@ -22,66 +23,89 @@ final class ReleaseRegistry {
     final manifest = await SmfState.manifest(root);
     final changelog = await SmfState.changelog(root);
     final gitClient = GitClient(root: paths.repositoryRoot);
-    final releases = Map<String, ChangelogRelease>.of(
-      changelog.releasesFor(plan.platform),
+    final releases = List<ChangelogPlatformReleaseVersionDto>.of(
+      changelog.platforms.select(plan.platform).releases,
     );
     final previousState = manifest.forPlatform(plan.platform);
-    if (previousState.pendingRelease &&
+    if (previousState.isReleasePending &&
         previousState.version != plan.nextVersion &&
-        !(await gitClient.tagExists(
-          ReleaseReference.tag(
-            config.appId,
-            plan.platform,
-            previousState.version,
-          ),
-        ))) {
-      releases.remove(previousState.version);
-      final candidate = File(
-        paths.candidatePath(
+        await gitClient.remoteTagCommitHash(
+              ReleaseReference.tag(
+                config.appId,
+                plan.platform,
+                previousState.version,
+              ),
+              gitHubToken,
+            ) ==
+            null) {
+      releases.removeWhere(
+        (release) => release.version == previousState.version,
+      );
+      final releaseCandidateReceiptFile = File(
+        paths.releaseCandidateReceiptPath(
           platform: plan.platform,
           version: previousState.version,
         ),
       );
-      final candidateIntent = File(
-        paths.candidateIntentPath(
+      final releaseCandidateIntentFile = File(
+        paths.releaseCandidateIntentPath(
           platform: plan.platform,
           version: previousState.version,
         ),
       );
       await Future.wait(<Future<void>>[
-        if (await candidate.exists()) candidate.delete(),
-        if (await candidateIntent.exists()) candidateIntent.delete(),
+        if (await releaseCandidateReceiptFile.exists()) releaseCandidateReceiptFile.delete(),
+        if (await releaseCandidateIntentFile.exists()) releaseCandidateIntentFile.delete(),
       ]);
     }
-    releases[plan.nextVersion] = ChangelogRelease(
-      version: plan.nextVersion,
-      preparedAt: (preparedAt ?? DateTime.now()).toUtc(),
-      baseSha: plan.baseSha,
-      headSha: plan.headSha,
-      changes: plan.changes,
-    );
+    releases
+      ..removeWhere((release) => release.version == plan.nextVersion)
+      ..insert(
+        0,
+        ChangelogPlatformReleaseVersionDto(
+          version: plan.nextVersion,
+          preparedAt: (preparedAt ?? DateTime.now()).toUtc(),
+          baseCommitHash: plan.baseCommitHash,
+          endCommitHash: plan.endCommitHash,
+          changes: plan.changes,
+        ),
+      );
 
     final nextManifest = switch (plan.platform) {
-      Platform.ios => manifest.copyWith(
-        ios: manifest.ios.copyWith(
-          version: plan.nextVersion,
-          pendingRelease: true,
+      ReleasePlatform.ios => manifest.copyWith(
+        platforms: manifest.platforms.copyWith(
+          ios: manifest.platforms.ios.copyWith(
+            version: plan.nextVersion,
+            endCommitHash: plan.endCommitHash,
+            isReleasePending: true,
+          ),
         ),
       ),
-      Platform.android => manifest.copyWith(
-        android: manifest.android.copyWith(
-          version: plan.nextVersion,
-          pendingRelease: true,
+      ReleasePlatform.android => manifest.copyWith(
+        platforms: manifest.platforms.copyWith(
+          android: manifest.platforms.android.copyWith(
+            version: plan.nextVersion,
+            endCommitHash: plan.endCommitHash,
+            isReleasePending: true,
+          ),
         ),
       ),
     };
     final nextChangelog = switch (plan.platform) {
-      Platform.ios => changelog.copyWith(iosReleases: releases),
-      Platform.android => changelog.copyWith(androidReleases: releases),
+      ReleasePlatform.ios => changelog.copyWith(
+        platforms: changelog.platforms.copyWith(
+          ios: changelog.platforms.ios.copyWith(releases: releases),
+        ),
+      ),
+      ReleasePlatform.android => changelog.copyWith(
+        platforms: changelog.platforms.copyWith(
+          android: changelog.platforms.android.copyWith(releases: releases),
+        ),
+      ),
     };
     await (
-      SmfFileSystem.writeJson(paths.manifest, nextManifest.toJson()),
-      SmfFileSystem.writeJson(paths.changelog, nextChangelog.toJson()),
+      JsonFile(paths.manifest).write(nextManifest.toJson()),
+      JsonFile(paths.changelog).write(nextChangelog.toJson()),
     ).wait;
   }
 }

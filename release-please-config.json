@@ -15,24 +15,24 @@
     },
     "packages/smf_engine": {
       "component": "smf_engine",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "lib/src/templates.dart"
+        }
+      ],
       "include-paths": [
         "packages/smf_engine"
       ]
     },
-    "packages/smf_apple": {
-      "component": "smf_apple",
-      "include-paths": [
-        "packages/smf_apple"
-      ]
-    },
-    "packages/smf_android": {
-      "component": "smf_android",
-      "include-paths": [
-        "packages/smf_android"
-      ]
-    },
     "packages/smf_cli": {
       "component": "smf_cli",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "lib/src/upgrade.dart"
+        }
+      ],
       "include-paths": [
         "packages/smf_cli"
       ]

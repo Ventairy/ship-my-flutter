@@ -112,20 +112,20 @@ platforms:
 | -------------------------------------------------- | ------------------------------------------- | ------------------------------------------------- |
 | `enabled`                                          | `true` when `ios/` exists at initialization | Include iOS                                       |
 | `initial_version`                                  | initializer version                         | Existing iOS release baseline                     |
-| `bundle_id`                                        | resolved at candidate time when possible    | Exact App Store bundle ID                         |
+| `bundle_id`                                        | resolved at release candidate time when possible    | Exact App Store bundle ID                         |
 | `build_command`                                    | FVM-aware Flutter IPA command               | Trusted project build command                     |
 | `ipa_output_path`                                  | `build/ios/ipa`                             | App-contained IPA file or directory               |
 | `app_store.release_candidate.target`               | `internal-testing`                          | TestFlight audience before merge                  |
-| `app_store.release_candidate.groups`               | `[]`                                        | Existing groups matching the candidate target     |
+| `app_store.release_candidate.groups`               | `[]`                                        | Existing groups matching the release candidate target     |
 | `app_store.release_candidate.wait_timeout_minutes` | `45`                                        | Processing wait, 5–180 minutes                    |
-| `app_store.ship`                                   | omitted                                     | Leave the approved candidate in its testing state |
+| `app_store.ship`                                   | omitted                                     | Leave the approved release candidate in its testing state |
 | `app_store.ship.target`                            | required when `ship` exists                 | [Apple ship destination](#apple-targets)          |
 | `app_store.ship.groups`                            | `[]`                                        | Existing external groups for `external-testing`   |
 
 The bundle ID must match the production Xcode target, App ID, provisioning
 profile, and App Store Connect app. Set it explicitly when you want the
 generated configuration and `smf validate` review to show the identity.
-Otherwise, the macOS candidate phase resolves it from the Release scheme;
+Otherwise, the macOS release candidate phase resolves it from the Release scheme;
 local validation does not prove that later resolution.
 
 ### Apple targets
@@ -178,23 +178,23 @@ platforms:
 | -------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- |
 | `enabled`                              | `true` when `android/` exists at initialization | Include Android                                      |
 | `initial_version`                      | initializer version                             | Existing Android release baseline                    |
-| `package_name`                         | resolved at candidate time for simple apps      | Exact Google Play package name                       |
+| `package_name`                         | resolved at release candidate time for simple apps      | Exact Google Play package name                       |
 | `build_command`                        | FVM-aware Flutter AAB command                   | Trusted project build command                        |
 | `aab_output_path`                      | standard release bundle directory               | App-contained AAB file or directory                  |
 | `google_play.release_candidate.target` | `internal-testing`                              | Play destination before merge                        |
 | `google_play.release_candidate.tracks` | `[]`                                            | Existing tracks for `closed-testing`                 |
-| `google_play.ship`                     | omitted                                         | Leave the approved candidate on its testing tracks   |
+| `google_play.ship`                     | omitted                                         | Leave the approved release candidate on its testing tracks   |
 | `google_play.ship.target`              | required when `ship` exists                     | [Google Play ship destination](#google-play-targets) |
 | `google_play.ship.tracks`              | `[]`                                            | Existing tracks for `closed-testing`                 |
 
 Set `package_name` explicitly for flavors, suffixes, or computed Gradle
-application IDs. When it is omitted, the candidate phase reads a literal
+application IDs. When it is omitted, the release candidate phase reads a literal
 `applicationId` from `android/app/build.gradle.kts` or `build.gradle`; local
 validation does not prove that later resolution.
 
 SMF chooses the next available Play `versionCode`, passes it as Flutter’s
 `--build-number`, signs the resulting AAB with the configured upload key, and
-records that same integer as the candidate `artifactId`.
+records that same integer as the release candidate `artifactId`.
 
 ### Google Play targets
 
@@ -202,21 +202,21 @@ records that same integer as the candidate `artifactId`.
 
 | Target             | What SMF does                                          |
 | ------------------ | ------------------------------------------------------ |
-| `internal-testing` | Assigns the candidate to Google Play internal testing. |
+| `internal-testing` | Assigns the release candidate to Google Play internal testing. |
 | `closed-testing`   | Assigns it to every existing custom track in `tracks`. |
 | `open-testing`     | Assigns it to Google Play open testing.                |
 
 `tracks` is required and must be nonempty only for `closed-testing`. Google
-Play supports multiple closed tests, so one candidate can be assigned to
+Play supports multiple closed tests, so one release candidate can be assigned to
 several named tracks without rebuilding it.
 
 `ship` is optional. When present, `ship.target` accepts:
 
 | Target           | What SMF does after merge                                              |
 | ---------------- | ---------------------------------------------------------------------- |
-| `closed-testing` | Assigns the candidate to every existing custom track in `ship.tracks`. |
-| `open-testing`   | Moves the candidate to Google Play open testing.                       |
-| `production`     | Moves the candidate to production and sends the change for review.     |
+| `closed-testing` | Assigns the release candidate to every existing custom track in `ship.tracks`. |
+| `open-testing`   | Moves the release candidate to Google Play open testing.                       |
+| `production`     | Moves the release candidate to production and sends the change for review.     |
 
 Google Play does not provide a per-release API choice between “publish after
 approval” and “wait after approval.” That behavior belongs to the app-wide
@@ -232,16 +232,16 @@ approval” and “wait after approval.” That behavior belongs to the app-wide
 SMF will not replace a destination track containing an unfinished release.
 Finish or halt that release in Play Console first.
 
-## Candidate-only default
+## Release-candidate-only default
 
 The initializer creates a `release_candidate` for each enabled platform and
 omits `ship`. This is the safest first run: merging still revalidates the exact
-candidate and creates the platform tag and GitHub Release, but does not move
-the store artifact beyond its candidate-testing destination.
+release candidate and creates the platform tag and GitHub Release, but does not move
+the store artifact beyond its release-candidate testing destination.
 
 Add `ship` independently for each platform only after the complete
-candidate-only workflow succeeds. A ship-only configuration change can reuse
-an existing candidate after SMF revalidates its source, identity, and store
+release-candidate-only workflow succeeds. A ship-only configuration change can reuse
+an existing release candidate after SMF revalidates its source, identity, and store
 artifact.
 
 ## Custom build commands
@@ -339,10 +339,10 @@ SMF creates these only when needed:
 | ------------------------------- | --------------------------------------- |
 | `manifest.json`                 | Review; never edit manually             |
 | `changelog.json`                | Review; never edit manually             |
-| `candidates/ios-X.Y.Z.json`     | Match to TestFlight; never edit         |
-| `candidates/android-X.Y.Z.json` | Match to Play `versionCode`; never edit |
-| `candidates/*.intent.json`      | Leave intact during a failed upload     |
+| `release_candidates/ios-X.Y.Z.json`     | Match to TestFlight; never edit         |
+| `release_candidates/android-X.Y.Z.json` | Match to Play `versionCode`; never edit |
+| `release_candidates/*.intent.json`      | Leave intact during a failed upload     |
 
 Use [How releases work](how-it-works.md) for the integrity boundary and
 [Operations](operations.md) before resolving conflicts or retrying a release.
-After upgrading SMF, use `smf migrate`; never migrate these files by hand.
+Never edit these machine-owned files by hand.

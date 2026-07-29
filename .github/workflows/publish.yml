@@ -5,8 +5,6 @@ on:
     tags:
       - "smf_hooks-v[0-9]+.[0-9]+.[0-9]+"
       - "smf_engine-v[0-9]+.[0-9]+.[0-9]+"
-      - "smf_apple-v[0-9]+.[0-9]+.[0-9]+"
-      - "smf_android-v[0-9]+.[0-9]+.[0-9]+"
       - "smf_cli-v[0-9]+.[0-9]+.[0-9]+"
 
 permissions: {}
@@ -35,26 +33,6 @@ jobs:
     with:
       environment: pub.dev
       working-directory: packages/smf_engine
-
-  publish-apple:
-    name: Publish smf_apple
-    if: startsWith(github.ref_name, 'smf_apple-v')
-    permissions:
-      id-token: write
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
-    with:
-      environment: pub.dev
-      working-directory: packages/smf_apple
-
-  publish-android:
-    name: Publish smf_android
-    if: startsWith(github.ref_name, 'smf_android-v')
-    permissions:
-      id-token: write
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
-    with:
-      environment: pub.dev
-      working-directory: packages/smf_android
 
   publish-cli:
     name: Publish smf_cli

@@ -39,7 +39,7 @@ SMF recognizes exactly these committed files:
 | File                              | When it runs                                                                    | Typed context              |
 | --------------------------------- | ------------------------------------------------------------------------------- | -------------------------- |
 | `smf/hooks/before_create_pr.dart` | After SMF prepares the platform plans and before it pushes the app's release PR | `SmfBeforeCreatePrContext` |
-| `smf/hooks/before_build.dart`     | Once for each platform candidate, before fingerprinting and building            | `SmfBeforeBuildContext`    |
+| `smf/hooks/before_build.dart`     | Once for each platform release candidate, before fingerprinting and building            | `SmfBeforeBuildContext`    |
 
 Use `before_create_pr` for files shared by the release PR, such as generated
 store notes. Use `before_build` only for platform-specific inputs that must be
@@ -161,7 +161,7 @@ final class PreparePlatformBuild extends SmfHook {
   Future<void> run(SmfBeforeBuildContext context) async {
     await context.runCommand(
       'dart run tool/prepare_build.dart',
-      root: true,
+      shouldRunFromRepositoryRoot: true,
     );
   }
 }
@@ -171,7 +171,8 @@ Future<void> main() => runSmfHook(PreparePlatformBuild());
 
 `runCommand(...)` streams command output to the hook log and throws when the
 command exits unsuccessfully. It runs from the hook process's current directory
-by default. Pass `root: true` to run from the Git repository root.
+by default. Pass `shouldRunFromRepositoryRoot: true` to run from the Git
+repository root.
 
 ## 5. Understand hook commits
 
@@ -179,7 +180,7 @@ SMF stages and commits tracked or unignored files left by a successful hook:
 
 - `before_create_pr` changes enter the app's release PR;
 - `before_build` changes enter the release branch before the source
-  fingerprint and candidate build.
+  fingerprint and release candidate build.
 
 Hooks do not configure commit behavior. If a hook produces no changes, the
 commit step is a no-op.
@@ -205,9 +206,9 @@ git push
 
 That commit is not release-worthy by itself. The next qualifying Conventional
 Commit runs the hook. In the Actions log, verify the hook completed and inspect
-its files in `smf/<app-id>/release` before testing a candidate.
+its files in `smf/<app-id>/release` before testing a release candidate.
 
-Do not run the hook file directly with `dart run`; `SmfHook.execute` needs the
+Do not run the hook file directly with `dart run`; `runSmfHook` needs the
 context files that SMF supplies during the workflow.
 
 ## Failure and recovery
@@ -227,7 +228,7 @@ rerunning the release workflow.
 
 For a release branch already containing unwanted hook output, follow
 [Retry and recovery](operations.md#retry-and-recovery) instead of editing
-machine-owned SMF manifests or candidate receipts by hand.
+machine-owned SMF manifests or release candidate receipts by hand.
 
 Next, review [Configuration](configuration.md) for store and build settings and
 [Security](security.md) for trusted project code and credential handling.

@@ -128,11 +128,11 @@ Use this workflow when a release owner writes the notes:
    branch through a normal reviewed pull request.
 4. Merge the notes PR.
 5. Let SMF refresh the existing release pull request.
-6. Review the notes displayed by the candidate before approving the release.
+6. Review the notes displayed by the release candidate before approving the release.
 
-Finish the notes before allowing candidate creation to start. With the CLI,
+Finish the notes before allowing release candidate creation to start. With the CLI,
 wait to run `smf release --phase release-candidate`. With GitHub Actions, use
-the app's protected environment to hold candidate jobs for approval. If that
+the app's protected environment to hold release candidate jobs for approval. If that
 pause is not part of your workflow, use a hook so the notes are present when
 SMF first creates the release pull request.
 
@@ -221,11 +221,11 @@ the hook validates the draft and writes it with the typed helper
 SMF commits the draft to the release pull request
                          |
                          v
-people review the text and test the candidate
+people review the text and test the release candidate
 ```
 
 The model drafts text only. It does not choose versions, select platforms,
-publish to a store, approve a candidate, or merge the release pull request.
+publish to a store, approve a release candidate, or merge the release pull request.
 
 ### 1. Decide the input and output
 
@@ -235,7 +235,7 @@ For each non-null platform release, the hook receives:
 - the Conventional Commit type, scope, description, and body; and
 - a typed writer already bound to that platform and version.
 
-The hook does not receive commit SHAs, issue contents, customer data, or SMF's
+The hook does not receive commit hashes, issue contents, customer data, or SMF's
 Apple, Google Play, GitHub, and signing credentials.
 
 Send only the change descriptions needed to write the notes. Ask the provider
@@ -324,8 +324,7 @@ secret. Expose it only to the `Ventairy/smf-action` step whose phase is
 ```
 
 The generated workflow does not expose custom secrets automatically. Review
-this workflow customization whenever regenerating or migrating the managed
-workflow.
+this workflow customization whenever regenerating the managed workflow.
 
 ### 4. Validate before writing
 
@@ -361,9 +360,9 @@ The AI output is a draft. In the SMF release pull request, verify:
 - translations have the same meaning;
 - the correct platform versions and locales were updated;
 - no internal information appears; and
-- the candidate displays the expected text.
+- the release candidate displays the expected text.
 
-Do not approve the candidate until the notes are correct. Teams that do not
+Do not approve the release candidate until the notes are correct. Teams that do not
 allow network access from repository hooks can generate the draft in a
 separate trusted workflow and submit it through the
 [manual notes process](#write-notes-manually).
@@ -389,7 +388,7 @@ If validation fails:
 If a store rejects a locale, add that localization in the store or remove it
 from the version entry. If displayed notes are wrong, stop the release, correct
 the file on the target branch, and let SMF update the release pull request.
-Never edit a candidate receipt to force the change.
+Never edit a release candidate receipt to force the change.
 
 Continue with
 [End-to-end release automation](end-to-end-automation.md) when the notes

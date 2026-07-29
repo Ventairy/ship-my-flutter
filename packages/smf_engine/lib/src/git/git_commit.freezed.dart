@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GitCommit {
 
- String get sha; String get message;
+ String get commitHash; String get message;
 /// Create a copy of GitCommit
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $GitCommitCopyWith<GitCommit> get copyWith => _$GitCommitCopyWithImpl<GitCommit>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GitCommit&&(identical(other.sha, sha) || other.sha == sha)&&(identical(other.message, message) || other.message == message));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GitCommit&&(identical(other.commitHash, commitHash) || other.commitHash == commitHash)&&(identical(other.message, message) || other.message == message));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,sha,message);
+int get hashCode => Object.hash(runtimeType,commitHash,message);
 
 @override
 String toString() {
-  return 'GitCommit(sha: $sha, message: $message)';
+  return 'GitCommit(commitHash: $commitHash, message: $message)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $GitCommitCopyWith<$Res>  {
   factory $GitCommitCopyWith(GitCommit value, $Res Function(GitCommit) _then) = _$GitCommitCopyWithImpl;
 @useResult
 $Res call({
- String sha, String message
+ String commitHash, String message
 });
 
 
@@ -62,9 +62,9 @@ class _$GitCommitCopyWithImpl<$Res>
 
 /// Create a copy of GitCommit
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? sha = null,Object? message = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? commitHash = null,Object? message = null,}) {
   return _then(_self.copyWith(
-sha: null == sha ? _self.sha : sha // ignore: cast_nullable_to_non_nullable
+commitHash: null == commitHash ? _self.commitHash : commitHash // ignore: cast_nullable_to_non_nullable
 as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,
   ));
@@ -151,10 +151,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String sha,  String message)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String commitHash,  String message)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GitCommit() when $default != null:
-return $default(_that.sha,_that.message);case _:
+return $default(_that.commitHash,_that.message);case _:
   return orElse();
 
 }
@@ -172,10 +172,10 @@ return $default(_that.sha,_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String sha,  String message)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String commitHash,  String message)  $default,) {final _that = this;
 switch (_that) {
 case _GitCommit():
-return $default(_that.sha,_that.message);case _:
+return $default(_that.commitHash,_that.message);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -192,10 +192,10 @@ return $default(_that.sha,_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String sha,  String message)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String commitHash,  String message)?  $default,) {final _that = this;
 switch (_that) {
 case _GitCommit() when $default != null:
-return $default(_that.sha,_that.message);case _:
+return $default(_that.commitHash,_that.message);case _:
   return null;
 
 }
@@ -207,10 +207,10 @@ return $default(_that.sha,_that.message);case _:
 
 
 class _GitCommit implements GitCommit {
-  const _GitCommit({required this.sha, required this.message});
+  const _GitCommit({required this.commitHash, required this.message});
   
 
-@override final  String sha;
+@override final  String commitHash;
 @override final  String message;
 
 /// Create a copy of GitCommit
@@ -223,16 +223,16 @@ _$GitCommitCopyWith<_GitCommit> get copyWith => __$GitCommitCopyWithImpl<_GitCom
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GitCommit&&(identical(other.sha, sha) || other.sha == sha)&&(identical(other.message, message) || other.message == message));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GitCommit&&(identical(other.commitHash, commitHash) || other.commitHash == commitHash)&&(identical(other.message, message) || other.message == message));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,sha,message);
+int get hashCode => Object.hash(runtimeType,commitHash,message);
 
 @override
 String toString() {
-  return 'GitCommit(sha: $sha, message: $message)';
+  return 'GitCommit(commitHash: $commitHash, message: $message)';
 }
 
 
@@ -243,7 +243,7 @@ abstract mixin class _$GitCommitCopyWith<$Res> implements $GitCommitCopyWith<$Re
   factory _$GitCommitCopyWith(_GitCommit value, $Res Function(_GitCommit) _then) = __$GitCommitCopyWithImpl;
 @override @useResult
 $Res call({
- String sha, String message
+ String commitHash, String message
 });
 
 
@@ -260,9 +260,9 @@ class __$GitCommitCopyWithImpl<$Res>
 
 /// Create a copy of GitCommit
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? sha = null,Object? message = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? commitHash = null,Object? message = null,}) {
   return _then(_GitCommit(
-sha: null == sha ? _self.sha : sha // ignore: cast_nullable_to_non_nullable
+commitHash: null == commitHash ? _self.commitHash : commitHash // ignore: cast_nullable_to_non_nullable
 as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,
   ));
