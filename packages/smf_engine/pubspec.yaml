@@ -13,6 +13,11 @@ topics:
 environment:
   sdk: ">=3.10.0 <4.0.0"
 
+platforms:
+  linux:
+  macos:
+  windows:
+
 resolution: workspace
 
 dependencies:
