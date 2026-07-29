@@ -1,6 +1,6 @@
 name: smf_engine
 description: Release planning and Apple and Android delivery for SMF.
-version: 0.1.0
+version: 1.0.0
 repository: https://github.com/Ventairy/smf
 issue_tracker: https://github.com/Ventairy/smf/issues
 topics:
