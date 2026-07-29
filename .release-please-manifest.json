@@ -1,5 +1,5 @@
 {
   "packages/smf_hooks": "1.0.0",
   "packages/smf_engine": "1.0.0",
-  "packages/smf_cli": "1.0.0"
+  "packages/smf_cli": "1.0.1"
 }
