@@ -25,6 +25,8 @@ dependencies:
   args: ^2.7.0
   path: ^1.9.1
   pub_semver: ^2.2.0
+  # Workspace resolution uses the local package; pub.dev consumers use this
+  # hosted constraint.
   smf_engine: ^1.0.0
 
 dev_dependencies:
