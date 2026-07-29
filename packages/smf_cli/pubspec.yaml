@@ -20,9 +20,7 @@ dependencies:
   args: ^2.7.0
   path: ^1.9.1
   pub_semver: ^2.2.0
-  # The unpublished bootstrap and first stable release must resolve together.
-  # The v1 release commit narrows this to ^1.0.0 before publication.
-  smf_engine: ">=0.1.0 <2.0.0"
+  smf_engine: ^1.0.0
 
 dev_dependencies:
   # Keep aligned with smf_engine; see its analyzer compatibility note.

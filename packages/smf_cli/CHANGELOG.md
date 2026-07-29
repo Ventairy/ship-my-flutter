@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0](https://github.com/Ventairy/smf/compare/smf_cli-v0.1.0...smf_cli-v1.0.0) (2026-07-29)
+## 1.0.0 (2026-07-29)
 
 
 ### ⚠ BREAKING CHANGES
@@ -33,7 +33,3 @@
 
 * namespace phased workflows under release ([977ff9d](https://github.com/Ventairy/smf/commit/977ff9d7ad140e3331c7af6b6efd5bf06494fcb3))
 * split SMF into modular workspace packages ([1e3d029](https://github.com/Ventairy/smf/commit/1e3d02926d4efa317744ddeb885abe68022e92f2))
-
-## 0.1.0
-
-- Initial unpublished command-line baseline.

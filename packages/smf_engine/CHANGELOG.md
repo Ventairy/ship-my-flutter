@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0](https://github.com/Ventairy/smf/compare/smf_engine-v0.1.0...smf_engine-v1.0.0) (2026-07-29)
+## 1.0.0 (2026-07-29)
 
 
 ### ⚠ BREAKING CHANGES
@@ -30,7 +30,3 @@
 ### Code Refactoring
 
 * split SMF into modular workspace packages ([1e3d029](https://github.com/Ventairy/smf/commit/1e3d02926d4efa317744ddeb885abe68022e92f2))
-
-## 0.1.0
-
-- Initial unpublished release-engine baseline.
