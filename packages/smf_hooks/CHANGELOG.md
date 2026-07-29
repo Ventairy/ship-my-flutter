@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/Ventairy/smf/compare/smf_hooks-v1.0.1...smf_hooks-v1.0.4) (2026-07-29)
+
+
+### Miscellaneous Chores
+
+* **smf_hooks:** Synchronize SMF versions
+
 ## [1.0.1](https://github.com/Ventairy/smf/compare/smf_hooks-v1.0.0...smf_hooks-v1.0.1) (2026-07-29)
 
 

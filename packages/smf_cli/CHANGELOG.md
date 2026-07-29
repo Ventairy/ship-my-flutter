@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/Ventairy/smf/compare/smf_cli-v1.0.2...smf_cli-v1.0.4) (2026-07-29)
+
+
+### Bug Fixes
+
+* **release:** coordinate SMF package versions ([0fa2f4c](https://github.com/Ventairy/smf/commit/0fa2f4c69a8ad7ddbce10bf55204e1ab7bb16535))
+
 ## [1.0.2](https://github.com/Ventairy/smf/compare/smf_cli-v1.0.1...smf_cli-v1.0.2) (2026-07-29)
 
 

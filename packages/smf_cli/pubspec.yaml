@@ -1,6 +1,6 @@
 name: smf_cli
 description: Command-line interface for SMF release automation.
-version: 1.0.2
+version: 1.0.4
 repository: https://github.com/Ventairy/smf
 issue_tracker: https://github.com/Ventairy/smf/issues
 topics:
