@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/Ventairy/smf/compare/smf_hooks-v1.0.0...smf_hooks-v1.0.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* declare supported host platforms ([728b65f](https://github.com/Ventairy/smf/commit/728b65f4f06c49eba4dfdc53b32ccdf4dbb2252a))
+
 ## 1.0.0 (2026-07-29)
 
 

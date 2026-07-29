@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/Ventairy/smf/compare/smf_engine-v1.0.2...smf_engine-v1.0.3) (2026-07-29)
+
+
+### Bug Fixes
+
+* declare supported host platforms ([728b65f](https://github.com/Ventairy/smf/commit/728b65f4f06c49eba4dfdc53b32ccdf4dbb2252a))
+
 ## [1.0.2](https://github.com/Ventairy/smf/compare/smf_engine-v1.0.1...smf_engine-v1.0.2) (2026-07-29)
 
 
