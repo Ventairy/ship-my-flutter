@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/Ventairy/smf/compare/smf_engine-v1.0.1...smf_engine-v1.0.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **engine:** read pre-v1 changelogs ([#19](https://github.com/Ventairy/smf/issues/19)) ([e294228](https://github.com/Ventairy/smf/commit/e294228e7766a01eaffb53e79a68b05b6306e32a))
+
 ## [1.0.1](https://github.com/Ventairy/smf/compare/smf_engine-v1.0.0...smf_engine-v1.0.1) (2026-07-29)
 
 
