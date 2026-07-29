@@ -5,7 +5,6 @@
 
 ### Bug Fixes
 
-* **engine:** read pre-v1 release manifests ([057dff3](https://github.com/Ventairy/smf/commit/057dff3e57afe950ef2de099b289647e5bc7a804))
 * **engine:** read pre-v1 release manifests ([64d8279](https://github.com/Ventairy/smf/commit/64d8279d0fe5649ad0497a7b5f490fcb9c834802))
 
 ## 1.0.0 (2026-07-29)
