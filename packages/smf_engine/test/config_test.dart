@@ -583,6 +583,69 @@ void main() {
       );
     });
 
+    test('accepts pre-v1 manifest field names', () {
+      final manifest = SmfState.parseManifest(<String, Object?>{
+        'schemaVersion': 1,
+        'platforms': <String, Object?>{
+          'ios': <String, Object?>{
+            'version': '1.2.0',
+            'baselineSha': repeated('a', 40),
+            'pendingRelease': true,
+          },
+          'android': <String, Object?>{
+            'version': '1.0.0',
+            'baselineSha': repeated('b', 40),
+            'pendingRelease': false,
+          },
+        },
+      });
+
+      expect(
+        (
+          iosCommit: manifest.platforms.ios.endCommitHash,
+          iosPending: manifest.platforms.ios.isReleasePending,
+          androidCommit: manifest.platforms.android.endCommitHash,
+          androidPending: manifest.platforms.android.isReleasePending,
+        ),
+        (
+          iosCommit: repeated('a', 40),
+          iosPending: true,
+          androidCommit: repeated('b', 40),
+          androidPending: false,
+        ),
+      );
+    });
+
+    test('rejects mixed current and pre-v1 manifest field names', () {
+      expect(
+        () => SmfState.parseManifest(<String, Object?>{
+          'schemaVersion': 1,
+          'platforms': <String, Object?>{
+            'ios': <String, Object?>{
+              'version': '1.2.0',
+              'endCommitHash': repeated('a', 40),
+              'pendingRelease': true,
+            },
+            'android': <String, Object?>{
+              'version': '1.0.0',
+              'endCommitHash': repeated('b', 40),
+              'isReleasePending': false,
+            },
+          },
+        }),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'platforms.ios must not mix current and pre-v1 '
+              'manifest field names',
+            ),
+          ),
+        ),
+      );
+    });
+
     test('rejects changelogs without every platform object', () {
       expect(
         () => SmfState.parseChangelog(<String, Object?>{
