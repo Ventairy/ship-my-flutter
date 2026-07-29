@@ -230,7 +230,7 @@ return $default(_that.appId,_that.ios,_that.android,_that.schemaVersion,_that.fl
 
 
 class _SmfConfig extends SmfConfig {
-  const _SmfConfig({required this.appId, this.ios = const IosConfig(enabled: false), this.android = const AndroidConfig(), this.schemaVersion = SmfConfig.currentSchemaVersion, this.flavor, this.targetBranch = 'main', final  List<String> releaseTriggerPaths = const <String>[]}): _releaseTriggerPaths = releaseTriggerPaths,super._();
+  const _SmfConfig({required this.appId, this.ios = const IosConfig(isEnabled: false), this.android = const AndroidConfig(), this.schemaVersion = SmfConfig.currentSchemaVersion, this.flavor, this.targetBranch = 'main', final  List<String> releaseTriggerPaths = const <String>[]}): _releaseTriggerPaths = releaseTriggerPaths,super._();
   
 
 @override final  String appId;

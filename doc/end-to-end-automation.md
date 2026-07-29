@@ -6,7 +6,7 @@ It does not repeat account, credential, signing, tester, or store-listing
 setup.
 
 GitHub Actions is an automation wrapper, not a runtime requirement for SMF.
-The generated jobs invoke the CLI's release planning, candidate creation, and
+The generated jobs invoke the CLI's release planning, release candidate creation, and
 ship operations with runner-specific platform selection. The equivalent manual
 flow is documented in [Run a release from the CLI](cli.md#run-a-release-from-the-cli).
 
@@ -14,8 +14,8 @@ Use it only after:
 
 - `smf validate` succeeds;
 - the generated GitHub Actions workflow is committed;
-- every enabled platform has completed one candidate-only release;
-- the exact TestFlight or Google Play candidate was installed and tested;
+- every enabled platform has completed one release-candidate-only release;
+- the exact TestFlight or Google Play release candidate was installed and tested;
 - store metadata, policy declarations, agreements, and review information are
   complete; and
 - the configured automation identities already have the required permissions.
@@ -35,7 +35,7 @@ qualifying change reaches target branch
        SMF opens/updates release PR
                  |
                  v
-        exact store candidates built
+        exact store release candidates built
                  |
                  v
        people test, approve, and merge
@@ -90,10 +90,10 @@ resulting versions remain independent. SMF calculates them automatically when
 the change reaches the target branch and records them in the release pull
 request.
 
-## 2. Configure the candidate destinations
+## 2. Configure the release candidate destinations
 
 Keep a real testing destination before production. A production ship target
-does not replace candidate testing.
+does not replace release candidate testing.
 
 For a common two-platform setup:
 
@@ -120,7 +120,7 @@ platforms:
 ```
 
 The named TestFlight groups and Google Play tracks must already exist. SMF
-assigns candidates to those destinations; it does not create audiences or add
+assigns release candidates to those destinations; it does not create audiences or add
 testers.
 
 ## 3. Enable automatic production after merge
@@ -176,7 +176,7 @@ must end in **Pending Developer Release** for a person to release manually.
 
 ## 4. Configure store release notes
 
-Create and validate localized notes before candidate approval:
+Create and validate localized notes before release candidate approval:
 
 ```text
 <flutter-app>/smf/store-release-notes.json
@@ -198,9 +198,9 @@ Create and validate localized notes before candidate approval:
 ```
 
 The version keys must equal the versions in the SMF release pull request.
-SMF applies the notes to candidates and the configured ship destinations. A
+SMF applies the notes to release candidates and the configured ship destinations. A
 `before_create_pr` hook can generate correctly keyed notes from SMF's internal
-release context before candidate creation.
+release context before release candidate creation.
 
 For manual maintenance, deterministic generation from Conventional Commits,
 localization, validation, and AI-assisted drafting, follow
@@ -211,7 +211,7 @@ localization, validation, and AI-assisted drafting, follow
 The generated workflow already runs on pushes and chooses the correct phase:
 
 - target-branch change: open or update the release PR;
-- release-branch state: create missing candidates; and
+- release-branch state: create missing release candidates; and
 - merged release PR on the target branch: ship pending platforms.
 
 Do not replace it with hand-written Action snippets. If it is missing, recreate
@@ -223,7 +223,7 @@ smf init --github-actions
 
 Check the GitHub Environment named `smf-<app-id>`. Required reviewers,
 deployment-branch restrictions, or wait timers on that environment pause both
-candidate and ship jobs. Keep those controls when they are intentional. Remove
+release candidate and ship jobs. Keep those controls when they are intentional. Remove
 only an unintended environment pause; the release PR review should remain the
 explicit production approval.
 
@@ -263,12 +263,12 @@ Merge a normal code PR into `target_branch` with an accurate Conventional
 Commit title. The SMF workflow opens or refreshes
 `smf/<app-id>/release`.
 
-### B. Wait for candidates
+### B. Wait for release candidates
 
 For every planned platform, require:
 
 - `release-candidate (<platform>)` succeeded;
-- the candidate receipt exists under `smf/candidates/`;
+- the release candidate receipt exists under `smf/release_candidates/`;
 - the receipt matches the version and artifact shown by the store;
 - the exact artifact was installed from its testing destination;
 - the release test passed; and
@@ -280,7 +280,7 @@ checks and the release-owner approval are complete.
 ### C. Merge the release PR
 
 Merge using a strategy that preserves every release-PR file, including
-candidate receipts. The push to `target_branch` starts the generated workflow
+release candidate receipts. The push to `target_branch` starts the generated workflow
 again. It recognizes the pending merged releases and runs
 `ship (<platform>)`.
 
@@ -331,14 +331,14 @@ status monitoring in the team's release checklist.
 
 The production settings remain independent:
 
-- omit one platform's `ship` section to keep that platform candidate-only;
+- omit one platform's `ship` section to keep that platform release-candidate-only;
 - use `external-testing` or `submit-for-review` on iOS for a non-production or
   manual-release path;
 - use `closed-testing` or `open-testing` on Android instead of production; or
 - turn Android Managed publishing on when a manual post-approval hold is
   required.
 
-Changing a candidate or ship target on the target branch refreshes the release
+Changing a release candidate or ship target on the target branch refreshes the release
 PR. Recheck the receipt and destination before merging.
 
 ## Recovery
@@ -348,7 +348,7 @@ edit machine-owned release state.
 
 For failures:
 
-- candidate or receipt problem: keep the release PR open;
+- release candidate or receipt problem: keep the release PR open;
 - identity or fingerprint mismatch: stop and repair the tracked source/config;
 - App Store or Play rejection: correct the named metadata, policy, permission,
   or store state;

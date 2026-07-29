@@ -6,7 +6,7 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 final class _TrackingClient extends http.BaseClient {
-  bool closed = false;
+  bool isClosed = false;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -15,7 +15,7 @@ final class _TrackingClient extends http.BaseClient {
 
   @override
   void close() {
-    closed = true;
+    isClosed = true;
     super.close();
   }
 }
@@ -28,7 +28,7 @@ void main() {
       client: transport,
     ).close();
 
-    expect(transport.closed, isTrue);
+    expect(transport.isClosed, isTrue);
   });
 
   test(
@@ -53,7 +53,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'GITHUB_API',
+            SmfErrorCode.githubApi,
           ),
         ),
       );
@@ -70,7 +70,8 @@ void main() {
         http.Response('', 204),
         http.Response('{"message":"Not Found"}', 404),
         http.Response(
-          '{"html_url":"https://github.com/o/r/releases/tag/ios-v1.0.0"}',
+          '{"html_url":"https://github.com/o/r/releases/tag/ios-v1.0.0",'
+          '"tag_name":"ios-v1.0.0","target_commitish":"commit-hash"}',
           201,
         ),
       ];
@@ -107,7 +108,7 @@ void main() {
         tag: 'ios-v1.0.0',
         name: 'iOS v1.0.0',
         body: 'notes',
-        targetCommitish: 'sha',
+        targetCommitish: 'commit-hash',
       );
       expect(release.htmlUrl, contains('ios-v1.0.0'));
 
@@ -162,7 +163,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'GITHUB_RESPONSE',
+          SmfErrorCode.githubResponse,
         ),
       ),
     );

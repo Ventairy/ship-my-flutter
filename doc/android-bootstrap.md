@@ -172,7 +172,7 @@ Google’s [internal testing guide](https://support.google.com/googleplay/androi
 explains tester lists and opt-in behavior.
 
 Use a real track, not Internal App Sharing. Internal App Sharing re-signs
-artifacts with a separate sharing key and is not the promotable candidate path
+artifacts with a separate sharing key and is not the promotable release candidate path
 used by SMF.
 
 ## 5. Create a Google Cloud service account
@@ -245,11 +245,11 @@ Use these same names whether you run SMF from the CLI or GitHub Actions:
 
 | Variable                                       | Value                             | Used by         |
 | ---------------------------------------------- | --------------------------------- | --------------- |
-| `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`         | Complete downloaded JSON document | candidate, ship |
-| `SMF_ANDROID_KEYSTORE_BASE64`                  | Base64 upload keystore            | candidate only  |
-| `SMF_ANDROID_KEY_ALIAS`                        | Upload-key alias                  | candidate only  |
-| `SMF_ANDROID_KEYSTORE_PASSWORD`                | Keystore password                 | candidate only  |
-| `SMF_ANDROID_KEY_PASSWORD`                     | Key password                      | candidate only  |
+| `SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`         | Complete downloaded JSON document | release candidate, ship |
+| `SMF_ANDROID_KEYSTORE_BASE64`                  | Base64 upload keystore            | release candidate only  |
+| `SMF_ANDROID_KEY_ALIAS`                        | Upload-key alias                  | release candidate only  |
+| `SMF_ANDROID_KEYSTORE_PASSWORD`                | Keystore password                 | release candidate only  |
+| `SMF_ANDROID_KEY_PASSWORD`                     | Key password                      | release candidate only  |
 
 ### CLI environment variables
 
@@ -274,7 +274,7 @@ $env:SMF_ANDROID_KEY_PASSWORD = "<key-password>"
 ```
 
 PowerShell can supply credentials to the pull-request and ship phases.
-Android candidate builds currently require macOS or Linux because project
+Android release candidate builds currently require macOS or Linux because project
 build commands run in a POSIX shell.
 
 These variables exist only in that shell session and are inherited by the SMF
@@ -293,7 +293,7 @@ configured value.
 
 Add each variable from the table above as an Environment secret.
 
-The generated candidate and ship jobs use that environment. Do not place one
+The generated release candidate and ship jobs use that environment. Do not place one
 app's Play or upload-key credentials in a sibling app's environment.
 
 ## 9. Configure Android in SMF
@@ -324,7 +324,7 @@ smf validate
 
 ## 10. Decide how production will work later
 
-After the internal-testing candidate is installed and approved, choose the
+After the internal-testing release candidate is installed and approved, choose the
 ship destination using
 [Google Play targets](configuration.md#google-play-targets). If production
 must wait after Google approves it, enable and verify **Managed publishing** in
@@ -360,10 +360,10 @@ For manual operation, continue at
 
 `smf validate` checks the local repository and configuration only. It cannot
 read the GitHub Environment secrets, authenticate to Play, or verify the upload
-key. The first candidate job performs those credential, permission, package,
+key. The first release candidate job performs those credential, permission, package,
 and signing checks.
 
-Never test a credential by printing it. Trigger the candidate-only workflow. On
+Never test a credential by printing it. Trigger the release-candidate-only workflow. On
 a new app, its first accepted AAB registers the upload certificate; confirm it
 under **App integrity** / **Play App Signing** before the next release. Use the
 [recovery guide](operations.md#retry-and-recovery) if Google rejects

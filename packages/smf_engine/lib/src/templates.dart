@@ -7,9 +7,11 @@ final class SmfTemplates {
   const SmfTemplates._();
 
   /// Schema URL embedded in generated configuration files.
+  // x-release-please-start-version
   static const String configSchemaUrl =
-      'https://raw.githubusercontent.com/Ventairy/smf/main/'
+      'https://raw.githubusercontent.com/Ventairy/smf/smf_engine-v0.1.0/'
       'packages/smf_engine/schemas/config.schema.json';
+  // x-release-please-end
 
   static String _yamlBlock(List<String> lines) => '${lines.join('\n')}\n';
 
@@ -96,9 +98,9 @@ jobs:
       pull-requests: write
       issues: write
     outputs:
-      phase: ${{ steps.smf.outputs.phase }}
-      branch: ${{ steps.smf.outputs.branch }}
-      releases: ${{ steps.smf.outputs.releases }}
+      next-phase: ${{ steps.smf.outputs.next-phase }}
+      release-branch: ${{ steps.smf.outputs.release-branch }}
+      targets: ${{ steps.smf.outputs.targets }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -123,20 +125,20 @@ jobs:
   release_candidate:
     name: release-candidate (${{ matrix.platform }})
     needs: pull_request
-    if: needs.pull_request.outputs.phase == 'release-candidate'
+    if: needs.pull_request.outputs.next-phase == 'release-candidate'
     environment: smf-__APP_ID__
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
-        include: ${{ fromJSON(needs.pull_request.outputs.releases) }}
+        include: ${{ fromJSON(needs.pull_request.outputs.targets) }}
     runs-on: ${{ matrix.platform == 'ios' && 'macos-26' || 'ubuntu-latest' }}
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ needs.pull_request.outputs.branch }}
+          ref: ${{ needs.pull_request.outputs.release-branch }}
           fetch-depth: 0
           persist-credentials: false
       - id: project
@@ -167,12 +169,12 @@ jobs:
   ship:
     name: ship (${{ matrix.platform }})
     needs: pull_request
-    if: needs.pull_request.outputs.phase == 'ship'
+    if: needs.pull_request.outputs.next-phase == 'ship'
     environment: smf-__APP_ID__
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.pull_request.outputs.releases) }}
+        include: ${{ fromJSON(needs.pull_request.outputs.targets) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

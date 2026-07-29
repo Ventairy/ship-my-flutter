@@ -13,7 +13,7 @@ unrelated existing files solely to make them conform.
 - Treat `pubspec.yaml`, package manifests, and workflow files as authoritative
   for toolchain versions, dependencies, workspace membership, and CI setup.
 - Read `ARCHITECTURE.md` before changing package boundaries, release state,
-  candidate identity, or delivery behavior.
+  release candidate identity, or delivery behavior.
 - Use `CONTRIBUTING.md` for contributor setup and `RELEASING.md` for the
   maintainer release procedure.
 - Keep changes focused. Do not modify, rename, delete, or create unrelated
@@ -45,16 +45,18 @@ unrelated existing files solely to make them conform.
 ## Package ownership
 
 - `smf_hooks` owns the lightweight typed hook SDK.
-- `smf_engine` owns platform-neutral planning, persisted state, fingerprints,
-  Git/GitHub orchestration, and shared release behavior.
-- `smf_apple` owns Apple signing and App Store Connect delivery.
-- `smf_android` owns Android signing and Google Play delivery.
+- `smf_engine` owns the complete release implementation. Shared planning,
+  persisted state, fingerprints, Git/GitHub orchestration, and workflow
+  behavior live in its core source. Apple implementation belongs under
+  `lib/src/ios` and is exposed through `package:smf_engine/apple.dart`.
+  Android implementation belongs under `lib/src/android` and is exposed
+  through `package:smf_engine/android.dart`.
 - `smf_cli` owns argument parsing, terminal behavior, and composition of the
-  engine and adapters. It is the only public executable.
+  engine libraries. It is the only public executable.
 
-Dependencies flow from the CLI to the engine and adapters, from adapters to the
-engine, and from the engine to hooks. The engine must not import a platform
-adapter, and adapters must not import one another.
+Dependencies flow from the CLI to the engine and from the engine to hooks.
+Apple and Android code must remain inside their corresponding engine folders;
+shared code must not depend on one platform implementation to run another.
 
 The adjacent `smf-action` repository is a thin GitHub Actions adapter over the
 CLI. Keep release decisions and store behavior in this Dart workspace.
@@ -68,6 +70,20 @@ commands from the owning package directory.
 
 - Names must describe actual behavior and returned values. Avoid abbreviated
   names when a domain name is clearer.
+- Prefer highly explicit domain names over shorthand. Include the complete
+  concept in identifiers and prose; for example, use `ReleaseCandidate`
+  instead of `Candidate`.
+- Name every boolean field, parameter, local variable, and getter as a
+  predicate. Start it with an auxiliary verb such as `is`, `are`, `has`,
+  `can`, `should`, or `must`; for example, use `isBreaking` instead of
+  `breaking`. Boolean-returning action methods may keep a verb phrase that
+  describes the operation they perform.
+- Use the same predicate name for boolean fields in SMF-owned serialized data,
+  including manifests, changelogs, hook payloads, and CLI JSON output; do not
+  map `isReleasePending` back to `pendingRelease`. User-authored configuration
+  files such as `config.yaml` and their schemas may use configuration-style
+  keys such as `enabled`, which must map to predicate names at the parsing
+  boundary. Third-party wire fields must continue to match their upstream API.
 - A `verify...` method only verifies: it returns `void` or `Future<void>` and
   throws on failure. It must not also retrieve or return data.
 - Name value-producing operations for what they produce, using verbs such as
@@ -81,6 +97,14 @@ commands from the owning package directory.
   at JSON, YAML, HTTP, process, environment, and filesystem boundaries.
 - Prefer DTOs, immutable value objects, sealed types, and exhaustive enums over
   loosely typed maps or magic strings.
+- Every DTO class name must end in `Dto`, and its source filename must end in
+  `_dto.dart` (or `_dtos.dart` when one file intentionally owns several
+  closely related DTOs). Supporting enums and converters are not DTOs and keep
+  their domain names.
+- DTO fields must mirror the real JSON object they encode. Represent every
+  nested JSON object with its own DTO, including objects stored behind dynamic
+  `Map<String, NestedDto>` keys; do not flatten nested fields or hand-build a
+  different wire shape in `toJson`.
 - Use named parameters when a function or constructor takes more than one
   primitive value. Positional parameters are acceptable when their order is an
   established, unmistakable API convention.
@@ -96,15 +120,25 @@ commands from the owning package directory.
   call sites.
 - Put behavior determined solely by an enum value on the enum as a getter or
   method instead of duplicating switch helpers across consumers.
-- When an owner has several enums, place them in an owner-named
-  `*_enums.dart` companion file. Use the existing `part`/`part of` pattern when
-  the enum is intentionally part of the owner's library.
+- Represent every `SmfError` category with `SmfErrorCode`; never pass or
+  compare an arbitrary string error code. Preserve the enum value as the
+  stable uppercase machine-readable code printed by the CLI.
+- Keep exactly one enum per file. Name the file after the enum using Dart's
+  `snake_case` convention; for example, `ReleasePlatform` belongs in
+  `release_platform.dart`. Store enum files in a dedicated `enums/` directory
+  within their owning package or feature; never place enums in `models/`,
+  `dtos/`, or general implementation directories. Do not group enums in
+  `*_enums.dart` files or colocate an enum with another declaration.
 
 ### Files and declarations
 
-- Keep at most one concrete implementation class per hand-authored source
-  file. A closely related interface or logic-free value type may coexist with
-  its primary implementation when splitting it would reduce clarity.
+- Give every hand-authored Dart class, enum, mixin, and extension its own file
+  named after that declaration using `snake_case`; for example,
+  `ReleaseChangelog` belongs in `release_changelog.dart`. Keep the declaration
+  and filename aligned when either is renamed.
+- Keep exactly one class, enum, mixin, or extension per hand-authored source
+  file. Split related interfaces, implementations, and value types into their
+  own matching files instead of colocating them.
 - Keep required Dart entrypoints such as `main` at top level. Existing
   deliberate public functional APIs may remain top level; new domain logic
   should normally be owned by a class, enum, or extension.
@@ -170,7 +204,7 @@ method when it belongs to that instance's workflow.
 - Keep network transport separate from planning and validation.
 - Reject unknown configuration fields, invalid combinations, secrets in
   persisted state, and path or symlink escapes.
-- Candidate promotion must validate and reuse the recorded artifact. Never
+- Release candidate promotion must validate and reuse the recorded artifact. Never
   rebuild during promotion.
 - Release mutations must require the expected clean repository state and must
   restore the caller's branch after temporary branch work.

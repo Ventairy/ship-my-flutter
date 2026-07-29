@@ -3,10 +3,11 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/git.dart';
+import 'package:smf_engine/src/json_file.dart';
 import 'package:smf_engine/src/model.dart';
 import 'package:smf_engine/src/paths.dart';
 import 'package:smf_engine/src/process_runner.dart';
-import 'package:smf_engine/src/serialization.dart';
+import 'package:smf_engine/src/system_process_runner.dart';
 import 'package:smf_hooks/smf_hooks_protocol.dart';
 
 /// Executes trusted repository-owned release preparation.
@@ -16,13 +17,13 @@ final class RepositoryHooks {
   /// Runs preparation before SMF creates or updates a release pull request.
   static Future<bool> beforeCreatePullRequest({
     required String workingDirectory,
-    required List<ReleasePlan> plans,
+    required List<ReleasePlanDto> plans,
     ProcessRunner processRunner = const SystemProcessRunner(),
   }) async {
     SmfError.check(
       plans.isNotEmpty,
       'The before_create_pr hook requires at least one release plan.',
-      'CREATE_PR_HOOK_PLANS_EMPTY',
+      SmfErrorCode.createPrHookPlansEmpty,
     );
     final paths = SmfPaths.resolve(workingDirectory);
     return _runHook(
@@ -33,18 +34,18 @@ final class RepositoryHooks {
         SmfHookProtocol.storeReleaseNotesFileField: paths.storeReleaseNotes,
         SmfHookProtocol.iosReleaseField: _platformRelease(
           plans,
-          Platform.ios,
+          ReleasePlatform.ios,
         ),
         SmfHookProtocol.androidReleaseField: _platformRelease(
           plans,
-          Platform.android,
+          ReleasePlatform.android,
         ),
       },
       processRunner: processRunner,
     );
   }
 
-  /// Runs preparation before SMF fingerprints and builds a candidate.
+  /// Runs preparation before SMF fingerprints and builds a release candidate.
   static Future<bool> beforeBuild({
     required String workingDirectory,
     ProcessRunner processRunner = const SystemProcessRunner(),
@@ -62,17 +63,17 @@ final class RepositoryHooks {
   }
 
   static Map<String, Object?>? _platformRelease(
-    List<ReleasePlan> plans,
-    Platform platform,
+    List<ReleasePlanDto> plans,
+    ReleasePlatform platform,
   ) {
-    ReleasePlan? release;
+    ReleasePlanDto? release;
     for (final plan in plans) {
       if (plan.platform != platform) continue;
       SmfError.check(
         release == null,
         'The before_create_pr hook received duplicate ${platform.displayName} '
-            'release plans.',
-        'CREATE_PR_HOOK_PLATFORM_PLAN_DUPLICATE',
+        'release plans.',
+        SmfErrorCode.createPrHookPlatformPlanDuplicate,
       );
       release = plan;
     }
@@ -104,8 +105,8 @@ final class RepositoryHooks {
     SmfError.check(
       type == FileSystemEntityType.file,
       '${p.relative(hookPath, from: paths.repositoryRoot)} must be a regular '
-          'Dart file and must not be a symbolic link.',
-      'INVALID_HOOK_FILE',
+      'Dart file and must not be a symbolic link.',
+      SmfErrorCode.invalidHookFile,
     );
     final relativeHook = p.relative(hookPath, from: paths.repositoryRoot);
     SmfError.check(
@@ -113,16 +114,16 @@ final class RepositoryHooks {
         'ls-files',
         '--error-unmatch',
         relativeHook,
-      ], allowFailure: true)).isNotEmpty,
+      ], isFailureAllowed: true)).isNotEmpty,
       '$relativeHook must be committed before SMF can execute it.',
-      'UNTRACKED_HOOK',
+      SmfErrorCode.untrackedHook,
     );
 
     final temporaryDirectory = await Directory.systemTemp.createTemp('smf-hook-');
     final contextPath = p.join(temporaryDirectory.path, 'context.json');
     final resultPath = p.join(temporaryDirectory.path, 'result.json');
     try {
-      await SmfFileSystem.writeJson(contextPath, <String, Object?>{
+      await JsonFile(contextPath).write(<String, Object?>{
         SmfHookProtocol.schemaVersionField: SmfHookProtocol.schemaVersion,
         SmfHookProtocol.phaseField: phase.value,
         ...payload,
@@ -148,9 +149,9 @@ final class RepositoryHooks {
       SmfError.check(
         await File(resultPath).exists(),
         '$relativeHook must call runSmfHook(...) from main().',
-        'HOOK_RESULT_MISSING',
+        SmfErrorCode.hookResultMissing,
       );
-      _validateHookResult(await SmfFileSystem.readJson(resultPath));
+      _validateHookResult(await JsonFile(resultPath).read());
       return true;
     } finally {
       await temporaryDirectory.delete(recursive: true);
@@ -163,7 +164,7 @@ final class RepositoryHooks {
         value[SmfHookProtocol.schemaVersionField] != SmfHookProtocol.schemaVersion) {
       throw const SmfError(
         'The SMF hook completion marker is invalid.',
-        'INVALID_HOOK_RESULT',
+        SmfErrorCode.invalidHookResult,
       );
     }
   }

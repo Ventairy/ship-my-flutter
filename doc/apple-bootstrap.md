@@ -6,7 +6,7 @@ Actions or through the CLI. It assumes no previous App Store experience.
 
 Keep the generated `release_candidate` configuration and leave
 `app_store.ship` omitted for the first live run. Do not add `ship` until the
-candidate-only flow works, the exact build has been tested, and the app's store
+release-candidate-only flow works, the exact build has been tested, and the app's store
 and compliance information is complete. Read
 [Apple targets](configuration.md#apple-targets) before choosing what happens
 after merge.
@@ -188,14 +188,14 @@ Apple's current procedure is documented in
 Some capabilities require supporting resources or additional configuration,
 such as App Groups, iCloud containers, merchant IDs, or Sign in with Apple
 grouping. Complete the Apple setup for every enabled capability before
-running the first candidate. Use Apple's
+running the first release candidate. Use Apple's
 [supported iOS capabilities](https://developer.apple.com/help/account/reference/supported-capabilities-ios)
 as the starting index; if a capability has a **Configure** button, do not
 continue until its referenced resources match the Xcode target.
 
 Success means every Xcode target has one matching identifier on the same team.
 If you later add a capability, update the App ID before running another
-candidate.
+release candidate.
 
 If an identifier exists under a different Apple team, stop. An identifier from
 another team cannot sign this team's app.
@@ -229,7 +229,7 @@ for Submission**, and shows the same main bundle ID as Xcode.
 
 ### Product metadata and compliance
 
-The candidate-only first run does not require a finished store listing, but Apple
+The release-candidate-only first run does not require a finished store listing, but Apple
 may require enough app and compliance information to process the build.
 Before adding a [ship target](configuration.md#apple-targets) that submits the
 app to App Review, the product owners must complete all current submission
@@ -287,7 +287,7 @@ it to be downloaded only once.
 6. Enter a descriptive name such as `SMF GitHub Actions`.
 7. Choose **App Manager** and ensure the key can access Certificates,
    Identifiers & Profiles. SMF uses the same key to inspect certificates,
-   bundle IDs, and provisioning profiles, prepare and upload candidates,
+   bundle IDs, and provisioning profiles, prepare and upload release candidates,
    manage configured TestFlight groups, and perform an Apple
    [ship action](configuration.md#apple-targets). If your organization's
    access model cannot grant those provisioning operations to this key, ask
@@ -308,7 +308,7 @@ openssl pkey -in "/absolute/path/AuthKey_ABC123.p8" -check -noout
 ```
 
 Success reports that the key is valid and exits with status 0. This local check
-does not authenticate to Apple; the first candidate verifies the Key ID,
+does not authenticate to Apple; the first release candidate verifies the Key ID,
 Issuer ID, private key, role, and app access together.
 
 Apple documents these controls in
@@ -503,7 +503,7 @@ explains the role and lifecycle restrictions.
 
 An internal group is the simplest and safest way to prove tester assignment.
 Its testers must already be App Store Connect users with access to the app.
-Create one when the release owner must install and test the candidate before
+Create one when the release owner must install and test the release candidate before
 merging, as required by SMF's documented acceptance path.
 
 1. In App Store Connect, open **Apps** and select the app.
@@ -549,11 +549,11 @@ Use these same names whether you run SMF from the CLI or GitHub Actions:
 
 | Variable                                    | Value                                     | Used by        |
 | ------------------------------------------- | ----------------------------------------- | -------------- |
-| `SMF_APP_STORE_CONNECT_KEY_ID`              | Key ID recorded in step 5                 | candidate, ship |
-| `SMF_APP_STORE_CONNECT_ISSUER_ID`           | Issuer ID recorded in step 5              | candidate, ship |
-| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64`     | Base64 of the `AuthKey_*.p8`              | candidate, ship |
-| `SMF_IOS_CERTIFICATE_BASE64`                | Base64 of the `.p12`                      | candidate only |
-| `SMF_IOS_CERTIFICATE_PASSWORD`              | Password chosen when exporting the `.p12` | candidate only |
+| `SMF_APP_STORE_CONNECT_KEY_ID`              | Key ID recorded in step 5                 | release candidate, ship |
+| `SMF_APP_STORE_CONNECT_ISSUER_ID`           | Issuer ID recorded in step 5              | release candidate, ship |
+| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64`     | Base64 of the `AuthKey_*.p8`              | release candidate, ship |
+| `SMF_IOS_CERTIFICATE_BASE64`                | Base64 of the `.p12`                      | release candidate only |
+| `SMF_IOS_CERTIFICATE_PASSWORD`              | Password chosen when exporting the `.p12` | release candidate only |
 
 ### CLI environment variables
 
@@ -578,7 +578,7 @@ $env:SMF_IOS_CERTIFICATE_PASSWORD = "<p12-password>"
 ```
 
 PowerShell can supply the App Store Connect variables to the pull-request and
-ship phases. iOS candidate builds require macOS; the certificate variables are
+ship phases. iOS release candidate builds require macOS; the certificate variables are
 used there.
 
 These variables exist only in that shell session and are inherited by the SMF
@@ -597,7 +597,7 @@ repository:
 4. Under **Environment secrets**, click **Add environment secret** for each
    variable in the table above.
 
-The generated workflow declares this environment for candidate and ship jobs.
+The generated workflow declares this environment for release candidate and ship jobs.
 Do not place one app's signing credentials in a sibling app's environment.
 
 On a trusted Mac, each command copies one encoded file to the clipboard:
@@ -655,7 +655,7 @@ Do not trigger or merge a release from this Apple setup page.
   or create an authorized replacement identity. A `.cer` download alone cannot
   restore the key.
 - **Certificate expired or was revoked:** create an authorized replacement,
-  replace the certificate secrets, and run a new candidate.
+  replace the certificate secrets, and run a new release candidate.
 - **Apple signing access is forbidden:** confirm the team API key has App
   Manager access and belongs to the same team as the `.p12` and App IDs.
 - **TestFlight group is not found:** copy the existing group name exactly and
@@ -663,7 +663,7 @@ Do not trigger or merge a release from this Apple setup page.
 - **Build uploaded but receipt was not committed:** do not merge. Rerun the
   release-candidate job; SMF reuses a matching valid build.
 - **Fingerprint or Apple identity mismatch:** do not edit the receipt or
-  bypass the check. Produce and test a new candidate from the corrected source.
+  bypass the check. Produce and test a new release candidate from the corrected source.
 - **Credential reached Git or logs:** revoke and rotate it. Removing one line
   does not remove copies from history or external systems.
 

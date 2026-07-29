@@ -30,7 +30,7 @@ ${shipTarget == null ? '' : '      ship:\n        target: $shipTarget\n'}
 ''';
 
 void main() {
-  group('candidate source fingerprint', () {
+  group('release candidate source fingerprint', () {
     test('requires an initialized SMF app', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
@@ -45,13 +45,13 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'SMF_NOT_FOUND',
+            SmfErrorCode.smfNotFound,
           ),
         ),
       );
     });
 
-    test('ignores human-editable notes and candidate receipts', () async {
+    test('ignores human-editable notes and release candidate receipts', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
       await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
@@ -59,17 +59,17 @@ void main() {
       await smf.create();
       await File(p.join(smf.path, 'config.yaml')).writeAsString(configYaml());
       final paths = SmfPaths.resolve(root.path);
-      await Directory(paths.candidates).create();
+      await Directory(paths.releaseCandidates).create();
       await File(
         p.join(root.path, 'lib.dart'),
       ).writeAsString('void main() {}\n');
       await File(paths.storeReleaseNotes).writeAsString('{}\n');
       final receipt = File(
-        paths.candidatePath(platform: Platform.ios, version: '1.0.0'),
+        paths.releaseCandidateReceiptPath(platform: ReleasePlatform.ios, version: '1.0.0'),
       );
       final intent = File(
-        paths.candidateIntentPath(
-          platform: Platform.ios,
+        paths.releaseCandidateIntentPath(
+          platform: ReleasePlatform.ios,
           version: '1.0.0',
         ),
       );
@@ -172,7 +172,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'SOURCE_SYMLINK_ESCAPE',
+            SmfErrorCode.sourceSymlinkEscape,
           ),
         ),
       );
@@ -196,7 +196,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'SOURCE_SYMLINK_UNTRACKED',
+            SmfErrorCode.sourceSymlinkUntracked,
           ),
         ),
       );

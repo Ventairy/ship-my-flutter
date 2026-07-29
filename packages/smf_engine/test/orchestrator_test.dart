@@ -8,6 +8,13 @@ import 'package:test/test.dart';
 Future<Directory> repository() async {
   final root = await Directory.systemTemp.createTemp('smf-orchestrator-');
   addTearDown(() => root.delete(recursive: true));
+  final origin = await Directory.systemTemp.createTemp(
+    'smf-orchestrator-origin-',
+  );
+  addTearDown(() => origin.delete(recursive: true));
+  await GitClient(root: origin.path).run(
+    const <String>['init', '--bare', '-b', 'main'],
+  );
   await Directory(p.join(root.path, 'ios')).create();
   await File(
     p.join(root.path, 'pubspec.yaml'),
@@ -33,6 +40,15 @@ Future<Directory> repository() async {
     '-m',
     'chore: configure releases',
   ]);
+  await GitClient(root: root.path).run(<String>[
+    'remote',
+    'add',
+    'origin',
+    origin.path,
+  ]);
+  await GitClient(root: root.path).run(
+    const <String>['push', '-u', 'origin', 'main'],
+  );
   return root;
 }
 
@@ -49,38 +65,50 @@ void main() {
         );
         final paths = SmfPaths.resolve(root.path);
         final initial = await SmfState.manifest(root.path);
-        final manifest = SmfManifest(
-          ios: PlatformManifest(
-            version: '1.1.0',
-            baselineSha: initial.ios.baselineSha,
-            pendingRelease: true,
+        final manifest = ManifestDto(
+          schemaVersion: 1,
+          platforms: ManifestPlatformsDto(
+            ios: PlatformManifestDto(
+              version: '1.1.0',
+              endCommitHash: initial.platforms.ios.endCommitHash,
+              isReleasePending: true,
+            ),
+            android: initial.platforms.android,
           ),
         );
         const encoder = JsonEncoder.withIndent('  ');
         await File(
           paths.manifest,
         ).writeAsString('${encoder.convert(manifest.toJson())}\n');
-        final changelog = ChangelogManifest(
-          iosReleases: <String, ChangelogRelease>{
-            '1.1.0': ChangelogRelease(
-              version: '1.1.0',
-              preparedAt: DateTime.utc(2026, 7, 26),
-              baseSha: initial.ios.baselineSha,
-              headSha: initial.ios.baselineSha,
-              changes: <ConventionalChange>[
-                ConventionalChange(
-                  sha: initial.ios.baselineSha,
-                  type: 'feat',
-                  scope: 'ios',
-                  description: 'Fixture release',
-                  body: null,
-                  breaking: false,
-                  versionBump: VersionBump.minor,
-                  platforms: const <Platform>[Platform.ios],
+        final changelog = ChangelogDto(
+          schemaVersion: 1,
+          platforms: ChangelogPlatformsDto(
+            ios: ChangelogPlatformDto(
+              releases: <ChangelogPlatformReleaseVersionDto>[
+                ChangelogPlatformReleaseVersionDto(
+                  version: '1.1.0',
+                  preparedAt: DateTime.utc(2026, 7, 26),
+                  baseCommitHash: initial.platforms.ios.endCommitHash,
+                  endCommitHash: initial.platforms.ios.endCommitHash,
+                  changes: <ConventionalChangeDto>[
+                    ConventionalChangeDto(
+                      commitHash: initial.platforms.ios.endCommitHash,
+                      type: 'feat',
+                      scope: 'ios',
+                      description: 'Fixture release',
+                      body: null,
+                      isBreaking: false,
+                      versionBumpType: VersionBumpType.minor,
+                      platforms: const <ReleasePlatform>[ReleasePlatform.ios],
+                    ),
+                  ],
                 ),
               ],
             ),
-          },
+            android: const ChangelogPlatformDto(
+              releases: <ChangelogPlatformReleaseVersionDto>[],
+            ),
+          ),
         );
         await File(
           paths.changelog,
@@ -97,30 +125,33 @@ void main() {
           github: context,
         );
         expect(result.toJson(), <String, Object?>{
-          'phase': 'release-candidate',
-          'releases': <Object?>[
+          'nextPhase': 'release-candidate',
+          'targets': <Object?>[
             <String, Object?>{'platform': 'ios', 'version': '1.1.0'},
           ],
-          'branch': 'smf/example/release',
+          'releaseBranch': 'smf/example/release',
         });
         expect(
           (await const ReleaseOrchestrator().plan(
             workingDirectory: root.path,
             github: context,
-            selectedPlatform: Platform.android,
+            selectedPlatform: ReleasePlatform.android,
           )).toJson(),
-          <String, Object?>{'phase': 'noop'},
+          <String, Object?>{'nextPhase': 'noop'},
         );
 
         await GitClient(root: root.path).run(
           const <String>['tag', 'example/ios-v1.1.0'],
+        );
+        await GitClient(root: root.path).run(
+          const <String>['push', 'origin', 'example/ios-v1.1.0'],
         );
         expect(
           (await const ReleaseOrchestrator().plan(
             workingDirectory: root.path,
             github: context,
           )).toJson(),
-          <String, Object?>{'phase': 'noop'},
+          <String, Object?>{'nextPhase': 'noop'},
         );
       },
     );
@@ -133,7 +164,7 @@ void main() {
           workingDirectory: root.path,
           github: context,
         )).toJson(),
-        <String, Object?>{'phase': 'noop'},
+        <String, Object?>{'nextPhase': 'noop'},
       );
     });
 
@@ -155,7 +186,7 @@ platforms:
           workingDirectory: root.path,
           github: context,
         )).toJson(),
-        <String, Object?>{'phase': 'noop'},
+        <String, Object?>{'nextPhase': 'noop'},
       );
     });
   });

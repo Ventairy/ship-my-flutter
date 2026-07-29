@@ -12,7 +12,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'COMMAND_FAILED',
+          SmfErrorCode.commandFailed,
         ),
       ),
     );

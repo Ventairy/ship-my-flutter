@@ -47,7 +47,7 @@ void main() {
             .having(
               (error) => error.code,
               'code',
-              'MULTIPLE_SMF_DIRECTORIES',
+              SmfErrorCode.multipleSmfDirectories,
             )
             .having(
               (error) => error.message,
@@ -105,7 +105,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'INVALID_SMF_PATH',
+          SmfErrorCode.invalidSmfPath,
         ),
       ),
     );

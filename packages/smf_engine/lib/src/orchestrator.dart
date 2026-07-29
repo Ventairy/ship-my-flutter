@@ -17,11 +17,11 @@ final class ReleaseOrchestrator {
   final GitHubApi? githubApi;
 
   /// Plans the next workflow operation for the selected app and platform.
-  Future<CommandResult> plan({
+  Future<PullRequestPhaseResultDto> plan({
     required String workingDirectory,
     required GitHubContext github,
     String? smfPath,
-    Platform? selectedPlatform,
+    ReleasePlatform? selectedPlatform,
   }) async {
     final paths = SmfPaths.resolve(workingDirectory, smfPath: smfPath);
     final repositoryRoot = paths.repositoryRoot;
@@ -30,12 +30,12 @@ final class ReleaseOrchestrator {
       SmfState.config(paths.directory),
       SmfState.manifest(paths.directory),
     ).wait;
-    final platforms = <Platform>[
+    final platforms = <ReleasePlatform>[
       for (final platform in config.enabledPlatforms)
         if (selectedPlatform == null || platform == selectedPlatform) platform,
     ];
     if (platforms.isEmpty) {
-      return const CommandResult(phase: 'noop');
+      return const PullRequestPhaseResultDto.noop();
     }
     final branch = await gitClient.currentBranch();
     final releaseBranch = ReleaseReference.branch(config.appId);
@@ -47,43 +47,48 @@ final class ReleaseOrchestrator {
       ),
     );
     if (branch != releaseBranch && branch != config.targetBranch) {
-      return const CommandResult(phase: 'noop');
+      return const PullRequestPhaseResultDto.noop();
     }
     await RepositoryValidator.validate(paths.directory);
-    final pending = <ReleaseTarget>[];
+    final pending = <ReleaseTargetDto>[];
     for (final platform in platforms) {
       final state = manifest.forPlatform(platform);
-      if (state.pendingRelease &&
-          await releasePlanner.needsPromotion(
+      if (state.isReleasePending &&
+          await releasePlanner.isPromotionNeeded(
             manifest: manifest,
             platform: platform,
+            gitHubToken: github.token,
           )) {
         pending.add(
-          ReleaseTarget(platform: platform, version: state.version),
+          ReleaseTargetDto(platform: platform, version: state.version),
         );
       }
     }
     if (branch == releaseBranch) {
       return pending.isNotEmpty
-          ? CommandResult(
-              phase: 'release-candidate',
-              releases: pending,
-              branch: releaseBranch,
+          ? PullRequestPhaseResultDto.releaseCandidate(
+              targets: pending,
+              releaseBranch: releaseBranch,
             )
-          : const CommandResult(phase: 'noop');
+          : const PullRequestPhaseResultDto.noop();
     }
     if (pending.isNotEmpty) {
-      return CommandResult(phase: 'ship', releases: pending);
+      return PullRequestPhaseResultDto.ship(
+        targets: pending,
+      );
     }
-    final plans = <ReleasePlan>[];
+    final plans = <ReleasePlanDto>[];
     for (final platform in platforms) {
       final plan = await releasePlanner.create(
         manifest: manifest,
         platform: platform,
+        gitHubToken: github.token,
       );
       if (plan != null) plans.add(plan);
     }
-    if (plans.isEmpty) return const CommandResult(phase: 'noop');
+    if (plans.isEmpty) {
+      return const PullRequestPhaseResultDto.noop();
+    }
     final pull = await ReleasePullRequest.createOrUpdate(
       workingDirectory: paths.directory,
       config: config,
@@ -91,16 +96,15 @@ final class ReleaseOrchestrator {
       context: github,
       githubApi: githubApi,
     );
-    return CommandResult(
-      phase: 'release-candidate',
-      releases: <ReleaseTarget>[
+    return PullRequestPhaseResultDto.releaseCandidate(
+      targets: <ReleaseTargetDto>[
         for (final plan in plans)
-          ReleaseTarget(
+          ReleaseTargetDto(
             platform: plan.platform,
             version: plan.nextVersion,
           ),
       ],
-      branch: pull.branch,
+      releaseBranch: pull.branch,
       pullRequestNumber: pull.pullRequestNumber,
     );
   }

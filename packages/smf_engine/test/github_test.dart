@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 import 'support/recording_process.dart';
 
 final class FakeGitHubApi implements GitHubApi {
-  final List<GitHubPullRequest> pulls = <GitHubPullRequest>[];
+  final List<GitHubPullRequestDto> pulls = <GitHubPullRequestDto>[];
   final List<({int number, String title})> updates = <({int number, String title})>[];
   final List<({String head, String base, String title})> creates = <({String head, String base, String title})>[];
   bool hasPendingLabel = false;
@@ -27,20 +27,20 @@ final class FakeGitHubApi implements GitHubApi {
   }
 
   @override
-  Future<GitHubPullRequest> createPullRequest({
+  Future<GitHubPullRequestDto> createPullRequest({
     required String head,
     required String base,
     required String title,
     required String body,
   }) async {
     creates.add((head: head, base: base, title: title));
-    const pull = GitHubPullRequest(number: 42);
+    const pull = GitHubPullRequestDto(number: 42);
     pulls.add(pull);
     return pull;
   }
 
   @override
-  Future<GitHubRelease> createRelease({
+  Future<GitHubReleaseDto> createRelease({
     required String tag,
     required String name,
     required String body,
@@ -53,15 +53,15 @@ final class FakeGitHubApi implements GitHubApi {
   Future<bool> labelExists(String name) async => hasPendingLabel;
 
   @override
-  Future<List<GitHubPullRequest>> listPullRequests({
+  Future<List<GitHubPullRequestDto>> listPullRequests({
     required String state,
     required String head,
     required String base,
     required int perPage,
-  }) async => List<GitHubPullRequest>.of(pulls);
+  }) async => List<GitHubPullRequestDto>.of(pulls);
 
   @override
-  Future<GitHubRelease?> releaseByTag(String tag) {
+  Future<GitHubReleaseDto?> releaseByTag(String tag) {
     throw UnimplementedError();
   }
 
@@ -128,7 +128,8 @@ void main() {
     );
     final plan = await releasePlanner.create(
       manifest: await SmfState.manifest(root.path),
-      platform: Platform.ios,
+      platform: ReleasePlatform.ios,
+      gitHubToken: 'unused',
     );
     expect(plan, isNotNull);
     final api = FakeGitHubApi();
@@ -141,7 +142,10 @@ void main() {
     final hookRunner = RecordingProcessRunner(
       handler: (invocation) async {
         await File(
-          p.join(root.path, 'generated-release-notes.txt'),
+          p.join(
+            invocation.options.workingDirectory!,
+            'generated-release-notes.txt',
+          ),
         ).writeAsString('generated');
         await File(
           invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
@@ -153,7 +157,7 @@ void main() {
     final result = await ReleasePullRequest.createOrUpdate(
       workingDirectory: root.path,
       config: config,
-      plans: <ReleasePlan>[plan!],
+      plans: <ReleasePlanDto>[plan!],
       context: context,
       githubApi: api,
       hookProcessRunner: hookRunner,
@@ -169,7 +173,7 @@ void main() {
         'show',
         'smf/example/release:smf/manifest.json',
       ]),
-      contains('"pendingRelease": true'),
+      contains('"isReleasePending": true'),
     );
     expect(
       await GitClient(root: origin.path).run(const <String>[
@@ -182,7 +186,7 @@ void main() {
       await GitClient(root: origin.path).run(const <String>[
         'show',
         'smf/example/release:smf/store-release-notes.json',
-      ], allowFailure: true),
+      ], isFailureAllowed: true),
       isEmpty,
     );
     expect(
@@ -204,14 +208,15 @@ void main() {
     await GitClient(root: root.path).run(const <String>['push', 'origin', 'main']);
     final refreshedPlan = await releasePlanner.create(
       manifest: await SmfState.manifest(root.path),
-      platform: Platform.ios,
+      platform: ReleasePlatform.ios,
+      gitHubToken: 'unused',
     );
     await GitClient(root: root.path).run(const <String>['config', '--unset-all', 'user.name']);
     await GitClient(root: root.path).run(const <String>['config', '--unset-all', 'user.email']);
     await ReleasePullRequest.createOrUpdate(
       workingDirectory: root.path,
       config: config,
-      plans: <ReleasePlan>[refreshedPlan!],
+      plans: <ReleasePlanDto>[refreshedPlan!],
       context: context,
       githubApi: api,
       hookProcessRunner: hookRunner,
@@ -269,7 +274,7 @@ void main() {
         InitOptions(
           appRoot: source.path,
           iosBundleId: 'dev.example.app',
-          githubActions: false,
+          shouldCreateGitHubActions: false,
         ),
       );
       await sourceGit.run(const <String>['add', '.']);
@@ -299,28 +304,28 @@ void main() {
         checkout.path,
       ]);
       final checkoutGit = GitClient(root: checkout.path);
-      final sha = await checkoutGit.currentSha();
+      final commitHash = await checkoutGit.currentCommitHash();
       final result = await ReleasePullRequest.createOrUpdate(
         workingDirectory: checkout.path,
         config: await SmfState.config(checkout.path),
-        plans: <ReleasePlan>[
-          ReleasePlan(
-            platform: Platform.ios,
+        plans: <ReleasePlanDto>[
+          ReleasePlanDto(
+            platform: ReleasePlatform.ios,
             currentVersion: '1.0.0',
             nextVersion: '1.0.1',
-            versionBump: VersionBump.patch,
-            baseSha: sha,
-            headSha: sha,
-            changes: <ConventionalChange>[
-              ConventionalChange(
-                sha: sha,
+            versionBumpType: VersionBumpType.patch,
+            baseCommitHash: commitHash,
+            endCommitHash: commitHash,
+            changes: <ConventionalChangeDto>[
+              ConventionalChangeDto(
+                commitHash: commitHash,
                 type: 'fix',
                 scope: 'ios',
                 description: 'Fix launch',
                 body: null,
-                breaking: false,
-                versionBump: VersionBump.patch,
-                platforms: const <Platform>[Platform.ios],
+                isBreaking: false,
+                versionBumpType: VersionBumpType.patch,
+                platforms: const <ReleasePlatform>[ReleasePlatform.ios],
               ),
             ],
           ),
@@ -342,7 +347,7 @@ void main() {
               'show',
               'smf/example/release:smf/manifest.json',
             ],
-          )).contains('"pendingRelease": true'),
+          )).contains('"isReleasePending": true'),
         ),
         (
           releaseBranch: 'smf/example/release',
@@ -402,14 +407,14 @@ void main() {
       await GitClient(root: root.path).run(const <String>['push', 'origin', 'main']);
 
       const config = SmfConfig(appId: 'example', ios: IosConfig());
-      const plan = ReleasePlan(
-        platform: Platform.ios,
+      const plan = ReleasePlanDto(
+        platform: ReleasePlatform.ios,
         currentVersion: '1.0.0',
         nextVersion: '1.0.1',
-        versionBump: VersionBump.patch,
-        baseSha: 'base',
-        headSha: 'head',
-        changes: <ConventionalChange>[],
+        versionBumpType: VersionBumpType.patch,
+        baseCommitHash: 'base',
+        endCommitHash: 'head',
+        changes: <ConventionalChangeDto>[],
       );
       const context = GitHubContext(
         owner: 'example',
@@ -421,7 +426,7 @@ void main() {
         ReleasePullRequest.createOrUpdate(
           workingDirectory: root.path,
           config: config,
-          plans: const <ReleasePlan>[plan],
+          plans: const <ReleasePlanDto>[plan],
           context: context,
           githubApi: FakeGitHubApi(),
         ),
@@ -429,7 +434,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'COMMAND_FAILED',
+            SmfErrorCode.commandFailed,
           ),
         ),
       );

@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/Ventairy/smf/main/packages/smf_engine/schemas/config.schema.json",
   "title": "smf configuration",
   "$comment": "This schema provides structure, defaults, and conservative editor checks. The smf validate command is authoritative for shell syntax, cross-field rules, and platform-independent path safety.",
   "type": "object",
@@ -91,7 +90,7 @@
                     "target": {
                       "enum": ["internal-testing", "external-testing"],
                       "default": "internal-testing",
-                      "description": "TestFlight audience that receives the candidate while the release PR is open."
+                      "description": "TestFlight audience that receives the release candidate while the release PR is open."
                     },
                     "groups": {
                       "type": "array",
@@ -239,7 +238,7 @@
                         "open-testing"
                       ],
                       "default": "internal-testing",
-                      "description": "Google Play destination that receives the candidate while the release PR is open."
+                      "description": "Google Play destination that receives the release candidate while the release PR is open."
                     },
                     "tracks": {
                       "type": "array",
@@ -259,7 +258,8 @@
                           "target": {
                             "const": "closed-testing"
                           }
-                        }
+                        },
+                        "required": ["target"]
                       },
                       "then": {
                         "required": ["tracks"],

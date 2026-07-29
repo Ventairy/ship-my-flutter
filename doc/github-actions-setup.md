@@ -1,14 +1,14 @@
 # GitHub Actions setup
 
 This is the recommended setup path. The generated GitHub Actions workflow
-prepares release pull requests, uploads exact candidates for testing, and
+prepares release pull requests, uploads exact release candidates for testing, and
 delivers approved releases after the release PR is merged.
 
 For a human-operated or custom-automation workflow instead, choose
 [CLI setup](cli-setup.md). Return to [Get started](../README.md#get-started) to
 compare the two paths.
 
-The safe first run uploads candidates only:
+The safe first run uploads release candidates only:
 
 - iOS goes to TestFlight without App Review submission.
 - Android goes to the configured testing track without changing production.
@@ -45,9 +45,8 @@ The Flutter app does not add `smf_cli` or another SMF package to
 `dev_dependencies`.
 
 After installation, SMF prints an informational notice when a newer CLI is
-available. Run `smf upgrade` to install it, followed by `smf migrate` for each
-initialized app when the release notes for that SMF version require generated
-or persisted files to change.
+available. Run `smf upgrade` to install it, and review that version's release
+notes before using it in an existing repository.
 
 ## 3. Initialize from the Flutter app
 
@@ -230,8 +229,8 @@ smf/<app-id>/release
 If you notice a wrong `app_id` immediately after initialization, before
 committing or running any workflow, remove only the newly generated app
 `smf/` directory and its `.github/workflows/smf-<wrong-app-id>.yml`, then
-initialize again. Never use that reset after release history exists; migrate
-released identity deliberately instead.
+initialize again. Never use that reset after release history exists; change
+released identity through a reviewed repository change instead.
 
 ## 4. Review the generated configuration
 
@@ -269,7 +268,7 @@ fails if any app is invalid. It checks configuration, repository layout, paths,
 and Git-controlled release files. It does not read GitHub Environment secrets,
 contact either store, prove signing credentials, or confirm that configured
 identifiers match store records. Those checks happen in the credentialed
-candidate workflow.
+release candidate workflow.
 
 At this point, local preparation is complete when the app builds normally,
 and `smf validate` succeeds. Store and GitHub readiness are separate
@@ -280,7 +279,7 @@ after qualifying commits reach the target branch.
 
 For iOS, follow [Set up Apple delivery](apple-bootstrap.md). It creates or
 verifies the App IDs, App Store Connect app, API key, distribution certificate,
-and the internal TestFlight group needed to install the acceptance candidate.
+and the internal TestFlight group needed to install the acceptance release candidate.
 Add the five required values using its
 [GitHub Actions Environment secrets instructions](apple-bootstrap.md#github-actions-environment-secrets).
 
@@ -386,7 +385,7 @@ The PR can contain iOS, Android, or both. Verify:
 
 Do not merge yet.
 
-## 10. Test every exact candidate
+## 10. Test every exact release candidate
 
 For iOS:
 
@@ -404,7 +403,7 @@ For Android:
 For both:
 
 - complete the team’s release test;
-- verify the candidate receipt is committed under `smf/candidates/`; and
+- verify the release candidate receipt is committed under `smf/release_candidates/`; and
 - obtain release-owner approval.
 
 The receipt is machine-owned. Never edit it.
@@ -412,18 +411,18 @@ The receipt is machine-owned. Never edit it.
 ## 11. Merge safely
 
 Keep `ship` omitted for both platforms on the first merge. After that
-candidate-only cycle succeeds, read
+release-candidate-only cycle succeeds, read
 [Apple targets](configuration.md#apple-targets) and
 [Google Play targets](configuration.md#google-play-targets), then choose a
 ship destination independently for iOS and Android.
 
-When the complete candidate-only path is proven, use
+When the complete release-candidate-only path is proven, use
 [End-to-end release automation](end-to-end-automation.md) to configure the
 approved merge-to-production behavior and
 [Store release notes](store-release-notes.md) to add localized customer notes.
 
 Changing release-candidate or ship settings updates the release PR. Recheck
-the candidate before merging.
+the release candidate before merging.
 
 ## 12. Confirm completion
 

@@ -15,7 +15,7 @@ final class SmfPaths {
     required this.manifest,
     required this.changelog,
     required this.storeReleaseNotes,
-    required this.candidates,
+    required this.releaseCandidates,
     required this.hooks,
     required this.beforeCreatePrHook,
     required this.beforeBuildHook,
@@ -59,7 +59,7 @@ final class SmfPaths {
         normalizedDirectory,
         'store-release-notes.json',
       ),
-      candidates: p.join(normalizedDirectory, 'candidates'),
+      releaseCandidates: p.join(normalizedDirectory, 'release_candidates'),
       hooks: hooks,
       beforeCreatePrHook: p.join(hooks, 'before_create_pr.dart'),
       beforeBuildHook: p.join(hooks, 'before_build.dart'),
@@ -104,8 +104,8 @@ final class SmfPaths {
   /// User-owned localized store release notes.
   final String storeReleaseNotes;
 
-  /// Directory containing exact candidate receipts.
-  final String candidates;
+  /// Directory containing exact release candidate receipts.
+  final String releaseCandidates;
 
   /// Directory containing repository hook entrypoints.
   final String hooks;
@@ -113,7 +113,7 @@ final class SmfPaths {
   /// Hook invoked before SMF creates or updates a release pull request.
   final String beforeCreatePrHook;
 
-  /// Hook invoked before SMF builds a platform candidate.
+  /// Hook invoked before SMF builds a platform release candidate.
   final String beforeBuildHook;
 
   /// Finds every initialized SMF directory below [repositoryRoot].
@@ -139,29 +139,29 @@ final class SmfPaths {
   }
 
   /// Returns the receipt path for one platform [version].
-  String candidatePath({
-    required Platform platform,
+  String releaseCandidateReceiptPath({
+    required ReleasePlatform platform,
     required String version,
-  }) => p.join(candidates, '${platform.name}-$version.json');
+  }) => p.join(releaseCandidates, '${platform.name}-$version.json');
 
   /// Returns the durable pre-upload intent path for one platform [version].
-  String candidateIntentPath({
-    required Platform platform,
+  String releaseCandidateIntentPath({
+    required ReleasePlatform platform,
     required String version,
-  }) => p.join(candidates, '${platform.name}-$version.intent.json');
+  }) => p.join(releaseCandidates, '${platform.name}-$version.intent.json');
 
   static String _resolveExplicitSmfDirectory(String start, String smfPath) {
     if (smfPath.trim().isEmpty) {
       throw const SmfError(
         'smf-path must point to an smf directory.',
-        'INVALID_SMF_PATH',
+        SmfErrorCode.invalidSmfPath,
       );
     }
     final directory = p.normalize(p.absolute(start, smfPath));
     if (!p.equals(directory, start) && !p.isWithin(start, directory)) {
       throw SmfError(
         'smf-path must stay within the working directory: $start.',
-        'INVALID_SMF_PATH',
+        SmfErrorCode.invalidSmfPath,
       );
     }
     _validateSmfDirectory(directory);
@@ -176,7 +176,7 @@ final class SmfPaths {
         FileSystemEntityType.directory) {
       throw SmfError(
         'The SMF search directory does not exist: $start.',
-        'SMF_SEARCH_PATH_NOT_FOUND',
+        SmfErrorCode.smfSearchPathNotFound,
       );
     }
 
@@ -185,17 +185,17 @@ final class SmfPaths {
     if (matches.isEmpty) {
       throw SmfError(
         'No smf/config.yaml was found at or below $start. Run '
-            '`smf init` from the Flutter app directory or pass --smf-path.',
-        'SMF_NOT_FOUND',
+        '`smf init` from the Flutter app directory or pass --smf-path.',
+        SmfErrorCode.smfNotFound,
       );
     }
     matches.sort();
     if (matches.length > 1) {
-      final candidates = matches.map((match) => '  - ${p.relative(match, from: start)}').join('\n');
+      final formattedMatches = matches.map((match) => '  - ${p.relative(match, from: start)}').join('\n');
       throw SmfError(
-        'Multiple SMF directories were found below $start:\n$candidates\n'
-            'Pass --smf-path with the intended directory.',
-        'MULTIPLE_SMF_DIRECTORIES',
+        'Multiple SMF directories were found below $start:\n$formattedMatches\n'
+        'Pass --smf-path with the intended directory.',
+        SmfErrorCode.multipleSmfDirectories,
       );
     }
     return matches.single;
@@ -240,21 +240,21 @@ final class SmfPaths {
     if (p.basename(directory) != directoryName) {
       throw SmfError(
         'smf-path must point directly to a directory named "smf": '
-            '$directory.',
-        'INVALID_SMF_PATH',
+        '$directory.',
+        SmfErrorCode.invalidSmfPath,
       );
     }
     final type = FileSystemEntity.typeSync(directory, followLinks: false);
     if (type == FileSystemEntityType.link) {
       throw const SmfError(
         'The selected smf directory must not be a symbolic link.',
-        'INVALID_SMF_PATH',
+        SmfErrorCode.invalidSmfPath,
       );
     }
     if (type != FileSystemEntityType.directory) {
       throw SmfError(
         'The selected smf directory does not exist: $directory.',
-        'SMF_NOT_FOUND',
+        SmfErrorCode.smfNotFound,
       );
     }
     final config = p.join(directory, configFileName);
@@ -265,7 +265,7 @@ final class SmfPaths {
         FileSystemEntityType.file) {
       throw SmfError(
         'The selected directory does not contain config.yaml: $directory.',
-        'CONFIG_NOT_FOUND',
+        SmfErrorCode.configNotFound,
       );
     }
   }
@@ -282,7 +282,7 @@ final class SmfPaths {
       if (parent == current) {
         throw SmfError(
           'The SMF app is not inside a Git repository: $appRoot.',
-          'GIT_REPOSITORY_NOT_FOUND',
+          SmfErrorCode.gitRepositoryNotFound,
         );
       }
       current = parent;

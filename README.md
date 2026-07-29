@@ -14,7 +14,7 @@
 </div>
 
 SMF turns normal Conventional Commits into independently versioned iOS and
-Android releases. It prepares a release PR, uploads signed candidates to
+Android releases. It prepares a release PR, uploads signed release candidates to
 TestFlight and Google Play for testing, and records exactly what was tested.
 After approval, merging the PR verifies or promotes those same store artifacts,
 according to your settings, without rebuilding them.
@@ -29,14 +29,14 @@ reaches users.
 SMF makes the release pull request that control point:
 
 - **One place to review a release.** Versions, changelogs, store notes,
-  candidates, and approvals stay together in Git.
+  release candidates, and approvals stay together in Git.
 - **Test before deciding to ship.** iOS goes to TestFlight and Android goes to
   a Google Play testing track while the release PR is still open.
 - **Promote without rebuilding.** SMF ships the recorded App Store Connect
   build or Play `versionCode`, not a newly produced binary.
 - **Release platforms independently.** iOS and Android keep separate versions,
-  histories, candidates, delivery settings, tags, and GitHub Releases.
-- **Start conservatively.** The generated configuration uploads candidates
+  histories, release candidates, delivery settings, tags, and GitHub Releases.
+- **Start conservatively.** The generated configuration uploads release candidates
   only. App Review and production delivery remain opt-in.
 - **Scale to monorepos.** Every Flutter app gets isolated release state and can
   observe its own directory plus explicitly selected shared paths.
@@ -51,7 +51,7 @@ signing identities, policy answers, or product metadata for you.
 | What happens                                         | What SMF does                                                                              | What your team controls                                                 |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | A qualifying Conventional Commit reaches the target branch | Calculates each affected platform's next version and opens or updates the app's release PR | The code review and Conventional Commit message                         |
-| The release PR is open                               | Builds, signs, uploads, verifies, and records one candidate per planned platform           | Testing the exact TestFlight or Play artifact and approving the release |
+| The release PR is open                               | Builds, signs, uploads, verifies, and records one release candidate per planned platform           | Testing the exact TestFlight or Play artifact and approving the release |
 | The release PR is merged                             | Revalidates each recorded artifact, then applies the platform's optional `ship` target     | Branch protection, merge approval, and the selected store destination   |
 
 ```text
@@ -64,7 +64,7 @@ normal feature and fix PRs
    SMF app release PR
       /           \
      v             v
-iOS candidate   Android candidate
+iOS release candidate   Android release candidate
  TestFlight     Play testing track
      \             /
       v           v
@@ -104,7 +104,7 @@ SMF calculates later versions from qualifying commits.
 
 ### What merging the release PR means
 
-Each platform separates the candidate destination from the optional `ship`
+Each platform separates the release candidate destination from the optional `ship`
 destination. New configurations create an internal-testing release candidate
 and omit `ship`, so the first merge cannot move the artifact toward public
 distribution. [Release candidate and ship targets](doc/configuration.md#ios)
@@ -117,14 +117,14 @@ SMF supports two setup paths. Choose how you want releases to run:
 
 | Setup                                         | Best for                             | How releases run                                                     |
 | --------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------- |
-| [GitHub Actions](doc/github-actions-setup.md) | Most teams; recommended              | A generated workflow prepares candidates and ships approved releases |
+| [GitHub Actions](doc/github-actions-setup.md) | Most teams; recommended              | A generated workflow prepares release candidates and ships approved releases |
 | [CLI](doc/cli-setup.md)                       | Local operation or custom automation | A human or another system runs the same release phases directly      |
 
 ### Recommended: GitHub Actions
 
 Choose [GitHub Actions setup](doc/github-actions-setup.md) for an automated
 release workflow. SMF opens or updates the release PR when qualifying commits
-reach the target branch, creates candidates for testing, and ships the exact
+reach the target branch, creates release candidates for testing, and ships the exact
 approved artifacts after merge.
 
 The workflow is a wrapper around the public SMF CLI. Release behavior and
@@ -134,7 +134,7 @@ safety checks are the same as when the phases are run manually.
 
 Choose [CLI setup](doc/cli-setup.md) when you want a human or your own
 automation to invoke each release phase. SMF still uses GitHub release pull
-requests, candidate receipts, exact-artifact verification, and the configured
+requests, release candidate receipts, exact-artifact verification, and the configured
 stores, but no generated GitHub Actions workflow is required.
 
 You can add GitHub Actions later without replacing the existing SMF
@@ -144,24 +144,24 @@ configuration or release history.
 
 - **No rebuild after approval.** Promotion uses the exact recorded Apple build
   ID or Google Play `versionCode`.
-- **Source-to-artifact evidence.** Candidate receipts bind the source commit,
+- **Source-to-artifact evidence.** Release candidate receipts bind the source commit,
   tracked-input fingerprint, app identity, artifact digest, store artifact ID,
   and testing destination.
 - **Hard identity checks.** A source, fingerprint, bundle ID, package name, or
   store-artifact mismatch stops delivery.
 - **Git-backed release state.** Configuration, platform manifests,
-  changelogs, store notes, and candidate receipts live under the Flutter app's
+  changelogs, store notes, and release candidate receipts live under the Flutter app's
   `smf/` directory.
 - **Credential boundaries.** Production automation uses scoped environment
   values and temporary signing files. Direct credential arguments are
   available for local convenience but may be observable and are never
   committed to release state.
-- **Safe retries.** Matching valid candidates and completed release resources
+- **Safe retries.** Matching valid release candidates and completed release resources
   are reused where store contracts permit. SMF records the exact build identity
-  before uploading, so a fresh retry can finish a candidate whose store upload
+  before uploading, so a fresh retry can finish a release candidate whose store upload
   succeeded but whose receipt was not committed.
 
-Candidate receipts and in-progress candidate state are machine-owned evidence.
+Release candidate receipts and in-progress release candidate state are machine-owned evidence.
 Never edit them to work around a failed integrity check.
 
 ## User guide
@@ -175,8 +175,8 @@ Start with one guide based on what you are trying to do:
 | Set up a human-operated or custom workflow                                          | [CLI setup](doc/cli-setup.md)                                 |
 | Prepare App Store Connect, TestFlight, signing, and Apple credentials               | [Apple setup](doc/apple-bootstrap.md)                         |
 | Prepare Google Play, testing, upload signing, and Android credentials               | [Android setup](doc/android-bootstrap.md)                     |
-| Understand the release PR and exact-candidate lifecycle                             | [How releases work](doc/how-it-works.md)                      |
-| Change versions, paths, flavors, build commands, candidate targets, or ship targets | [Configuration](doc/configuration.md)                         |
+| Understand the release PR and exact-release candidate lifecycle                             | [How releases work](doc/how-it-works.md)                      |
+| Change versions, paths, flavors, build commands, release candidate targets, or ship targets | [Configuration](doc/configuration.md)                         |
 | Write, localize, or generate customer-facing store notes                            | [Store release notes](doc/store-release-notes.md)             |
 | Automate the proven path from a qualifying change through production delivery       | [End-to-end release automation](doc/end-to-end-automation.md) |
 | Generate project files or release notes during the workflow                         | [Typed hooks](doc/hooks.md)                                   |
@@ -191,14 +191,21 @@ or their own automation.
 ## Packages
 
 Most users install only `smf_cli`; the generated Action provides the release
-runtime. Add another package only when extending SMF:
+runtime. The workspace has three packages:
 
-| Package       | Use it for                                  |
-| ------------- | ------------------------------------------- |
-| `smf_hooks`   | Lightweight typed repository hooks          |
-| `smf_engine`  | Custom platform-neutral planning and state  |
-| `smf_apple`   | Custom Apple delivery integrations          |
-| `smf_android` | Custom Android and Google Play integrations |
+| Package      | Use it for                                                   |
+| ------------ | ------------------------------------------------------------ |
+| `smf_hooks`  | Lightweight typed repository hooks                           |
+| `smf_engine` | Shared planning plus Apple and Android release implementation |
+| `smf_cli`    | The installed `smf` command                                  |
+
+Custom Dart automation imports the appropriate engine library:
+
+```dart
+import 'package:smf_engine/smf_engine.dart';
+import 'package:smf_engine/apple.dart';
+import 'package:smf_engine/android.dart';
+```
 
 ## Common questions
 
@@ -211,21 +218,21 @@ Merging the release PR does not prevent or replace other application PRs.
 ### Does a normal application commit publish immediately?
 
 No. A qualifying commit prepares or updates the release PR and its store
-candidates. Delivery can happen only after the exact candidates are tested,
+release candidates. Delivery can happen only after the exact release candidates are tested,
 the release PR is approved and merged, and the platform is configured for that
 delivery behavior.
 
 ### Must iOS and Android release together?
 
 No. They can share one app release PR while keeping different versions and
-candidate receipts. Platform-scoped commits can release only iOS or only
+release candidate receipts. Platform-scoped commits can release only iOS or only
 Android.
 
 ### Does SMF rebuild after approval?
 
 No. It reuses the recorded App Store Connect build ID or Google Play
 `versionCode`, either leaving it in testing or promoting it according to the
-configured [ship target](doc/configuration.md#candidate-only-default).
+configured [ship target](doc/configuration.md#release-candidate-only-default).
 
 ### Will the SMF release PR run our normal PR checks?
 

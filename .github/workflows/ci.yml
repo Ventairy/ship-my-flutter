@@ -39,7 +39,12 @@ jobs:
         run: dart run melos run gen --no-select
 
       - name: Verify generated sources
-        run: git diff --exit-code -- packages
+        run: |
+          if [[ -n "$(git status --porcelain --untracked-files=all -- packages)" ]]; then
+            git status --short --untracked-files=all -- packages
+            git diff -- packages
+            exit 1
+          fi
 
       - name: Verify formatting
         if: matrix.sdk == 'stable'

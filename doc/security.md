@@ -17,7 +17,7 @@ For CLI operation, export the variables in the shell that starts SMF. For
 GitHub Actions, store them as Environment secrets under
 `Settings → Environments → smf-<app-id>`. Each initialized app has a separate
 environment, so sibling apps can use the same names without sharing
-credentials. The generated candidate and ship jobs declare only the selected
+credentials. The generated release candidate and ship jobs declare only the selected
 app's environment.
 
 The generated cross-platform Action step lists both Apple and Android input
@@ -38,7 +38,7 @@ values before repository hooks and project commands.
   keychain/profile installation.
 - Android signs the AAB with the upload keystore, verifies the JAR signature,
   and compares the exact certificate SHA-256.
-- Temporary files are removed after the candidate operation.
+- Temporary files are removed after the release candidate operation.
 - Generated automation keeps credentials out of command arguments. The CLI
   accepts direct credential options for local convenience, but process
   arguments may be observable; use `SMF_*` environment variables in
@@ -105,7 +105,7 @@ project/tool state unless it is deliberately reset.
 Generated jobs request:
 
 - pull request: Contents, Pull requests, and Issues write;
-- candidate: Contents write for pre-upload intents and final receipts;
+- release candidate: Contents write for pre-upload intents and final receipts;
 - ship: Contents write for tags/GitHub Releases.
 
 Enable:
@@ -150,7 +150,7 @@ with:
   github-token: ${{ steps.smf-token.outputs.token }}
 ```
 
-The pull-request job needs Contents, Issues, and Pull requests write. Candidate
+The pull-request job needs Contents, Issues, and Pull requests write. Release candidate
 and ship jobs need Contents write. If the installed App lacks one requested
 repository permission, token creation fails before SMF runs.
 
@@ -167,7 +167,7 @@ The generated workflow uses:
 
 `v1` receives compatible updates. Repositories requiring immutable review can
 replace every SMF Action/sub-action reference with the same audited full commit
-SHA. Do not mix versions between:
+hash. Do not mix versions between:
 
 ```text
 Ventairy/smf-action
@@ -177,13 +177,13 @@ Ventairy/smf-action/setup-flutter
 
 Regenerate from `smf init`; do not copy an incomplete workflow fragment.
 
-## Candidate integrity
+## Release candidate integrity
 
 Receipts record:
 
 - platform/version/build number;
 - store artifact ID and app identity;
-- source SHA/fingerprint;
+- source commit hash/fingerprint;
 - artifact SHA-256;
 - processing state; and
 - testing destinations.
@@ -203,7 +203,7 @@ build inputs.
 
 ## Production controls
 
-- Keep `ship` omitted for both platforms until the candidate-only flow works.
+- Keep `ship` omitted for both platforms until the release-candidate-only flow works.
 - Before adding either `ship` section, read the exact store effects and
   prerequisites in the [configuration reference](configuration.md#ios).
 - Protect the target branch and require human release approval.
@@ -228,7 +228,7 @@ Immediately:
 6. Replace the value in every active credential source, such as the GitHub
    Environment or the CLI secret manager.
 7. Review audit and workflow logs.
-8. Produce/test a new candidate if artifact identity or signing material
+8. Produce/test a new release candidate if artifact identity or signing material
    changed.
 
 Never paste the exposed value into an issue.

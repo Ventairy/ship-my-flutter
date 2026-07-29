@@ -2,17 +2,31 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:smf_engine/smf_engine.dart';
+import 'package:smf_engine/src/templates.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'when the package version changes, it should keep the generated schema URL aligned',
+    () async {
+      final pubspec = await const YamlFile('pubspec.yaml').read();
+      final pubspecObject = pubspec! as Map<String, Object?>;
+
+      expect(
+        SmfTemplates.configSchemaUrl,
+        contains('smf_engine-v${pubspecObject['version']}/'),
+      );
+    },
+  );
+
   test(
     'when initializer option maps are exposed, they should reject mutation',
     () {
       final options = InitOptions(
         appRoot: '/tmp/app',
-        platformVersions: <Platform, String>{Platform.ios: '1.0.0'},
-        platformVersionDetectors: <Platform, Future<String?> Function(String appRoot)>{
-          Platform.ios: (_) async => '1.0.0',
+        platformVersions: <ReleasePlatform, String>{ReleasePlatform.ios: '1.0.0'},
+        platformVersionDetectors: <ReleasePlatform, Future<String?> Function(String appRoot)>{
+          ReleasePlatform.ios: (_) async => '1.0.0',
         },
       );
 
@@ -39,7 +53,7 @@ void main() {
       InitOptions(
         appRoot: root.path,
         iosBundleId: 'dev.example.manual',
-        githubActions: false,
+        shouldCreateGitHubActions: false,
       ),
     );
 
@@ -71,21 +85,24 @@ void main() {
       ]);
       await GitClient(root: root.path).run(const <String>['add', '.']);
       await GitClient(root: root.path).run(const <String>['commit', '-m', 'chore: bootstrap']);
-      final baselineSha = await GitClient(root: root.path).currentSha();
+      final endCommitHash = await GitClient(root: root.path).currentCommitHash();
 
       await RepositoryInitializer.initialize(
         InitOptions(appRoot: root.path, iosBundleId: 'dev.example.app'),
       );
 
       final manifest = await SmfState.manifest(root.path);
-      expect(manifest.ios.version, '3.2.1');
-      expect(manifest.ios.baselineSha, baselineSha);
-      expect(manifest.ios.pendingRelease, isFalse);
+      expect(manifest.platforms.ios.version, '3.2.1');
+      expect(
+        manifest.platforms.ios.endCommitHash,
+        endCommitHash,
+      );
+      expect(manifest.platforms.ios.isReleasePending, isFalse);
       final config = await SmfState.config(root.path);
       expect(config.schemaVersion, 1);
       expect(config.appId, 'example');
       expect(config.ios.initialVersion, '3.2.1');
-      expect(config.android.enabled, isFalse);
+      expect(config.android.isEnabled, isFalse);
       expect(config.ios.buildCommand, isNull);
       expect(
         config.ios.appStore.releaseCandidate.target,
@@ -102,7 +119,7 @@ void main() {
       expect(
         configText,
         contains(
-          'https://raw.githubusercontent.com/Ventairy/smf/main/'
+          'https://raw.githubusercontent.com/Ventairy/smf/smf_engine-v0.1.0/'
           'packages/smf_engine/schemas/config.schema.json',
         ),
       );
@@ -120,8 +137,11 @@ void main() {
       expect(await File(paths.manifest).exists(), isFalse);
       expect(await File(paths.changelog).exists(), isFalse);
       expect(await File(paths.storeReleaseNotes).exists(), isFalse);
-      expect(await Directory(paths.candidates).exists(), isFalse);
-      expect((await SmfState.changelog(root.path)).iosReleases, isEmpty);
+      expect(await Directory(paths.releaseCandidates).exists(), isFalse);
+      expect(
+        (await SmfState.changelog(root.path)).platforms.ios.releases,
+        isEmpty,
+      );
       expect(await SmfState.storeReleaseNotes(root.path), isEmpty);
       final workflow = await File(
         p.join(root.path, '.github', 'workflows', 'smf-example.yml'),
@@ -266,7 +286,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'APP_ID_CONFLICT',
+          SmfErrorCode.appIdConflict,
         ),
       ),
     );
@@ -287,14 +307,14 @@ void main() {
         InitOptions(
           appRoot: root.path,
           appId: 'renamed',
-          force: true,
+          shouldOverwriteExistingFiles: true,
         ),
       ),
       throwsA(
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'APP_ID_IMMUTABLE',
+          SmfErrorCode.appIdImmutable,
         ),
       ),
     );
@@ -313,9 +333,9 @@ void main() {
     await RepositoryInitializer.initialize(
       InitOptions(
         appRoot: root.path,
-        platformVersionDetectors: <Platform, Future<String?> Function(String appRoot)>{
-          Platform.ios: (_) async => '2.4.0',
-          Platform.android: (_) async => '3.1.2',
+        platformVersionDetectors: <ReleasePlatform, Future<String?> Function(String appRoot)>{
+          ReleasePlatform.ios: (_) async => '2.4.0',
+          ReleasePlatform.android: (_) async => '3.1.2',
         },
       ),
     );
@@ -352,9 +372,9 @@ void main() {
     await RepositoryInitializer.initialize(
       InitOptions(
         appRoot: root.path,
-        platformVersions: const <Platform, String>{
-          Platform.ios: '2.4.0',
-          Platform.android: '3.1.2',
+        platformVersions: const <ReleasePlatform, String>{
+          ReleasePlatform.ios: '2.4.0',
+          ReleasePlatform.android: '3.1.2',
         },
       ),
     );
@@ -383,7 +403,7 @@ void main() {
       await RepositoryInitializer.initialize(
         InitOptions(
           appRoot: root.path,
-          selectedPlatform: Platform.android,
+          selectedPlatform: ReleasePlatform.android,
           androidPackageName: 'dev.example.app',
         ),
       );
@@ -391,13 +411,13 @@ void main() {
       final config = await SmfState.config(root.path);
       expect(
         (
-          iosEnabled: config.ios.enabled,
-          androidEnabled: config.android.enabled,
+          isIosEnabled: config.ios.isEnabled,
+          isAndroidEnabled: config.android.isEnabled,
           packageName: config.android.packageName,
         ),
         (
-          iosEnabled: false,
-          androidEnabled: true,
+          isIosEnabled: false,
+          isAndroidEnabled: true,
           packageName: 'dev.example.app',
         ),
       );
@@ -417,8 +437,8 @@ void main() {
       RepositoryInitializer.initialize(
         InitOptions(
           appRoot: root.path,
-          platformVersions: const <Platform, String>{
-            Platform.android: '2.0.0',
+          platformVersions: const <ReleasePlatform, String>{
+            ReleasePlatform.android: '2.0.0',
           },
         ),
       ),
@@ -427,7 +447,7 @@ void main() {
             .having(
               (error) => error.code,
               'code',
-              'UNSUPPORTED_INIT_PLATFORM',
+              SmfErrorCode.unsupportedInitPlatform,
             )
             .having(
               (error) => error.message,
@@ -452,8 +472,8 @@ void main() {
         InitOptions(
           appRoot: root.path,
           version: '1.0.0',
-          platformVersions: const <Platform, String>{
-            Platform.ios: '2.0.0',
+          platformVersions: const <ReleasePlatform, String>{
+            ReleasePlatform.ios: '2.0.0',
           },
         ),
       ),
@@ -462,7 +482,7 @@ void main() {
             .having(
               (error) => error.code,
               'code',
-              'INVALID_INIT_OPTIONS',
+              SmfErrorCode.invalidInitOptions,
             )
             .having(
               (error) => error.message,
@@ -489,7 +509,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'INVALID_SMF_PATH',
+          SmfErrorCode.invalidSmfPath,
         ),
       ),
     );

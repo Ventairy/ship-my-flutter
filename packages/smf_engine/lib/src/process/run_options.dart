@@ -8,7 +8,7 @@ final class RunOptions {
     this.workingDirectory,
     this.environment = const <String, String>{},
     this.input,
-    this.allowFailure = false,
+    this.isFailureAllowed = false,
     this.onStdout,
     this.onStderr,
   });
@@ -23,7 +23,7 @@ final class RunOptions {
   final String? input;
 
   /// Whether a non-zero exit code may be returned instead of thrown.
-  final bool allowFailure;
+  final bool isFailureAllowed;
 
   /// Optional complete standard-output observer.
   final void Function(String value)? onStdout;
