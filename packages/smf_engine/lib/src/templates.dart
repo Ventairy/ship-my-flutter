@@ -10,7 +10,7 @@ final class SmfTemplates {
   /// Schema URL embedded in generated configuration files.
   // x-release-please-start-version
   static const String configSchemaUrl =
-      'https://raw.githubusercontent.com/Ventairy/smf/smf_engine-v1.0.4/'
+      'https://raw.githubusercontent.com/Ventairy/smf/smf_engine-v1.1.0/'
       'packages/smf_engine/schemas/config.schema.json';
   // x-release-please-end
 
