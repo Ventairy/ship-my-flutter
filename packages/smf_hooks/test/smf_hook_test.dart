@@ -33,6 +33,7 @@ void main() {
         jsonEncode(<String, Object?>{
           'schemaVersion': 1,
           'phase': 'before_create_pr',
+          'secretNames': <Object?>['TEST_API_KEY'],
           'storeReleaseNotesFile': notesPath,
           'iosRelease': <String, Object?>{
             'nextVersion': '1.1.0',
@@ -68,6 +69,8 @@ void main() {
           'SMF_HOOK_CONTEXT_PATH': contextPath,
           'SMF_HOOK_RESULT_PATH': resultPath,
           'SMF_HOOK_TEST_OBSERVATION_PATH': observationPath,
+          'TEST_API_KEY': 'configured-secret-value',
+          'UNLISTED_SECRET': 'must-not-be-exposed',
         },
       );
       expect(process.exitCode, 0, reason: process.stderr as String);
@@ -82,6 +85,8 @@ void main() {
         'androidVersion': '2.0.0',
         'androidCharacterLimit': 500,
         'androidDescription': 'Improve startup',
+        'configuredSecret': 'configured-secret-value',
+        'hasUnlistedSecret': false,
       });
       final notes = jsonDecode(await File(notesPath).readAsString()) as Map<String, Object?>;
       expect(

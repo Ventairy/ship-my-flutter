@@ -32,8 +32,10 @@ final class _SmfHookRunner {
       final phase = SmfHookProtocolPhase.parse(
         _string(json, SmfHookProtocol.phaseField),
       );
+      final secrets = _secrets(json);
       return switch (phase) {
         SmfHookProtocolPhase.beforeCreatePr => SmfBeforeCreatePrContext._(
+          secrets: secrets,
           release: PlannedReleases._(
             ios: json[SmfHookProtocol.iosReleaseField] == null
                 ? null
@@ -68,6 +70,7 @@ final class _SmfHookRunner {
           ),
         ),
         SmfHookProtocolPhase.beforeBuild => SmfBeforeBuildContext._(
+          secrets: secrets,
           repositoryRoot: Directory(
             _string(json, SmfHookProtocol.repositoryRootField),
           ),
@@ -76,6 +79,32 @@ final class _SmfHookRunner {
     } on Object catch (error) {
       throw FormatException('The SMF hook context is invalid: $error');
     }
+  }
+
+  Map<String, String> _secrets(Map<String, Object?> json) {
+    final value = json[SmfHookProtocol.secretNamesField];
+    if (value == null) return const <String, String>{};
+    if (value is! List<Object?>) {
+      throw const FormatException(
+        '${SmfHookProtocol.secretNamesField} must be a list.',
+      );
+    }
+    final secrets = <String, String>{};
+    for (var index = 0; index < value.length; index++) {
+      final name = value[index];
+      if (name is! String || name.isEmpty) {
+        throw FormatException(
+          '${SmfHookProtocol.secretNamesField}[$index] must be a non-empty '
+          'string.',
+        );
+      }
+      final secret = _environment[name];
+      if (secret == null || secret.isEmpty) {
+        throw FormatException('Configured hook secret $name is unavailable.');
+      }
+      secrets[name] = secret;
+    }
+    return Map<String, String>.unmodifiable(secrets);
   }
 
   String _requiredEnvironment(String name) {

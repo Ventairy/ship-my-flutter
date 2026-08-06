@@ -189,6 +189,50 @@ void main() {
     },
   );
 
+  test('GitHub Actions regeneration maps each configured hook secret once', () async {
+    final root = await Directory.systemTemp.createTemp('smf-init-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory(p.join(root.path, 'ios')).create();
+    await File(
+      p.join(root.path, 'pubspec.yaml'),
+    ).writeAsString('name: example\nversion: 1.0.0+1\n');
+    await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+    await RepositoryInitializer.initialize(InitOptions(appRoot: root.path));
+    final configFile = File(p.join(root.path, 'smf', 'config.yaml'));
+    final config = await configFile.readAsString();
+    await configFile.writeAsString(
+      config.replaceFirst(
+        'platforms:',
+        'hooks:\n'
+            '  before_create_pr:\n'
+            '    secrets:\n'
+            '      - RELEASE_NOTES_API_TOKEN\n'
+            '  before_build:\n'
+            '    secrets:\n'
+            '      - GOOGLE_MAPS_API_KEY\n'
+            'platforms:',
+      ),
+    );
+
+    await RepositoryInitializer.initialize(
+      InitOptions(
+        appRoot: root.path,
+        shouldOnlyUpdateGitHubActions: true,
+      ),
+    );
+
+    final workflow = await File(
+      p.join(root.path, '.github', 'workflows', 'smf-example.yml'),
+    ).readAsString();
+    expect(
+      (
+        RegExp(r'RELEASE_NOTES_API_TOKEN: \$\{\{ secrets\.RELEASE_NOTES_API_TOKEN \}\}').allMatches(workflow).length,
+        RegExp(r'GOOGLE_MAPS_API_KEY: \$\{\{ secrets\.GOOGLE_MAPS_API_KEY \}\}').allMatches(workflow).length,
+      ),
+      (1, 1),
+    );
+  });
+
   test('initializes a nested Flutter app without an app_path field', () async {
     final repository = await Directory.systemTemp.createTemp('smf-init-');
     addTearDown(() => repository.delete(recursive: true));

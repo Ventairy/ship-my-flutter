@@ -294,37 +294,26 @@ $env:RELEASE_NOTES_AI_TOKEN = "<token>"
 smf release --phase pull-request
 ```
 
-The hook reads the exported value:
+The hook reads the configured value from its typed context:
 
 ```dart
-import 'dart:io';
-
-final token = Platform.environment['RELEASE_NOTES_AI_TOKEN'];
-if (token == null || token.isEmpty) {
-  throw StateError('RELEASE_NOTES_AI_TOKEN is required.');
-}
+final token = context.secrets['RELEASE_NOTES_AI_TOKEN']!;
 ```
 
-SMF does not load `.env` files. The custom token is inherited from the process
-that starts `smf`. SMF removes its own Apple, Google Play, GitHub, and signing
-credentials before the hook runs.
-
-For GitHub Actions, save `RELEASE_NOTES_AI_TOKEN` as a repository Actions
-secret. Expose it only to the `Ventairy/smf-action` step whose phase is
-`pull-request`:
+SMF does not load `.env` files. Declare the custom token for the hook phase in
+`smf/config.yaml`:
 
 ```yaml
-- id: smf
-  uses: Ventairy/smf-action@v1
-  env:
-    RELEASE_NOTES_AI_TOKEN: ${{ secrets.RELEASE_NOTES_AI_TOKEN }}
-  with:
-    phase: pull-request
-    smf-path: ${{ env.SMF_PATH }}
+hooks:
+  before_create_pr:
+    secrets:
+      - RELEASE_NOTES_AI_TOKEN
 ```
 
-The generated workflow does not expose custom secrets automatically. Review
-this workflow customization whenever regenerating the managed workflow.
+Run `smf init --github-actions`, then save `RELEASE_NOTES_AI_TOKEN` as a
+repository Actions secret. SMF removes its own Apple, Google Play, GitHub, and
+signing credentials before the hook runs. See [Typed hooks](hooks.md) for local
+and external-provider injection.
 
 ### 4. Validate before writing
 

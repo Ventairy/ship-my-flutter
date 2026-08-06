@@ -19,6 +19,10 @@ target_branch: main
 flavor: production
 release_trigger_paths:
   - packages/shared_models/**
+hooks:
+  before_build:
+    secrets:
+      - GOOGLE_MAPS_API_KEY
 
 platforms:
   ios:
@@ -56,6 +60,7 @@ iOS and Android versions are intentionally independent.
 | `target_branch`         | `main`                  | Branch containing normal application work                              |
 | `flavor`                | optional                | One Flutter flavor passed to enabled platform builds                   |
 | `release_trigger_paths` | `[]`                    | Additional repository paths whose qualifying commits apply to this app |
+| `hooks`                 | `{}`                    | Phase-scoped secret names for trusted repository hooks                  |
 | `platforms`             | required                | iOS and Android configuration                                          |
 
 At least one supported platform must be enabled.
@@ -325,11 +330,27 @@ Conventional Commits. Commit messages cannot override the next version.
 ## Hooks
 
 Hooks are optional Dart files discovered at
-`smf/hooks`. They are not configured in `config.yaml`.
+`smf/hooks`. Their source paths are fixed; optional secret environment names
+are configured by phase:
+
+```yaml
+hooks:
+  before_create_pr:
+    secrets:
+      - RELEASE_NOTES_API_TOKEN
+  before_build:
+    secrets:
+      - GOOGLE_MAPS_API_KEY
+```
+
+Names use uppercase letters, numbers, and underscores. Values remain outside
+the configuration and must contain at least eight characters. Run
+`smf init --github-actions` after changing these lists to regenerate the
+app-scoped workflow.
 
 Use the complete [Typed hooks guide](hooks.md) to install `smf_hooks`, choose a
-phase, implement the typed context, verify the hook, and recover from a
-failure.
+phase, supply secrets from GitHub or another provider, implement the typed
+context, and recover from a failure.
 
 ## Machine-owned files
 

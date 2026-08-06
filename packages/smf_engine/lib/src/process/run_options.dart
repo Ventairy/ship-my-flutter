@@ -7,6 +7,7 @@ final class RunOptions {
   const RunOptions({
     this.workingDirectory,
     this.environment = const <String, String>{},
+    this.sensitiveValues = const <String>[],
     this.input,
     this.isFailureAllowed = false,
     this.onStdout,
@@ -18,6 +19,9 @@ final class RunOptions {
 
   /// Explicit environment additions.
   final Map<String, String> environment;
+
+  /// Exact values removed from captured output and failure diagnostics.
+  final List<String> sensitiveValues;
 
   /// Optional standard input.
   final String? input;

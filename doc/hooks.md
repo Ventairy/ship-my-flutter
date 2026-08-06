@@ -17,9 +17,10 @@ You need:
 - an understanding that hook code runs as trusted repository code in the
   release workflow.
 
-Hooks do not receive Apple, Google Play, or GitHub credentials. Do not read
-secrets from unrelated environment variables or write secrets to project
-files.
+Hooks do not receive SMF's Apple, Google Play, signing, or GitHub credentials.
+They receive only project secrets explicitly configured for their phase. A
+hook may create an ignored build input containing a secret, but must never put
+that value in a tracked or unignored file.
 
 ## 1. Add the hook SDK
 
@@ -48,64 +49,77 @@ created immediately before that platform is built.
 The hook file must be a regular committed file. SMF rejects an untracked hook
 or a symbolic link.
 
-## 3. Supply optional environment variables
+## 3. Configure hook secrets
 
-A hook inherits ordinary environment variables from the process that starts
-`smf`. SMF does not load `.env` files.
+Declare each required secret environment name under the phase that consumes
+it:
 
-For a CLI run, export the value before the phase that invokes the hook:
+```yaml
+hooks:
+  before_create_pr:
+    secrets:
+      - RELEASE_NOTES_API_TOKEN
+  before_build:
+    secrets:
+      - GOOGLE_MAPS_API_KEY
+```
+
+Names must use uppercase letters, numbers, and underscores. SMF reserves its
+own names and GitHub/runner names. Every declared value is required when that
+phase runs and must contain at least eight characters.
+
+Read a configured value from the typed hook context:
+
+```dart
+final apiKey = context.secrets['GOOGLE_MAPS_API_KEY']!;
+```
+
+`context.secrets` is immutable and contains only names configured for the
+current phase. It does not expose ordinary environment variables or SMF's own
+credentials.
+
+Regenerate the app-scoped workflow after changing the configuration:
 
 ```bash
-export MY_RELEASE_VALUE="<value>"
-smf release --phase pull-request
+smf init --github-actions
+```
+
+The generated workflow maps each name from GitHub Actions secrets only onto
+the matching SMF step. Store `before_create_pr` values as repository secrets.
+Store `before_build` values in the existing `smf-<app-id>` GitHub Environment;
+an Environment secret overrides the same repository secret.
+
+The runtime contract is provider-neutral. If another step fetches values from
+Vault, Infisical, or another secret manager, replace the generated mapping with
+that step's output while keeping the configured environment name. Regenerating
+the workflow overwrites this customization, so review and reapply it afterward.
+
+For a CLI run, export the same name before the phase that invokes the hook.
+SMF does not load `.env` files:
+
+```bash
+export GOOGLE_MAPS_API_KEY="<value>"
+smf release --phase release-candidate --platform android
+unset GOOGLE_MAPS_API_KEY
 ```
 
 In PowerShell:
 
 ```powershell
-$env:MY_RELEASE_VALUE = "<value>"
-smf release --phase pull-request
+$env:GOOGLE_MAPS_API_KEY = "<value>"
+smf release --phase release-candidate --platform android
+Remove-Item Env:GOOGLE_MAPS_API_KEY
 ```
 
-Read it in Dart with `Platform.environment['MY_RELEASE_VALUE']`.
-
-For `before_create_pr`, store a sensitive value as a repository Actions secret
-because the `pull_request` job does not use the protected `smf-<app-id>`
-Environment. Add it only to that job's `id: smf` step:
-
-```yaml
-- id: smf
-  uses: Ventairy/smf-action@v1
-  env:
-    MY_RELEASE_VALUE: ${{ secrets.MY_RELEASE_VALUE }}
-  with:
-    phase: pull-request
-    smf-path: ${{ env.SMF_PATH }}
-```
-
-For `before_build`, store a sensitive value in the existing
-`smf-<app-id>` GitHub Environment because the `release_candidate` job uses
-that environment. Add the same `env:` mapping to its
-`Ventairy/smf-action@v1` step:
-
-```yaml
-- uses: Ventairy/smf-action@v1
-  env:
-    MY_RELEASE_VALUE: ${{ secrets.MY_RELEASE_VALUE }}
-  with:
-    phase: release-candidate
-    platform: ${{ matrix.platform }}
-    smf-path: ${{ env.SMF_PATH }}
-```
-
-For a non-sensitive value, use the matching repository or environment Actions
-variable and map `${{ vars.MY_RELEASE_VALUE }}` instead. The generated workflow
-does not expose custom secrets or variables automatically.
+For a non-sensitive value, map the matching repository or Environment Actions
+variable onto the hook step manually. The generated workflow manages only the
+secret names declared under `hooks`.
 
 SMF strips its GitHub, store, and signing credential variables, plus generic
-GitHub token aliases, before starting repository-owned commands. Custom
-variables are not stripped, so expose only the minimum value the hook needs and
-never write it to generated files or logs.
+GitHub token aliases, before starting repository-owned commands. It redacts
+configured hook secret values from captured output and failures. The hook still
+must not print secrets or expose transformed values that exact redaction cannot
+recognize.
 
 ## 4. Create a hook
 
@@ -174,6 +188,44 @@ command exits unsuccessfully. It runs from the hook process's current directory
 by default. Pass `shouldRunFromRepositoryRoot: true` to run from the Git
 repository root.
 
+### Google Maps native files
+
+Commit ignore rules for the local native secret files before creating them:
+
+```gitignore
+android/secrets.properties
+ios/Flutter/Secrets.xcconfig
+```
+
+Then a `before_build` hook can prepare both platform builds from the configured
+`GOOGLE_MAPS_API_KEY`:
+
+```dart
+import 'dart:io';
+
+import 'package:smf_hooks/smf_hooks.dart';
+
+final class PrepareGoogleMaps extends SmfHook {
+  @override
+  Future<void> run(SmfBeforeBuildContext context) async {
+    final apiKey = context.secrets['GOOGLE_MAPS_API_KEY']!;
+
+    await File('android/secrets.properties').writeAsString(
+      'GOOGLE_MAPS_API_KEY=$apiKey\n',
+    );
+    await File('ios/Flutter/Secrets.xcconfig').writeAsString(
+      'GOOGLE_MAPS_API_KEY=$apiKey\n',
+    );
+  }
+}
+
+Future<void> main() => runSmfHook(PrepareGoogleMaps());
+```
+
+Keep only the paths relevant to the platforms in the app. Ignored files remain
+available to the current build but are not staged or included in SMF's source
+fingerprint.
+
 ## 5. Understand hook commits
 
 SMF stages and commits tracked or unignored files left by a successful hook:
@@ -184,6 +236,12 @@ SMF stages and commits tracked or unignored files left by a successful hook:
 
 Hooks do not configure commit behavior. If a hook produces no changes, the
 commit step is a no-op.
+
+When configured secrets are present, SMF scans every tracked modification and
+unignored new file, filename, and symbolic-link target before the commit. If an
+exact secret value appears, the phase fails with `HOOK_SECRET_LEAK`. Ignored
+files are excluded intentionally. Encoding or otherwise transforming a secret
+can evade exact matching and remains prohibited.
 
 ## 6. Verify before pushing
 

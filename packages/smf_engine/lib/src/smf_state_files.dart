@@ -9,8 +9,14 @@ final class _SmfStateFiles {
     'flavor',
     'target_branch',
     'release_trigger_paths',
+    'hooks',
     'platforms',
   };
+  static const Set<String> _hooksFields = <String>{
+    'before_create_pr',
+    'before_build',
+  };
+  static const Set<String> _hookPhaseFields = <String>{'secrets'};
   static const Set<String> _platformFields = <String>{'ios', 'android'};
   static const Set<String> _iosFields = <String>{
     'enabled',
@@ -235,6 +241,11 @@ final class _SmfStateFiles {
       );
       _rejectUnknownFields(ios, _iosFields, 'platforms.ios');
       _rejectUnknownFields(android, _androidFields, 'platforms.android');
+      final hooks = _objectMap(
+        root['hooks'] ?? const <String, Object?>{},
+        'hooks',
+      );
+      _rejectUnknownFields(hooks, _hooksFields, 'hooks');
       final config = SmfConfig(
         appId: _appId(root['app_id']),
         flavor: _optionalNonEmptyString(root['flavor'], 'flavor'),
@@ -244,6 +255,16 @@ final class _SmfStateFiles {
         ),
         releaseTriggerPaths: _releaseTriggerPaths(
           root['release_trigger_paths'],
+        ),
+        hooks: RepositoryHooksConfig(
+          beforeCreatePullRequestSecrets: _hookSecrets(
+            hooks['before_create_pr'],
+            'hooks.before_create_pr',
+          ),
+          beforeBuildSecrets: _hookSecrets(
+            hooks['before_build'],
+            'hooks.before_build',
+          ),
         ),
         ios: platforms.containsKey('ios') ? _parseIosConfig(ios) : const IosConfig(isEnabled: false),
         android: platforms.containsKey('android') ? _parseAndroidConfig(android) : const AndroidConfig(),
@@ -303,6 +324,49 @@ final class _SmfStateFiles {
       if (!paths.contains(path)) paths.add(path);
     }
     return List<String>.unmodifiable(paths);
+  }
+
+  static List<String> _hookSecrets(Object? value, String path) {
+    if (value == null) return const <String>[];
+    final phase = _objectMap(value, path);
+    _rejectUnknownFields(phase, _hookPhaseFields, path);
+    final valueSecrets = phase['secrets'];
+    if (valueSecrets == null) return const <String>[];
+    if (valueSecrets is! List<Object?>) {
+      _fail('$path.secrets must be a list');
+    }
+    final secrets = <String>[];
+    for (var index = 0; index < valueSecrets.length; index++) {
+      final name = _nonEmptyString(
+        valueSecrets[index],
+        '$path.secrets[$index]',
+      );
+      if (!RegExp(r'^[A-Z_][A-Z0-9_]*$').hasMatch(name)) {
+        _fail(
+          '$path.secrets[$index] must contain only uppercase letters, '
+          'numbers, and underscores, and must not start with a number',
+        );
+      }
+      if (_isReservedHookSecretName(name)) {
+        _fail('$path.secrets[$index] uses the reserved environment name $name');
+      }
+      if (secrets.contains(name)) {
+        _fail('$path.secrets must not contain duplicate name $name');
+      }
+      secrets.add(name);
+    }
+    return List<String>.unmodifiable(secrets);
+  }
+
+  static bool _isReservedHookSecretName(String name) {
+    if (const <String>{'CI', 'HOME', 'PATH'}.contains(name)) return true;
+    return const <String>{
+      'ACTIONS_',
+      'GITHUB_',
+      'INPUT_',
+      'RUNNER_',
+      'SMF_',
+    }.any(name.startsWith);
   }
 
   static IosConfig _parseIosConfig(Map<String, Object?> ios) {
