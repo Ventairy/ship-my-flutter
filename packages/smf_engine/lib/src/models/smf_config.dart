@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:smf_engine/src/android/models/android_config.dart';
 import 'package:smf_engine/src/enums/release_platform.dart';
 import 'package:smf_engine/src/ios/models/ios_config.dart';
+import 'package:smf_engine/src/models/repository_hooks_config.dart';
 
 part 'smf_config.freezed.dart';
 
@@ -17,6 +18,7 @@ abstract class SmfConfig with _$SmfConfig {
     String? flavor,
     @Default('main') String targetBranch,
     @Default(<String>[]) List<String> releaseTriggerPaths,
+    @Default(RepositoryHooksConfig()) RepositoryHooksConfig hooks,
   }) = _SmfConfig;
 
   const SmfConfig._();

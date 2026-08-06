@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:smf_engine/src/models/repository_hooks_config.dart';
 import 'package:smf_engine/src/models/smf_config.dart';
 
 /// Renders the configuration and GitHub workflow files owned by SMF.
@@ -64,8 +65,25 @@ $iosBlock$androidBlock''';
   static String workflowYaml({
     required String smfPath,
     required String appId,
+    RepositoryHooksConfig hooks = const RepositoryHooksConfig(),
   }) {
-    return _workflowTemplate.replaceAll('__SMF_PATH__', jsonEncode(smfPath)).replaceAll('__APP_ID__', appId);
+    return _workflowTemplate
+        .replaceAll('__SMF_PATH__', jsonEncode(smfPath))
+        .replaceAll('__APP_ID__', appId)
+        .replaceAll(
+          '__BEFORE_CREATE_PR_SECRET_ENV__',
+          _hookSecretEnvironment(hooks.beforeCreatePullRequestSecrets),
+        )
+        .replaceAll(
+          '__BEFORE_BUILD_SECRET_ENV__',
+          _hookSecretEnvironment(hooks.beforeBuildSecrets),
+        );
+  }
+
+  static String _hookSecretEnvironment(List<String> names) {
+    if (names.isEmpty) return '';
+    final mappings = names.map((name) => '          $name: \${{ secrets.$name }}').join('\n');
+    return '        env:\n$mappings\n';
   }
 
   /// Returns the app-scoped workflow file name.
@@ -118,7 +136,7 @@ jobs:
           fvm-root: ${{ steps.project.outputs.fvm-root }}
       - id: smf
         uses: Ventairy/smf-action@v1
-        with:
+__BEFORE_CREATE_PR_SECRET_ENV__        with:
           phase: pull-request
           smf-path: ${{ env.SMF_PATH }}
 
@@ -151,7 +169,7 @@ jobs:
           uses-fvm: ${{ steps.project.outputs.uses-fvm }}
           fvm-root: ${{ steps.project.outputs.fvm-root }}
       - uses: Ventairy/smf-action@v1
-        with:
+__BEFORE_BUILD_SECRET_ENV__        with:
           phase: release-candidate
           platform: ${{ matrix.platform }}
           smf-path: ${{ env.SMF_PATH }}

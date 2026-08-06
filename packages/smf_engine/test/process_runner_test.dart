@@ -93,5 +93,42 @@ void main() {
         ),
       );
     });
+
+    test('redacts configured values from successful process output', () async {
+      final result = await const SystemProcessRunner().run(
+        '/bin/sh',
+        const <String>['-c', 'printf "visible-super-secret-value"'],
+        options: const RunOptions(
+          sensitiveValues: <String>['super-secret-value'],
+        ),
+      );
+
+      expect(result.stdout, 'visible-[REDACTED]');
+    });
+
+    test('redacts configured values from failure diagnostics', () async {
+      await expectLater(
+        const SystemProcessRunner().run(
+          '/bin/sh',
+          const <String>[
+            '-c',
+            'printf "failed super-secret-value" >&2; exit 1',
+          ],
+          options: const RunOptions(
+            sensitiveValues: <String>['super-secret-value'],
+          ),
+        ),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('failed [REDACTED]'),
+              isNot(contains('super-secret-value')),
+            ),
+          ),
+        ),
+      );
+    });
   });
 }

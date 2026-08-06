@@ -37,6 +37,20 @@
         "pattern": "^(?![\\\\/])(?![A-Za-z]:[\\\\/])(?!\\.\\.(?:[\\\\/]|$))(?!.*[\\\\/]\\.\\.(?:[\\\\/]|$)).+$"
       }
     },
+    "hooks": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": false,
+      "description": "Phase-scoped secret environment names made available to trusted repository hooks.",
+      "properties": {
+        "before_create_pr": {
+          "$ref": "#/$defs/hookPhase"
+        },
+        "before_build": {
+          "$ref": "#/$defs/hookPhase"
+        }
+      }
+    },
     "platforms": {
       "type": "object",
       "additionalProperties": false,
@@ -332,6 +346,23 @@
                 }
               }
             }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hookPhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "secrets": {
+          "type": "array",
+          "default": [],
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?!(?:SMF|GITHUB|INPUT|ACTIONS|RUNNER)_)(?!(?:CI|HOME|PATH)$)[A-Z_][A-Z0-9_]*$"
           }
         }
       }

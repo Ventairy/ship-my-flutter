@@ -93,11 +93,13 @@ final class SystemProcessRunner implements ProcessRunner {
 
     final stdoutFuture = process.stdout.transform(utf8.decoder).join();
     final stderrFuture = process.stderr.transform(utf8.decoder).join();
-    final (stdoutValue, stderrValue, exitCode) = await (
+    final (rawStdoutValue, rawStderrValue, exitCode) = await (
       stdoutFuture,
       stderrFuture,
       process.exitCode,
     ).wait;
+    final stdoutValue = _redact(rawStdoutValue, options.sensitiveValues);
+    final stderrValue = _redact(rawStderrValue, options.sensitiveValues);
     options.onStdout?.call(stdoutValue);
     options.onStderr?.call(stderrValue);
     final result = RunResult(
@@ -121,5 +123,15 @@ final class SystemProcessRunner implements ProcessRunner {
     const maximumCharacters = 4000;
     if (value.length <= maximumCharacters) return value;
     return '${value.substring(0, maximumCharacters)}\n[output truncated]';
+  }
+
+  static String _redact(String value, List<String> sensitiveValues) {
+    var redacted = value;
+    final orderedValues = sensitiveValues.where((sensitiveValue) => sensitiveValue.isNotEmpty).toSet().toList()
+      ..sort((left, right) => right.length.compareTo(left.length));
+    for (final sensitiveValue in orderedValues) {
+      redacted = redacted.replaceAll(sensitiveValue, '[REDACTED]');
+    }
+    return redacted;
   }
 }

@@ -5,6 +5,7 @@ part of 'smf_hooks_sdk.dart';
 final class SmfBeforeBuildContext extends SmfHookContext {
   const SmfBeforeBuildContext._({
     required Directory repositoryRoot,
+    required super.secrets,
   }) : _repositoryRoot = repositoryRoot,
        super._();
 

@@ -84,7 +84,8 @@ final class RepositoryInitializer {
       );
     }
     final doesConfigExist = await File(paths.config).exists();
-    final configuredAppId = doesConfigExist ? (await SmfState.config(paths.directory)).appId : null;
+    final configuredConfig = doesConfigExist ? await SmfState.config(paths.directory) : null;
+    final configuredAppId = configuredConfig?.appId;
     if (configuredAppId != null && options.appId != null && options.appId != configuredAppId) {
       throw SmfError(
         'app_id is permanent after initialization. Configured app_id is '
@@ -148,7 +149,13 @@ final class RepositoryInitializer {
       await File(workflowPath).parent.create(recursive: true);
       await File(
         workflowPath,
-      ).writeAsString(SmfTemplates.workflowYaml(smfPath: smfPath, appId: appId));
+      ).writeAsString(
+        SmfTemplates.workflowYaml(
+          smfPath: smfPath,
+          appId: appId,
+          hooks: configuredConfig!.hooks,
+        ),
+      );
       return;
     }
     if (doesConfigExist && !options.shouldOverwriteExistingFiles) {

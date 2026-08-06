@@ -32,6 +32,9 @@ abstract final class SmfHookProtocol {
   /// Hook-phase JSON field.
   static const String phaseField = 'phase';
 
+  /// Configured secret environment-name JSON field.
+  static const String secretNamesField = 'secretNames';
+
   /// Store-release-notes file JSON field.
   static const String storeReleaseNotesFileField = 'storeReleaseNotesFile';
 

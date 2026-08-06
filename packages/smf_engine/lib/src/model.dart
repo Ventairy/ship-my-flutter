@@ -30,5 +30,6 @@ export 'ios/models/apple_release_candidate_config.dart';
 export 'ios/models/apple_ship_config.dart';
 export 'ios/models/ios_config.dart';
 export 'models/github_context.dart';
+export 'models/repository_hooks_config.dart';
 export 'models/smf_config.dart';
 export 'models/store_release_notes.dart';

@@ -28,8 +28,10 @@ values before repository hooks and project commands.
 
 ## How SMF handles secrets
 
-- Standard workflows receive secrets only through Action inputs.
-- Sensitive values are masked before execution.
+- Standard workflows receive SMF credentials through Action inputs and
+  explicitly configured hook secrets through step-scoped environment values.
+- Sensitive hook values are redacted from captured output and rejected when
+  found verbatim in committable hook output.
 - API/signing values are removed before repository hooks, Git, and unrelated
   project commands.
 - Signing files live in private temporary directories outside the repository.
@@ -48,6 +50,10 @@ values before repository hooks and project commands.
 
 Do not move a credential to a job-level environment variable. That would expose
 it to setup and project steps that do not need it.
+
+Project-specific hook secrets belong in the phase-scoped `hooks` configuration
+and matching Action step described in [Typed hooks](hooks.md). This does not
+allow hooks to request SMF's store, signing, or GitHub credentials.
 
 ## CLI update checks
 

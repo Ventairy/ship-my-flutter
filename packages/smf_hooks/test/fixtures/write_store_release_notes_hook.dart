@@ -21,6 +21,8 @@ final class WriteStoreReleaseNotesHook extends SmfHook {
         'androidVersion': android.nextVersion,
         'androidCharacterLimit': android.storeReleaseNotes.characterLimit,
         'androidDescription': android.changes.single.description,
+        'configuredSecret': context.secrets['TEST_API_KEY'],
+        'hasUnlistedSecret': context.secrets.containsKey('UNLISTED_SECRET'),
       }),
       flush: true,
     );

@@ -13,6 +13,70 @@ Future<void> _writeJson(String path, Object? value) async {
   await file.writeAsString(jsonEncode(value));
 }
 
+Future<({Directory repository, SmfPaths paths})> _hookRepository({
+  String? ignoredPath,
+  String? trackedPath,
+}) async {
+  final repository = await Directory.systemTemp.createTemp('smf-hook-secret-');
+  addTearDown(() => repository.delete(recursive: true));
+  await Directory(p.join(repository.path, 'ios')).create();
+  await File(
+    p.join(repository.path, 'pubspec.yaml'),
+  ).writeAsString('name: example\nversion: 1.0.0+1\n');
+  await GitClient(root: repository.path).run(const <String>['init', '-b', 'main']);
+  await GitClient(root: repository.path).run(const <String>[
+    'config',
+    'user.email',
+    'test@example.com',
+  ]);
+  await GitClient(root: repository.path).run(const <String>[
+    'config',
+    'user.name',
+    'Test',
+  ]);
+  await RepositoryInitializer.initialize(InitOptions(appRoot: repository.path));
+  final paths = SmfPaths.resolve(repository.path);
+  final config = await File(paths.config).readAsString();
+  await File(paths.config).writeAsString(
+    config.replaceFirst(
+      'platforms:',
+      'hooks:\n'
+          '  before_build:\n'
+          '    secrets:\n'
+          '      - GOOGLE_MAPS_API_KEY\n'
+          'platforms:',
+    ),
+  );
+  await File(paths.beforeBuildHook).parent.create(recursive: true);
+  await File(paths.beforeBuildHook).writeAsString('Future<void> main() async {}\n');
+  if (ignoredPath != null) {
+    await File(p.join(repository.path, '.gitignore')).writeAsString('$ignoredPath\n');
+  }
+  if (trackedPath != null) {
+    await File(p.join(repository.path, trackedPath)).writeAsString('safe\n');
+  }
+  await GitClient(root: repository.path).run(const <String>['add', '.']);
+  await GitClient(root: repository.path).run(const <String>[
+    'commit',
+    '-m',
+    'chore: setup hook',
+  ]);
+  return (repository: repository, paths: paths);
+}
+
+RecordingProcessRunner _successfulHookRunner(
+  Future<void> Function(ProcessInvocation invocation) beforeResult,
+) => RecordingProcessRunner(
+  handler: (invocation) async {
+    await beforeResult(invocation);
+    await _writeJson(
+      invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
+      <String, Object?>{'schemaVersion': 1},
+    );
+    return const RunResult(stdout: '', stderr: '', exitCode: 0);
+  },
+);
+
 void main() {
   test('discovers and runs the tracked hook from the Flutter app', () async {
     final repository = await Directory.systemTemp.createTemp('smf-hook-run-');
@@ -104,6 +168,7 @@ void main() {
       unorderedEquals(<String>[
         'schemaVersion',
         'phase',
+        'secretNames',
         'storeReleaseNotesFile',
         'iosRelease',
         'androidRelease',
@@ -130,7 +195,12 @@ void main() {
     );
     expect(
       hookContexts.last.keys,
-      unorderedEquals(<String>['schemaVersion', 'phase', 'repositoryRoot']),
+      unorderedEquals(<String>[
+        'schemaVersion',
+        'phase',
+        'secretNames',
+        'repositoryRoot',
+      ]),
     );
     expect(hookContexts.last['phase'], 'before_build');
   });
@@ -162,6 +232,207 @@ void main() {
         ],
       ),
       isFalse,
+    );
+  });
+
+  test('passes configured hook secrets through the explicit environment', () async {
+    final fixture = await _hookRepository();
+    Map<String, Object?>? contextJson;
+    final runner = _successfulHookRunner((invocation) async {
+      contextJson =
+          jsonDecode(
+                await File(
+                  invocation.options.environment['SMF_HOOK_CONTEXT_PATH']!,
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
+    });
+
+    await RepositoryHooks.beforeBuild(
+      workingDirectory: fixture.paths.directory,
+      processRunner: runner,
+      environment: const <String, String>{
+        'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+      },
+    );
+
+    final options = runner.invocations.single.options;
+    expect(
+      (
+        options.environment['GOOGLE_MAPS_API_KEY'],
+        options.sensitiveValues.join(','),
+        (contextJson!['secretNames']! as List<Object?>).join(','),
+        jsonEncode(contextJson).contains('google-maps-secret-value'),
+      ),
+      (
+        'google-maps-secret-value',
+        'google-maps-secret-value',
+        'GOOGLE_MAPS_API_KEY',
+        false,
+      ),
+    );
+  });
+
+  test('rejects a missing configured hook secret before execution', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {});
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{},
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretMissing,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a configured hook secret shorter than eight characters', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {});
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{'GOOGLE_MAPS_API_KEY': 'short'},
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretValueTooShort,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a raw hook secret in an unignored output file', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'generated.properties'),
+      ).writeAsString('key=google-maps-secret-value\n');
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a raw hook secret in a tracked output file', () async {
+    final fixture = await _hookRepository(trackedPath: 'generated.properties');
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'generated.properties'),
+      ).writeAsString('key=google-maps-secret-value\n');
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a raw hook secret in an unignored output filename', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'google-maps-secret-value.txt'),
+      ).writeAsString('safe\n');
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
+    );
+  });
+
+  test('allows a raw hook secret in an ignored build input file', () async {
+    final fixture = await _hookRepository(ignoredPath: 'generated.properties');
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'generated.properties'),
+      ).writeAsString('key=google-maps-secret-value\n');
+    });
+
+    final didRun = await RepositoryHooks.beforeBuild(
+      workingDirectory: fixture.paths.directory,
+      processRunner: runner,
+      environment: const <String, String>{
+        'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+      },
+    );
+
+    expect(didRun, isTrue);
+  });
+
+  test('rejects a raw hook secret in an unignored symlink target', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {
+      await Link(p.join(fixture.repository.path, 'generated-link')).create(
+        'google-maps-secret-value',
+      );
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
     );
   });
 }

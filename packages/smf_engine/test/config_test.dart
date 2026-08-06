@@ -77,6 +77,69 @@ void main() {
       expect(SmfState.parseConfig(validConfig()).ios.isEnabled, isTrue);
     });
 
+    test('accepts phase-scoped repository hook secrets', () {
+      final config = validConfig()
+        ..['hooks'] = <String, Object?>{
+          'before_create_pr': <String, Object?>{
+            'secrets': <Object?>['RELEASE_NOTES_API_TOKEN'],
+          },
+          'before_build': <String, Object?>{
+            'secrets': <Object?>['GOOGLE_MAPS_API_KEY'],
+          },
+        };
+
+      final hooks = SmfState.parseConfig(config).hooks;
+
+      expect(
+        (
+          hooks.beforeCreatePullRequestSecrets.join(','),
+          hooks.beforeBuildSecrets.join(','),
+        ),
+        (
+          'RELEASE_NOTES_API_TOKEN',
+          'GOOGLE_MAPS_API_KEY',
+        ),
+      );
+    });
+
+    test('rejects duplicate repository hook secret names', () {
+      final config = validConfig()
+        ..['hooks'] = <String, Object?>{
+          'before_build': <String, Object?>{
+            'secrets': <Object?>[
+              'GOOGLE_MAPS_API_KEY',
+              'GOOGLE_MAPS_API_KEY',
+            ],
+          },
+        };
+
+      expect(
+        () => SmfState.parseConfig(config),
+        throwsA(isA<SmfError>()),
+      );
+    });
+
+    test('rejects malformed or reserved repository hook secret names', () {
+      for (final name in <String>[
+        'lowercase',
+        '1_SECRET',
+        'SMF_GITHUB_TOKEN',
+        'GITHUB_TOKEN',
+        'PATH',
+      ]) {
+        final config = validConfig()
+          ..['hooks'] = <String, Object?>{
+            'before_build': <String, Object?>{
+              'secrets': <Object?>[name],
+            },
+          };
+        expect(
+          () => SmfState.parseConfig(config),
+          throwsA(isA<SmfError>()),
+        );
+      }
+    });
+
     test('accepts safe release trigger paths and removes duplicates', () {
       final config = validConfig()
         ..['release_trigger_paths'] = <Object?>[
@@ -355,20 +418,31 @@ void main() {
       expect(parsed.ios.buildCommand, contains('release:build_ios'));
     });
 
-    test('rejects removed app path and YAML hook configuration', () {
-      for (final field in <String>['app_path', 'hooks']) {
-        final config = validConfig()..[field] = <String, Object?>{};
-        expect(
-          () => SmfState.parseConfig(config),
-          throwsA(
-            isA<SmfError>().having(
-              (error) => error.message,
-              'message',
-              allOf(contains('unknown field'), contains(field)),
-            ),
+    test('rejects the removed app path configuration', () {
+      final config = validConfig()..['app_path'] = <String, Object?>{};
+
+      expect(
+        () => SmfState.parseConfig(config),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('unknown field'), contains('app_path')),
           ),
-        );
-      }
+        ),
+      );
+    });
+
+    test('rejects legacy YAML hook path configuration', () {
+      final config = validConfig()
+        ..['hooks'] = <String, Object?>{
+          'before_build': 'tool/prepare_build.dart',
+        };
+
+      expect(
+        () => SmfState.parseConfig(config),
+        throwsA(isA<SmfError>()),
+      );
     });
 
     test(

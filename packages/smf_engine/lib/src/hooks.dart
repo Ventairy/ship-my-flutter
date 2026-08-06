@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:smf_engine/src/config.dart';
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/git.dart';
 import 'package:smf_engine/src/json_file.dart';
@@ -19,6 +21,7 @@ final class RepositoryHooks {
     required String workingDirectory,
     required List<ReleasePlanDto> plans,
     ProcessRunner processRunner = const SystemProcessRunner(),
+    Map<String, String>? environment,
   }) async {
     SmfError.check(
       plans.isNotEmpty,
@@ -26,6 +29,7 @@ final class RepositoryHooks {
       SmfErrorCode.createPrHookPlansEmpty,
     );
     final paths = SmfPaths.resolve(workingDirectory);
+    final config = await SmfState.config(paths.directory);
     return _runHook(
       paths: paths,
       hookPath: paths.beforeCreatePrHook,
@@ -42,6 +46,8 @@ final class RepositoryHooks {
         ),
       },
       processRunner: processRunner,
+      secretNames: config.hooks.beforeCreatePullRequestSecrets,
+      environment: environment ?? Platform.environment,
     );
   }
 
@@ -49,8 +55,10 @@ final class RepositoryHooks {
   static Future<bool> beforeBuild({
     required String workingDirectory,
     ProcessRunner processRunner = const SystemProcessRunner(),
-  }) {
+    Map<String, String>? environment,
+  }) async {
     final paths = SmfPaths.resolve(workingDirectory);
+    final config = await SmfState.config(paths.directory);
     return _runHook(
       paths: paths,
       hookPath: paths.beforeBuildHook,
@@ -59,6 +67,8 @@ final class RepositoryHooks {
         SmfHookProtocol.repositoryRootField: paths.repositoryRoot,
       },
       processRunner: processRunner,
+      secretNames: config.hooks.beforeBuildSecrets,
+      environment: environment ?? Platform.environment,
     );
   }
 
@@ -99,6 +109,8 @@ final class RepositoryHooks {
     required SmfHookProtocolPhase phase,
     required Map<String, Object?> payload,
     required ProcessRunner processRunner,
+    required List<String> secretNames,
+    required Map<String, String> environment,
   }) async {
     final type = await FileSystemEntity.type(hookPath, followLinks: false);
     if (type == FileSystemEntityType.notFound) return false;
@@ -118,6 +130,10 @@ final class RepositoryHooks {
       '$relativeHook must be committed before SMF can execute it.',
       SmfErrorCode.untrackedHook,
     );
+    final secretEnvironment = _resolveSecretEnvironment(
+      secretNames: secretNames,
+      environment: environment,
+    );
 
     final temporaryDirectory = await Directory.systemTemp.createTemp('smf-hook-');
     final contextPath = p.join(temporaryDirectory.path, 'context.json');
@@ -126,6 +142,9 @@ final class RepositoryHooks {
       await JsonFile(contextPath).write(<String, Object?>{
         SmfHookProtocol.schemaVersionField: SmfHookProtocol.schemaVersion,
         SmfHookProtocol.phaseField: phase.value,
+        SmfHookProtocol.secretNamesField: secretEnvironment.keys.toList(
+          growable: false,
+        ),
         ...payload,
       });
       final command = await _hookCommand(paths, hookPath);
@@ -135,9 +154,11 @@ final class RepositoryHooks {
         options: RunOptions(
           workingDirectory: paths.appRoot,
           environment: <String, String>{
+            ...secretEnvironment,
             SmfHookProtocol.contextPathEnvironment: contextPath,
             SmfHookProtocol.resultPathEnvironment: resultPath,
           },
+          sensitiveValues: secretEnvironment.values.toList(growable: false),
           onStdout: (output) {
             if (output.isNotEmpty) stderr.write(output);
           },
@@ -152,10 +173,138 @@ final class RepositoryHooks {
         SmfErrorCode.hookResultMissing,
       );
       _validateHookResult(await JsonFile(resultPath).read());
+      await _verifyNoSecretLeaks(
+        repositoryRoot: paths.repositoryRoot,
+        secretEnvironment: secretEnvironment,
+      );
       return true;
     } finally {
       await temporaryDirectory.delete(recursive: true);
     }
+  }
+
+  static Map<String, String> _resolveSecretEnvironment({
+    required List<String> secretNames,
+    required Map<String, String> environment,
+  }) {
+    final secrets = <String, String>{};
+    final missingNames = <String>[];
+    final shortNames = <String>[];
+    for (final name in secretNames) {
+      final value = environment[name];
+      if (value == null || value.isEmpty) {
+        missingNames.add(name);
+        continue;
+      }
+      if (value.length < 8) {
+        shortNames.add(name);
+        continue;
+      }
+      secrets[name] = value;
+    }
+    if (missingNames.isNotEmpty) {
+      throw SmfError(
+        'Repository hook secrets are missing or empty: '
+        '${missingNames.join(', ')}.',
+        SmfErrorCode.hookSecretMissing,
+      );
+    }
+    if (shortNames.isNotEmpty) {
+      throw SmfError(
+        'Repository hook secrets must contain at least 8 characters: '
+        '${shortNames.join(', ')}.',
+        SmfErrorCode.hookSecretValueTooShort,
+      );
+    }
+    return secrets;
+  }
+
+  static Future<void> _verifyNoSecretLeaks({
+    required String repositoryRoot,
+    required Map<String, String> secretEnvironment,
+  }) async {
+    if (secretEnvironment.isEmpty) return;
+    final git = GitClient(root: repositoryRoot);
+    final paths = <String>{
+      ..._nullSeparatedPaths(
+        await git.runRaw(const <String>[
+          'diff',
+          '--name-only',
+          '-z',
+          '--diff-filter=ACMRTUXB',
+        ]),
+      ),
+      ..._nullSeparatedPaths(
+        await git.runRaw(const <String>[
+          'diff',
+          '--cached',
+          '--name-only',
+          '-z',
+          '--diff-filter=ACMRTUXB',
+        ]),
+      ),
+      ..._nullSeparatedPaths(
+        await git.runRaw(const <String>[
+          'ls-files',
+          '--others',
+          '--exclude-standard',
+          '-z',
+        ]),
+      ),
+    };
+    final leaks = <String, Set<String>>{};
+    for (final relativePath in paths) {
+      final absolutePath = p.normalize(p.join(repositoryRoot, relativePath));
+      if (!p.isWithin(repositoryRoot, absolutePath)) continue;
+      final type = await FileSystemEntity.type(absolutePath, followLinks: false);
+      for (final secret in secretEnvironment.entries) {
+        final isPathLeak = relativePath.contains(secret.value);
+        final isContentLeak = switch (type) {
+          FileSystemEntityType.file => await _fileContains(
+            File(absolutePath),
+            utf8.encode(secret.value),
+          ),
+          FileSystemEntityType.link => (await Link(absolutePath).target()).contains(
+            secret.value,
+          ),
+          _ => false,
+        };
+        if (isPathLeak || isContentLeak) {
+          leaks.putIfAbsent(relativePath, () => <String>{}).add(secret.key);
+        }
+      }
+    }
+    if (leaks.isEmpty) return;
+    final details = leaks.entries.toList()..sort((left, right) => left.key.compareTo(right.key));
+    throw SmfError(
+      'Repository hook output contains configured secrets in committable '
+      'paths: ${details.map((entry) {
+        final names = entry.value.toList()..sort();
+        return '${entry.key} (${names.join(', ')})';
+      }).join('; ')}.',
+      SmfErrorCode.hookSecretLeak,
+    );
+  }
+
+  static Iterable<String> _nullSeparatedPaths(String output) => output.split('\u0000').where((path) => path.isNotEmpty);
+
+  static Future<bool> _fileContains(File file, List<int> pattern) async {
+    var tail = <int>[];
+    await for (final chunk in file.openRead()) {
+      final bytes = <int>[...tail, ...chunk];
+      for (var start = 0; start <= bytes.length - pattern.length; start++) {
+        var matches = true;
+        for (var offset = 0; offset < pattern.length; offset++) {
+          if (bytes[start + offset] == pattern[offset]) continue;
+          matches = false;
+          break;
+        }
+        if (matches) return true;
+      }
+      final tailLength = pattern.length - 1;
+      tail = bytes.length <= tailLength ? bytes : bytes.sublist(bytes.length - tailLength);
+    }
+    return false;
   }
 
   static void _validateHookResult(Object? value) {

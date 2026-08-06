@@ -21,7 +21,7 @@ final class RepositoryValidator {
     final changelog = await SmfState.changelog(paths.directory);
     await SmfState.storeReleaseNotes(paths.directory);
     await _validateStatePaths(paths);
-    await _validateHooks(paths);
+    await _validateHooks(paths, config);
     await _validateUniqueAppId(paths, config);
 
     if (config.enabledPlatforms.isNotEmpty) {
@@ -80,7 +80,7 @@ final class RepositoryValidator {
     }
   }
 
-  static Future<void> _validateHooks(SmfPaths paths) async {
+  static Future<void> _validateHooks(SmfPaths paths, SmfConfig config) async {
     for (final hookPath in <String>[
       paths.beforeCreatePrHook,
       paths.beforeBuildHook,
@@ -110,6 +110,30 @@ final class RepositoryValidator {
         SmfErrorCode.untrackedHook,
       );
     }
+    await _validateConfiguredHookSecrets(
+      hookPath: paths.beforeCreatePrHook,
+      secretNames: config.hooks.beforeCreatePullRequestSecrets,
+      repositoryRoot: paths.repositoryRoot,
+    );
+    await _validateConfiguredHookSecrets(
+      hookPath: paths.beforeBuildHook,
+      secretNames: config.hooks.beforeBuildSecrets,
+      repositoryRoot: paths.repositoryRoot,
+    );
+  }
+
+  static Future<void> _validateConfiguredHookSecrets({
+    required String hookPath,
+    required List<String> secretNames,
+    required String repositoryRoot,
+  }) async {
+    if (secretNames.isEmpty) return;
+    final relativePath = p.relative(hookPath, from: repositoryRoot);
+    SmfError.check(
+      await File(hookPath).exists(),
+      '$relativePath must exist before hook secrets can be configured.',
+      SmfErrorCode.hookSecretWithoutHook,
+    );
   }
 
   static Future<void> _validateFlutterProject(SmfPaths paths) async {
