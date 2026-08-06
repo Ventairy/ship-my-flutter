@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/Ventairy/smf/compare/smf_hooks-v1.0.4...smf_hooks-v1.1.0) (2026-08-06)
+
+
+### Features
+
+* inject configured secrets into hooks ([#25](https://github.com/Ventairy/smf/issues/25)) ([ac462ed](https://github.com/Ventairy/smf/commit/ac462ed8de0627459f31aa99888fe080459e43c6))
+
 ## [1.0.4](https://github.com/Ventairy/smf/compare/smf_hooks-v1.0.1...smf_hooks-v1.0.4) (2026-07-29)
 
 

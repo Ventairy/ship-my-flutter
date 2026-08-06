@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/Ventairy/smf/compare/smf_cli-v1.0.4...smf_cli-v1.1.0) (2026-08-06)
+
+
+### Miscellaneous Chores
+
+* **smf_cli:** Synchronize SMF versions
+
 ## [1.0.4](https://github.com/Ventairy/smf/compare/smf_cli-v1.0.2...smf_cli-v1.0.4) (2026-07-29)
 
 
