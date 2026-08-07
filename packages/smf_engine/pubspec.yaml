@@ -33,7 +33,7 @@ dependencies:
   # Workspace resolution uses the local package; pub.dev consumers use this
   # hosted constraint.
   smf_hooks: ^1.0.0
-  xml: ^6.6.1
+  xml: ^7.0.1
   yaml: ^3.1.3
 
 dev_dependencies:
