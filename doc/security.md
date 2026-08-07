@@ -1,55 +1,70 @@
 # Security guide
 
-SMF handles store API credentials and signing material. Protect every encoded
-value exactly like the original secret.
+SMF handles store API credentials and signing material. Protect every secret
+and encoded value exactly like the original credential.
 
-## Workflow credentials
+## Credential setup
 
-### Apple
+The platform setup guides are the canonical source for credential names,
+values, phase requirements, and CLI/GitHub Actions instructions:
 
-| Secret | Contains |
-| --- | --- |
-| `APP_STORE_CONNECT_KEY_ID` | API key ID |
-| `APP_STORE_CONNECT_ISSUER_ID` | API issuer ID |
-| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | Base64 `.p8` private key |
-| `IOS_CERTIFICATE_BASE64` | Base64 Apple Distribution `.p12` |
-| `IOS_CERTIFICATE_PASSWORD` | `.p12` password |
-| `IOS_PROVISIONING_PROFILES_BASE64` | Base64 profile or bundle-ID JSON map |
+- [Apple credential variables](apple-bootstrap.md#8-provide-the-five-apple-credential-variables)
+- [Android credential variables](android-bootstrap.md#8-provide-the-five-android-credential-variables)
 
-### Android
+Base64 used for binary signing files is encoding, not encryption.
 
-| Secret | Contains |
-| --- | --- |
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64` | Base64 service-account JSON |
-| `ANDROID_KEYSTORE_BASE64` | Base64 upload keystore |
-| `ANDROID_KEY_ALIAS` | Upload-key alias |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_PASSWORD` | Key password |
+For CLI operation, export the variables in the shell that starts SMF. For
+GitHub Actions, store them as Environment secrets under
+`Settings → Environments → smf-<app-id>`. Each initialized app has a separate
+environment, so sibling apps can use the same names without sharing
+credentials. The generated release candidate and ship jobs declare only the selected
+app's environment.
 
-Base64 is encoding, not encryption.
-
-Creation instructions:
-
-- [Apple setup](apple-bootstrap.md)
-- [Android and Google Play setup](android-bootstrap.md)
+The generated cross-platform Action step lists both Apple and Android input
+names so one workflow can run either matrix platform. Configure credentials
+only for platforms the app enables. At runtime SMF loads the selected
+platform's credential set, masks supplied secrets, and removes store/signing
+values before repository hooks and project commands.
 
 ## How SMF handles secrets
 
-- Standard workflows receive secrets only through Action inputs.
-- Sensitive values are masked before execution.
+- Standard workflows receive SMF credentials through Action inputs and
+  explicitly configured hook secrets through step-scoped environment values.
+- Sensitive hook values are redacted from captured output and rejected when
+  found verbatim in committable hook output.
 - API/signing values are removed before repository hooks, Git, and unrelated
   project commands.
 - Signing files live in private temporary directories outside the repository.
-- iOS uses a temporary keychain/profile installation.
+- iOS matches the exact `.p12` certificate and signed bundle IDs against the
+  Apple team, resolves profiles through Apple's API, and uses a temporary
+  keychain/profile installation.
 - Android signs the AAB with the upload keystore, verifies the JAR signature,
   and compares the exact certificate SHA-256.
-- Temporary files are removed after the candidate operation.
-- Credentials are not placed in command arguments.
+- Temporary files are removed after the release candidate operation.
+- Generated automation keeps credentials out of command arguments. The CLI
+  accepts direct credential options for local convenience, but process
+  arguments may be observable; use `SMF_*` environment variables in
+  production.
 - Generated checkouts do not leave Git credentials available to builds.
 - Receipts contain identifiers and hashes, never private keys/passwords.
 
 Do not move a credential to a job-level environment variable. That would expose
 it to setup and project steps that do not need it.
+
+Project-specific hook secrets belong in the phase-scoped `hooks` configuration
+and matching Action step described in [Typed hooks](hooks.md). This does not
+allow hooks to request SMF's store, signing, or GitHub credentials.
+
+## CLI update checks
+
+Interactive CLI commands request public `smf_cli` package metadata from
+pub.dev and print a notice when a newer version exists. The request identifies
+the installed SMF version in its user agent but does not include repository or
+store credentials. SMF skips this check in CI and in its GitHub Action.
+
+Set `SMF_NO_UPDATE_CHECK=true` to disable advisory checks on another machine.
+The explicit `smf upgrade` command still contacts pub.dev and invokes Dart's
+package installer.
 
 ## Apple key separation
 
@@ -75,7 +90,7 @@ permissions and no unnecessary Google Cloud or financial access.
 
 These repository files can execute during a release:
 
-- `.github/workflows/smf.yml`;
+- `.github/workflows/smf-<app-id>.yml`;
 - `smf/hooks/before_create_pr.dart`;
 - `smf/hooks/before_build.dart`;
 - custom `build_command` values;
@@ -96,7 +111,7 @@ project/tool state unless it is deliberately reset.
 Generated jobs request:
 
 - pull request: Contents, Pull requests, and Issues write;
-- candidate: Contents write for receipts;
+- release candidate: Contents write for pre-upload intents and final receipts;
 - ship: Contents write for tags/GitHub Releases.
 
 Enable:
@@ -105,7 +120,8 @@ Enable:
 create and approve pull requests**
 
 The default `GITHUB_TOKEN` is sufficient when repository policy permits those
-writes.
+writes. The Action passes GitHub's token to SMF as `SMF_GITHUB_TOKEN`; the CLI
+does not read `GITHUB_TOKEN` directly.
 
 GitHub may not trigger unrelated `pull_request` workflows for a PR created by
 the default token. If those checks must run, use a GitHub App installation
@@ -119,7 +135,32 @@ repository with:
 Pass the alternative token consistently to every SMF Action step when the same
 identity must push receipts/create Releases.
 
-`smf init --workflow-only` regenerates the workflow and may replace manual
+For a GitHub App, create an installation token in each job before checkout:
+
+```yaml
+- name: Create SMF GitHub App token
+  id: smf-token
+  uses: actions/create-github-app-token@<reviewed-commit>
+  with:
+    app-id: ${{ vars.SMF_GITHUB_APP_ID }}
+    private-key: ${{ secrets.SMF_GITHUB_APP_PRIVATE_KEY }}
+    permission-contents: write
+    permission-issues: write
+    permission-pull-requests: write
+```
+
+Then pass it to that job's SMF step:
+
+```yaml
+with:
+  github-token: ${{ steps.smf-token.outputs.token }}
+```
+
+The pull-request job needs Contents, Issues, and Pull requests write. Release candidate
+and ship jobs need Contents write. If the installed App lacks one requested
+repository permission, token creation fails before SMF runs.
+
+`smf init --github-actions` regenerates the workflow and may replace manual
 token edits. Review/reapply intentional customization.
 
 ## Action version pinning
@@ -132,7 +173,7 @@ The generated workflow uses:
 
 `v1` receives compatible updates. Repositories requiring immutable review can
 replace every SMF Action/sub-action reference with the same audited full commit
-SHA. Do not mix versions between:
+hash. Do not mix versions between:
 
 ```text
 Ventairy/smf-action
@@ -142,13 +183,13 @@ Ventairy/smf-action/setup-flutter
 
 Regenerate from `smf init`; do not copy an incomplete workflow fragment.
 
-## Candidate integrity
+## Release candidate integrity
 
 Receipts record:
 
 - platform/version/build number;
 - store artifact ID and app identity;
-- source SHA/fingerprint;
+- source commit hash/fingerprint;
 - artifact SHA-256;
 - processing state; and
 - testing destinations.
@@ -168,11 +209,9 @@ build inputs.
 
 ## Production controls
 
-- Keep both platform modes at `upload` until the candidate-only flow works.
-- iOS `review`/`auto` can submit App Review.
-- Android `review`/`auto` can update production.
-- Android `review` is safe as a manual final hold only when Managed Publishing
-  is enabled in Play Console.
+- Keep `ship` omitted for both platforms until the release-candidate-only flow works.
+- Before adding either `ship` section, read the exact store effects and
+  prerequisites in the [configuration reference](configuration.md#ios).
 - Protect the target branch and require human release approval.
 
 GitHub approval does not replace store-account production gates, policy
@@ -192,9 +231,10 @@ Immediately:
 5. Regenerate dependent assets:
    - Apple profiles after replacing a Distribution certificate;
    - GitHub Android signing secrets after resetting the upload key.
-6. Replace repository/organization secrets.
+6. Replace the value in every active credential source, such as the GitHub
+   Environment or the CLI secret manager.
 7. Review audit and workflow logs.
-8. Produce/test a new candidate if artifact identity or signing material
+8. Produce/test a new release candidate if artifact identity or signing material
    changed.
 
 Never paste the exposed value into an issue.

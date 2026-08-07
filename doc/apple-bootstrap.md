@@ -1,14 +1,15 @@
 # Set up Apple delivery
 
 This guide takes a Flutter app from “it builds locally” to “SMF can upload an
-exact, signed build to App Store Connect and TestFlight from GitHub Actions.”
-It assumes no previous App Store experience.
+exact, signed build to App Store Connect and TestFlight,” either from GitHub
+Actions or through the CLI. It assumes no previous App Store experience.
 
-The first live run uses SMF's safe default, `app_store.mode: upload`. That mode
-uploads and records the build, but does **not** submit it to App Review or make
-it public. Do not switch to `review` or `auto` until the upload-only flow works,
-the exact build has been tested, and the app's store and compliance information
-is complete.
+Keep the generated `release_candidate` configuration and leave
+`app_store.ship` omitted for the first live run. Do not add `ship` until the
+release-candidate-only flow works, the exact build has been tested, and the app's store
+and compliance information is complete. Read
+[Apple targets](configuration.md#apple-targets) before choosing what happens
+after merge.
 
 > [!IMPORTANT]
 > Apple setup changes a real developer account and creates credentials for the
@@ -22,20 +23,21 @@ By the end, you will have:
 
 1. one Apple App ID for the main app and each embedded extension;
 2. one App Store Connect app record for the main app;
-3. one App Store Connect API key used by GitHub Actions;
+3. one App Store Connect API key used by SMF;
 4. one Apple Distribution identity exported as a password-protected `.p12`;
-5. one App Store Connect provisioning profile for each signed bundle ID;
-6. optionally, one internal TestFlight group;
-7. six GitHub Actions secrets.
+5. one internal TestFlight group for the documented install-and-test
+   acceptance run; and
+6. five credential values ready for CLI environment variables or GitHub
+   Actions Environment secrets.
 
-None of the `.p8`, `.p12`, `.mobileprovision`, or password values belong in
-Git, YAML, an issue, a pull request, or a build log.
+None of the `.p8`, `.p12`, or password values belong in Git, YAML, an issue, a
+pull request, or a build log.
 
 ## Apple terms used in this guide
 
 - **Apple Account:** the email/account a person uses to sign in.
 - **Apple Developer Program team:** the organization or individual membership
-  that owns identifiers, certificates, and profiles.
+  that owns identifiers and certificates.
 - **App Store Connect:** Apple's site for app records, uploaded builds,
   TestFlight, store information, and App Review.
 - **Bundle ID:** the reverse-domain identifier built into one target, such as
@@ -51,8 +53,6 @@ Git, YAML, an issue, a pull request, or a build log.
 - **Certificate and private key:** together these form the signing identity.
   The downloaded `.cer` alone is not enough for CI; the exported `.p12` must
   contain the private key.
-- **Provisioning profile:** an Apple-signed file connecting one App ID to one
-  distribution certificate and its allowed entitlements.
 
 ## Before you begin
 
@@ -63,9 +63,9 @@ You need:
 - the latest Apple agreements accepted by the Account Holder;
 - a Mac with Xcode and Keychain Access;
 - the Flutter app's Git repository and working iOS project;
-- permission to add GitHub Actions repository secrets and change Actions
-  settings;
-- an organization-approved password manager or secret manager; and
+- for GitHub Actions, permission to create a GitHub Environment, add its
+  secrets, and change Actions settings;
+- a password manager or secret manager; and
 - access to the people who own product metadata, privacy answers, export
   compliance, pricing, and review information.
 
@@ -77,12 +77,11 @@ is not always the same as the role assigned to the automation key.
 | Accept agreements and initially request App Store Connect API access | Account Holder                                              |
 | Register App IDs                                                     | Account Holder or Admin                                     |
 | Create an Apple Distribution certificate                             | Account Holder or Admin                                     |
-| Create App Store Connect provisioning profiles                       | Account Holder or Admin                                     |
 | Create the App Store Connect app record                              | Account Holder, Admin, or App Manager                       |
 | Create a team API key                                                | Account Holder or Admin                                     |
 | Create an internal TestFlight group manually                         | Account Holder, Admin, App Manager, Developer, or Marketing |
-| Upload through SMF without assigning TestFlight groups               | API key with Developer role                                 |
-| Assign builds to groups or submit an app version through SMF         | API key with App Manager role                               |
+| Build and upload through SMF                                         | Team API key with App Manager access and provisioning access |
+| Assign builds to groups or submit an app version through SMF         | Team API key with App Manager access                         |
 
 If you do not have the required human role, ask someone with that role to
 perform the named portal step. Do not solve a permissions error by granting
@@ -134,9 +133,10 @@ Use the project's normal FVM command instead when the repository uses FVM.
 
 ## 2. Confirm the existing SMF configuration
 
-Complete steps 1–4 of [Getting started](getting-started.md) before continuing.
-Those steps install and run `smf init` exactly once. Do not initialize again
-when you return to this page.
+Complete steps 1–4 of your selected setup before continuing:
+[GitHub Actions setup](github-actions-setup.md) or
+[CLI setup](cli-setup.md). Those steps install and run `smf init` exactly
+once. Do not initialize again when you return to this page.
 
 Open `<flutter-app>/smf/config.yaml` and confirm that `bundle_id` is the main
 `Runner` bundle ID recorded in step 1:
@@ -146,18 +146,18 @@ platforms:
   ios:
     enabled: true
     bundle_id: com.example.myapp
-    testflight:
-      groups: []
-      wait_timeout_minutes: 45
     app_store:
-      mode: upload
+      release_candidate:
+        target: internal-testing
+        groups: []
+        wait_timeout_minutes: 45
 ```
 
 The empty group list means “upload and process the build without assigning it
-to testers.” You can add an internal group in step 8.
+to testers.” You can add an internal group in step 7.
 
 See the [configuration reference](configuration.md) for every supported field.
-This page now covers only the Apple-side setup. Step 10 sends you back to
+This page now covers only the Apple-side setup. Step 9 sends you back to
 Getting Started for GitHub permissions, validation, commit, and the first
 release.
 
@@ -165,7 +165,7 @@ release.
 
 Required human role: **Account Holder or Admin**.
 
-Sign in to [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)
+Sign in to the [Apple Developer account](https://developer.apple.com/account/resources/identifiers/list)
 and confirm the correct team is selected.
 
 For each bundle ID from step 1:
@@ -188,14 +188,14 @@ Apple's current procedure is documented in
 Some capabilities require supporting resources or additional configuration,
 such as App Groups, iCloud containers, merchant IDs, or Sign in with Apple
 grouping. Complete the Apple setup for every enabled capability before
-creating provisioning profiles. Use Apple's
+running the first release candidate. Use Apple's
 [supported iOS capabilities](https://developer.apple.com/help/account/reference/supported-capabilities-ios)
 as the starting index; if a capability has a **Configure** button, do not
 continue until its referenced resources match the Xcode target.
 
 Success means every Xcode target has one matching identifier on the same team.
-If you later add a capability, update the App ID and regenerate that target's
-provisioning profile.
+If you later add a capability, update the App ID before running another
+release candidate.
 
 If an identifier exists under a different Apple team, stop. An identifier from
 another team cannot sign this team's app.
@@ -229,10 +229,11 @@ for Submission**, and shows the same main bundle ID as Xcode.
 
 ### Product metadata and compliance
 
-An upload-only first run does not require a finished store listing, but Apple
+The release-candidate-only first run does not require a finished store listing, but Apple
 may require enough app and compliance information to process the build.
-Before changing SMF to `review` or `auto`, the product owners must complete all
-current submission fields, including:
+Before adding a [ship target](configuration.md#apple-targets) that submits the
+app to App Review, the product owners must complete all current submission
+fields, including:
 
 - description, keywords, categories, URLs, screenshots, and app privacy;
 - age rating, content rights, pricing, and availability;
@@ -284,11 +285,14 @@ it to be downloaded only once.
    Access**, accepts the terms, submits the request, and waits for approval.
 5. Open **Team Keys** and click the add button (**+**) or **Generate API Key**.
 6. Enter a descriptive name such as `SMF GitHub Actions`.
-7. Choose the automation role:
-   - **Developer** only when `testflight.groups` is empty and
-     `app_store.mode` is `upload`;
-   - **App Manager** when SMF must associate builds with TestFlight groups or
-     use `review` or `auto`.
+7. Choose **App Manager** and ensure the key can access Certificates,
+   Identifiers & Profiles. SMF uses the same key to inspect certificates,
+   bundle IDs, and provisioning profiles, prepare and upload release candidates,
+   manage configured TestFlight groups, and perform an Apple
+   [ship action](configuration.md#apple-targets). If your organization's
+   access model cannot grant those provisioning operations to this key, ask
+   the Account Holder or Admin to create an appropriately authorized team key
+   under the organization's policy.
 8. Generate the key.
 9. Record the **Issuer ID** and **Key ID**.
 10. Click **Download API Key**, confirm the download, and immediately move the
@@ -304,18 +308,21 @@ openssl pkey -in "/absolute/path/AuthKey_ABC123.p8" -check -noout
 ```
 
 Success reports that the key is valid and exits with status 0. This local check
-does not authenticate to Apple; the first candidate verifies the Key ID,
+does not authenticate to Apple; the first release candidate verifies the Key ID,
 Issuer ID, private key, role, and app access together.
 
 Apple documents these controls in
 [App Store Connect API](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api).
 
+Use a **team key**, not an individual API key. Individual keys cannot access
+all developer-account operations required by the release workflow.
+
 Team keys apply across the App Store Connect account; they cannot be limited
 to one app. A key's access level cannot be edited after creation. If the role
 is wrong, or the `.p8` is lost or exposed, revoke the key and create a new one.
 
-Do not Base64-encode the key yet. Step 9 does that immediately before adding
-the GitHub secret.
+Do not Base64-encode the key yet. Step 8 does that immediately before adding
+the GitHub Environment secret.
 
 ## 6. Create and export the distribution identity
 
@@ -324,11 +331,19 @@ Required human role: **Account Holder or Admin**.
 First ask whether the team already has an Apple Distribution identity intended
 for CI. Distribution certificates belong to the team. Do not revoke an
 existing certificate merely to create another; revocation can invalidate
-profiles and stop other release systems.
+other release systems.
 
 SMF needs a local Apple Distribution certificate together with its private key.
 A cloud-managed certificate by itself cannot be exported as the `.p12` used by
 the generated workflow.
+
+If the Developer portal shows a certificate whose type is **Distribution
+Managed**, that is a cloud-managed signing certificate. Apple manages it
+remotely for cloud signing; it is not the local certificate/private-key
+identity this workflow imports. Leave it alone. Reuse or create an **Apple
+Distribution** identity that appears with its private key in Keychain Access.
+See Apple's
+[Cloud-managed certificates](https://developer.apple.com/help/account/certificates/cloud-managed-certificates/).
 
 - If the team already stores an approved `.p12` and its password, obtain them
   through the approved secret manager, run the verification below, and skip
@@ -336,42 +351,100 @@ the generated workflow.
 - If a certificate exists but no authorized person has its private key, it
   cannot be exported as a working `.p12`. Ask an Account Holder or Admin to
   authorize a replacement.
-- If no CI distribution identity exists, continue with the CSR.
+- If no CI distribution identity exists, use the recommended Xcode path below.
 
-### Create the certificate signing request
+### Recommended: create and export the identity with Xcode
+
+This path creates the certificate and its private key together on the trusted
+Mac, then exports both in the `.p12` format SMF needs.
+
+1. Open Xcode.
+2. In the macOS menu bar at the top of the screen, choose **Xcode → Settings**.
+3. Open **Accounts**.
+4. Select the Apple Account used for the correct Developer Program team.
+5. Select that team in the right-hand list.
+6. Click **Manage Certificates**.
+7. In the lower-left corner of the certificates sheet, click the add button
+   (**+**) and choose **Apple Distribution**.
+8. Wait for `Apple Distribution` to appear.
+9. Control-click that certificate and choose **Export Certificate**.
+10. Save it as `smf-distribution.p12`.
+11. Protect it with a strong, unique password.
+12. Store the `.p12` and password in the approved secret manager.
+
+If **Manage Certificates**, the add button, or **Apple Distribution** is
+missing, stop and check:
+
+- Xcode is signed in to the intended Apple Account;
+- the correct team is selected;
+- the person is the Account Holder or an Admin; and
+- the team has not reached Apple's distribution-certificate limit.
+
+Do not revoke another team's certificate to make the button appear. Ask the
+Account Holder which existing identity should be reused or replaced.
+
+Apple documents this flow in
+[Synchronizing code signing identities](https://developer.apple.com/documentation/xcode/sharing-your-teams-signing-certificates).
+
+Continue at [Verify the exported identity](#verify-the-exported-identity).
+
+### Manual fallback: create the identity through the Developer portal
+
+Use this path only when the team deliberately manages certificates through
+the Apple Developer account.
+
+#### Create the certificate signing request
 
 On the trusted Mac that will retain the private key:
 
-1. Open **Keychain Access** from `/Applications/Utilities`.
-2. Choose **Keychain Access → Certificate Assistant → Request a Certificate
-   From a Certificate Authority**.
-3. Enter the team member's email address.
-4. Enter a recognizable **Common Name**, such as `SMF Distribution 2026`.
-5. Leave **CA Email Address** empty.
-6. Select **Saved to disk** and click **Continue**.
-7. Save the `.certSigningRequest` file.
+1. Open **Keychain Access**, not the Passwords app. It is located at
+   `/Applications/Utilities/Keychain Access.app`.
+2. Click the Keychain Access window so **Keychain Access** is the active app.
+3. In the macOS menu bar at the very top of the screen, choose
+   **Keychain Access → Certificate Assistant → Request a Certificate From a
+   Certificate Authority**.
+4. Enter the team member's email address under **User Email Address**.
+5. Enter a recognizable **Common Name**, such as `SMF Distribution 2026`.
+6. Leave **CA Email Address** empty.
+7. Select **Saved to disk** and click **Continue**.
+8. Save the `.certSigningRequest` file.
+
+**Certificate Assistant is a macOS menu-bar command.** It does not appear in
+the Keychain Access sidebar or toolbar. If the menu bar says **Finder**,
+**Passwords**, or another app name, click Keychain Access again and repeat
+step 3.
 
 See Apple's
 [Create a certificate signing request](https://developer.apple.com/help/account/certificates/create-a-certificate-signing-request/)
 for the current Keychain procedure.
 
-### Create and install Apple Distribution
+#### Create and install Apple Distribution
 
-1. Open **Certificates** in Certificates, Identifiers & Profiles.
-2. Click the add button (**+**).
-3. Under **Software**, select **Apple Distribution** and click **Continue**.
-4. Upload the `.certSigningRequest` created on this Mac.
-5. Click **Continue**, then download the `.cer`.
-6. Double-click the downloaded `.cer` to install it in Keychain Access.
-7. In Keychain Access, open **My Certificates**.
-8. Find `Apple Distribution: <team name>`.
-9. Expand its disclosure arrow. A private key must appear beneath it.
+1. Open the Developer portal's
+   [Certificates list](https://developer.apple.com/account/resources/certificates/list)
+   and confirm the intended team is selected.
+2. Confirm the page heading is **Certificates**. Do not use App Store Connect's
+   **Users and Access → Integrations** page; that page creates API keys, not
+   signing certificates.
+3. Click the add button (**+**) beside the **Certificates** heading.
+4. Under **Software**, select **Apple Distribution** and click **Continue**.
+5. Click **Choose File** and select the `.certSigningRequest` created on this
+   Mac.
+6. Click **Continue**, then **Download**.
+7. Double-click the downloaded `.cer` to install it in Keychain Access.
+8. In Keychain Access, open **My Certificates**.
+9. Find `Apple Distribution: <team name>`.
+10. Expand its disclosure arrow. A private key must appear beneath it.
 
-If the certificate does not expand to a private key, stop. The private key is
-on the Mac that created the CSR, or the wrong CSR/certificate pair was used.
-Downloading the `.cer` again does not recreate the private key.
+If the add button or **Apple Distribution** is unavailable, confirm the role,
+team, membership, and certificate limit. Do not revoke an existing certificate
+without the release owner's approval.
 
-### Export the `.p12`
+If the installed certificate does not expand to a private key, stop. The
+private key is on the Mac that created the CSR, or the wrong CSR/certificate
+pair was used. Downloading the `.cer` again does not recreate the private key.
+
+#### Export the `.p12` from Keychain Access
 
 1. Select the Apple Distribution identity in **My Certificates**.
 2. Right-click and choose **Export**, or use **File → Export Items**.
@@ -379,6 +452,8 @@ Downloading the `.cer` again does not recreate the private key.
 4. Save it with a recognizable name such as `smf-distribution.p12`.
 5. Protect it with a strong, unique password.
 6. Store the `.p12` and its password in the approved secret manager.
+
+### Verify the exported identity
 
 Verify that the exported file opens with the recorded password and contains a
 readable identity:
@@ -394,6 +469,26 @@ The command prompts for the export password. Success prints certificate and
 key metadata and exits with status 0 without importing the identity. Do not
 put the password in the command.
 
+If OpenSSL prints `Can't read Password`, it could not read from the current
+terminal. That message does not mean the password itself was rejected. Export
+the value in the current shell and pass it through an environment variable
+instead:
+
+```bash
+export SMF_P12_PASSWORD="<p12-password>"
+
+openssl pkcs12 \
+  -in "/absolute/path/smf-distribution.p12" \
+  -info \
+  -noout \
+  -passin env:SMF_P12_PASSWORD
+```
+
+This keeps the value out of process arguments and shell history. If the
+command instead reports a MAC-verification or decryption failure, the supplied
+password does not open that `.p12`; verify that the file and password came
+from the same export.
+
 When you created the identity on this Mac, also confirm that Keychain sees it:
 
 ```bash
@@ -404,48 +499,12 @@ The output must list the Apple Distribution identity. Apple's
 [Certificates overview](https://developer.apple.com/help/account/certificates/certificates-overview/)
 explains the role and lifecycle restrictions.
 
-## 7. Create one provisioning profile per target
-
-Required human role: **Account Holder or Admin**.
-
-Repeat these steps for the main app and every embedded extension:
-
-1. Open **Profiles** in Certificates, Identifiers & Profiles.
-2. Click the add button (**+**).
-3. Under **Distribution**, select **App Store Connect** and click
-   **Continue**.
-4. Choose the App ID matching that target's bundle ID.
-5. Select the Apple Distribution certificate exported in step 6.
-6. Enter a clear name such as `MyApp App Store Runner` or
-   `MyApp App Store ShareExtension`.
-7. Click **Generate**, then **Download**.
-8. Store the `.mobileprovision` file with the other release credentials.
-
-Apple's current portal steps are in
-[Create an App Store Connect provisioning profile](https://developer.apple.com/help/account/provisioning-profiles/create-an-app-store-provisioning-profile/).
-
-Local installation is optional because SMF installs the supplied profiles in
-the temporary CI environment. You can inspect a downloaded profile on macOS:
-
-```bash
-security cms -D -i "/absolute/path/Profile.mobileprovision" | plutil -p -
-```
-
-For each profile, verify:
-
-- `application-identifier` ends with the intended bundle ID;
-- `com.apple.developer.team-identifier` names the expected team;
-- the expiration date is in the future; and
-- the entitlements cover the target's Release capabilities.
-
-If an App ID capability or distribution certificate changes, regenerate the
-affected profiles and replace the GitHub secret. Do not concatenate profile
-files.
-
-## 8. Optionally create an internal TestFlight group
+## 7. Create an internal TestFlight group for the acceptance run
 
 An internal group is the simplest and safest way to prove tester assignment.
 Its testers must already be App Store Connect users with access to the app.
+Create one when the release owner must install and test the release candidate before
+merging, as required by SMF's documented acceptance path.
 
 1. In App Store Connect, open **Apps** and select the app.
 2. Open the **TestFlight** tab.
@@ -461,61 +520,94 @@ Apple's current procedure is in
 Copy the displayed group name exactly into `<flutter-app>/smf/config.yaml`:
 
 ```yaml
-testflight:
-  groups:
-    - Internal
-  wait_timeout_minutes: 45
+app_store:
+  release_candidate:
+    target: internal-testing
+    groups:
+      - Internal
+    wait_timeout_minutes: 45
 ```
 
-Leave `groups: []` if the first run should only upload and process the build.
-
-To install and approve the exact candidate as part of the complete Getting
-Started journey, create an internal group and put its exact name in
-`testflight.groups`. An uploaded build with `groups: []` is not available to
-testers until a person assigns it in App Store Connect.
+Use `groups: []` only for an upload-and-processing diagnostic. With no group,
+SMF does not assign the build to testers, so that run cannot complete the
+install-and-test acceptance gate and its release PR must not be merged.
 
 > [!NOTE]
 > Do not use an external group for the first acceptance run. External testing
-> requires beta metadata and can require Beta App Review. SMF currently updates
-> beta notes and associates builds with existing groups, but it does not submit
-> Beta App Review. Complete and obtain that approval manually in App Store
-> Connect before relying on an external group. Follow Apple's
+> requires beta metadata and Beta App Review. With
+> `release_candidate.target: external-testing`, SMF updates beta notes, verifies
+> that every named group is external, associates the build, and submits that
+> exact build to Beta App Review. Follow Apple's
 > [external testing procedure](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/).
 
-## 9. Add the six GitHub Actions secrets
+## 8. Provide the five Apple credential variables
 
 Base64 is transport encoding, not encryption. Anyone who obtains the encoded
 value can recover the credential.
 
-In the Flutter app's GitHub repository:
+Use these same names whether you run SMF from the CLI or GitHub Actions:
+
+| Variable                                    | Value                                     | Used by        |
+| ------------------------------------------- | ----------------------------------------- | -------------- |
+| `SMF_APP_STORE_CONNECT_KEY_ID`              | Key ID recorded in step 5                 | release candidate, ship |
+| `SMF_APP_STORE_CONNECT_ISSUER_ID`           | Issuer ID recorded in step 5              | release candidate, ship |
+| `SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64`     | Base64 of the `AuthKey_*.p8`              | release candidate, ship |
+| `SMF_IOS_CERTIFICATE_BASE64`                | Base64 of the `.p12`                      | release candidate only |
+| `SMF_IOS_CERTIFICATE_PASSWORD`              | Password chosen when exporting the `.p12` | release candidate only |
+
+### CLI environment variables
+
+On macOS or Linux, export the values in the shell that will run SMF:
+
+```bash
+export SMF_APP_STORE_CONNECT_KEY_ID="<key-id>"
+export SMF_APP_STORE_CONNECT_ISSUER_ID="<issuer-id>"
+export SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64="$(base64 <"/secure/AuthKey_ABC123.p8" | tr -d '\n')"
+export SMF_IOS_CERTIFICATE_BASE64="$(base64 <"/secure/smf-distribution.p12" | tr -d '\n')"
+export SMF_IOS_CERTIFICATE_PASSWORD="<p12-password>"
+```
+
+In Windows PowerShell:
+
+```powershell
+$env:SMF_APP_STORE_CONNECT_KEY_ID = "<key-id>"
+$env:SMF_APP_STORE_CONNECT_ISSUER_ID = "<issuer-id>"
+$env:SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\AuthKey_ABC123.p8"))
+$env:SMF_IOS_CERTIFICATE_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\smf-distribution.p12"))
+$env:SMF_IOS_CERTIFICATE_PASSWORD = "<p12-password>"
+```
+
+PowerShell can supply the App Store Connect variables to the pull-request and
+ship phases. iOS release candidate builds require macOS; the certificate variables are
+used there.
+
+These variables exist only in that shell session and are inherited by the SMF
+process. SMF strips credential variables before running repository hooks and
+does not automatically load `.env` files.
+
+### GitHub Actions Environment secrets
+
+Read `app_id` from the Flutter app's `smf/config.yaml`. In the GitHub
+repository:
 
 1. Open **Settings**.
-2. Open **Secrets and variables → Actions**.
-3. Select **Repository secrets**.
-4. Click **New repository secret** for each value below.
+2. Open **Environments**.
+3. Create or open environment `smf-<app-id>`, replacing `<app-id>` with the
+   exact configured value.
+4. Under **Environment secrets**, click **Add environment secret** for each
+   variable in the table above.
 
-Use repository secrets for the generated workflow. It does not declare a
-GitHub environment, so environment secrets are unavailable unless you
-deliberately customize the workflow.
-
-| Secret                                 | Value                                               |
-| -------------------------------------- | --------------------------------------------------- |
-| `APP_STORE_CONNECT_KEY_ID`             | Key ID recorded in step 5                           |
-| `APP_STORE_CONNECT_ISSUER_ID`          | Issuer ID recorded in step 5                        |
-| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | Base64 of the `.p8`                                 |
-| `IOS_CERTIFICATE_BASE64`               | Base64 of the `.p12`                                |
-| `IOS_CERTIFICATE_PASSWORD`             | Password chosen when exporting the `.p12`           |
-| `IOS_PROVISIONING_PROFILES_BASE64`     | One Base64 profile, or the JSON map described below |
+The generated workflow declares this environment for release candidate and ship jobs.
+Do not place one app's signing credentials in a sibling app's environment.
 
 On a trusted Mac, each command copies one encoded file to the clipboard:
 
 ```bash
 base64 -i "/absolute/path/AuthKey_ABC123.p8" | pbcopy
 base64 -i "/absolute/path/smf-distribution.p12" | pbcopy
-base64 -i "/absolute/path/AppStore.mobileprovision" | pbcopy
 ```
 
-Run one command, immediately paste the clipboard into the matching GitHub
+Run one command, immediately paste the clipboard into the matching environment
 secret, save it, and then continue with the next credential. Clear the
 clipboard when finished:
 
@@ -527,73 +619,7 @@ Universal Clipboard and clipboard-manager history can retain copied values;
 disable or clear them according to team policy. On Linux, use
 `base64 -w 0 "/absolute/path/FILE"`.
 
-For an app without extensions, paste the main profile's Base64 directly into
-`IOS_PROVISIONING_PROFILES_BASE64`.
-
-For an app with extensions, encode each profile separately and set
-`IOS_PROVISIONING_PROFILES_BASE64` to a JSON object whose keys are the exact
-bundle IDs:
-
-```json
-{
-  "com.example.myapp": "<Base64 of the main app profile>",
-  "com.example.myapp.ShareExtension": "<Base64 of the extension profile>"
-}
-```
-
-The JSON object itself is the secret value. Do not Base64-encode the JSON and
-do not concatenate the profiles.
-
-Do not assemble that JSON in a repository file. If `gh` and `jq` are already
-installed and authenticated on a trusted Mac, use a permission-restricted
-temporary directory and send the result directly to GitHub:
-
-```bash
-SMF_SECRET_DIR="$(mktemp -d)"
-chmod 700 "$SMF_SECRET_DIR"
-trap 'rm -f "$SMF_SECRET_DIR/main.b64" \
-  "$SMF_SECRET_DIR/extension.b64" \
-  "$SMF_SECRET_DIR/profiles.json"; rmdir "$SMF_SECRET_DIR"' EXIT HUP INT TERM
-base64 -i "/absolute/path/AppStore.mobileprovision" \
-  > "$SMF_SECRET_DIR/main.b64"
-base64 -i "/absolute/path/ShareExtension.mobileprovision" \
-  > "$SMF_SECRET_DIR/extension.b64"
-jq -n \
-  --rawfile main "$SMF_SECRET_DIR/main.b64" \
-  --rawfile extension "$SMF_SECRET_DIR/extension.b64" \
-  '{
-    "com.example.myapp": ($main | gsub("\\n"; "")),
-    "com.example.myapp.ShareExtension": ($extension | gsub("\\n"; ""))
-  }' \
-  > "$SMF_SECRET_DIR/profiles.json"
-gh secret set IOS_PROVISIONING_PROFILES_BASE64 \
-  < "$SMF_SECRET_DIR/profiles.json"
-rm -f "$SMF_SECRET_DIR/main.b64" \
-  "$SMF_SECRET_DIR/extension.b64" \
-  "$SMF_SECRET_DIR/profiles.json"
-rmdir "$SMF_SECRET_DIR"
-trap - EXIT HUP INT TERM
-unset SMF_SECRET_DIR
-```
-
-Replace both bundle IDs and profile paths. If more extensions exist, add one
-`--rawfile` and one JSON entry for each. If you cannot use this procedure,
-assemble the value only in an approved secret-manager secure note, never in
-the app repository.
-
-GitHub never shows secret values again. Verify that all six names appear in
-the repository settings. If GitHub CLI is already authenticated, you can also
-list names without revealing values:
-
-```bash
-gh secret list
-```
-
-If a raw credential appears in Git, an issue, a pull request, or a log, revoke
-and replace it. Deleting the visible text is not enough because Git history and
-external logs may retain it.
-
-## 10. Return to Getting Started
+## 9. Return to your selected setup
 
 Apple setup is complete when:
 
@@ -603,22 +629,25 @@ Apple setup is complete when:
 - the team has recorded the API Issuer ID and Key ID and protected the valid
   `.p8`;
 - the exported `.p12` and password pass the local check;
-- every signed target has a matching, unexpired App Store profile;
-- an internal TestFlight group exists when the team will install the candidate;
-  and
-- all six GitHub secret names appear in repository settings.
+- every signed target has a registered App ID on the same team;
+- an internal TestFlight group exists for the documented install-and-test
+  acceptance run; and either
+- for GitHub Actions, all five names appear as secrets under GitHub Environment
+  `smf-<app-id>`; or
+- for CLI operation, all five values remain protected outside the repository
+  and are ready to export as environment variables.
 
-Continue at [Allow the workflow to open release
-PRs](getting-started.md#7-allow-actions-to-create-the-release-pr). Getting
-Started owns validation, committing the generated files, triggering the first
-candidate, and routing approval through the operations checklist. Do not
-trigger or merge a release from this Apple setup page.
+For the automated path, continue at
+[Allow the workflow to open release PRs](github-actions-setup.md#6-allow-actions-to-create-the-release-pr).
+For manual operation, continue at
+[Add an optional preparation hook](cli-setup.md#6-add-an-optional-preparation-hook).
+Do not trigger or merge a release from this Apple setup page.
 
 ## Troubleshooting and credential maintenance
 
 - **Wrong Apple team or bundle ID:** stop before uploading. Correct Xcode,
-  identifiers, the app record, configuration, and profiles as needed. Never
-  bypass SMF's identity checks.
+  identifiers, the app record, and configuration as needed. Never bypass SMF's
+  identity checks.
 - **API key controls are missing:** confirm the correct App Store Connect team,
   required human role, and whether API access is still pending.
 - **`.p8` is lost or exposed:** revoke the API key and create a replacement.
@@ -626,19 +655,18 @@ trigger or merge a release from this Apple setup page.
   or create an authorized replacement identity. A `.cer` download alone cannot
   restore the key.
 - **Certificate expired or was revoked:** create an authorized replacement,
-  regenerate every profile that used the old certificate, and replace the
-  GitHub secrets.
-- **Profile does not match a target:** correct the App ID/capabilities and
-  generate a new profile. Do not edit a `.mobileprovision` file.
+  replace the certificate secrets, and run a new release candidate.
+- **Apple signing access is forbidden:** confirm the team API key has App
+  Manager access and belongs to the same team as the `.p12` and App IDs.
 - **TestFlight group is not found:** copy the existing group name exactly and
   confirm it belongs to the same app.
 - **Build uploaded but receipt was not committed:** do not merge. Rerun the
   release-candidate job; SMF reuses a matching valid build.
 - **Fingerprint or Apple identity mismatch:** do not edit the receipt or
-  bypass the check. Produce and test a new candidate from the corrected source.
+  bypass the check. Produce and test a new release candidate from the corrected source.
 - **Credential reached Git or logs:** revoke and rotate it. Removing one line
   does not remove copies from history or external systems.
 
-Apple agreements, certificates, profiles, API keys, compliance answers, and
-store information are not permanently “done.” Review them before releases and
-rotate expiring or compromised assets deliberately.
+Apple agreements, certificates, API keys, compliance answers, and store
+information are not permanently “done.” Review them before releases and rotate
+expiring or compromised assets deliberately.

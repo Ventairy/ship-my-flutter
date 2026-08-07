@@ -2,20 +2,119 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:smf_hooks/smf_hooks.dart';
 import 'package:test/test.dart';
 
-final class _Hook extends SmfHook {
-  SmfBeforeCreatePrContext? received;
-
-  @override
-  Future<void> run(SmfBeforeCreatePrContext context) async {
-    received = context;
-  }
-}
-
 void main() {
-  test('decodes the typed hook protocol and writes its result', () async {
+  test(
+    'when store notes exist, it should replace them atomically and preserve their metadata',
+    () async {
+      final root = await Directory.systemTemp.createTemp('smf-hooks-');
+      addTearDown(() => root.delete(recursive: true));
+      await Directory(p.join(root.path, 'smf')).create();
+      final notesPath = p.join(root.path, 'smf', 'notes.json');
+      await File(notesPath).writeAsString(
+        jsonEncode(<String, Object?>{
+          'android': <String, Object?>{
+            '1.0.0': <String, Object?>{'pt-BR': 'Nota existente'},
+          },
+        }),
+      );
+      if (!Platform.isWindows) {
+        final result = await Process.run('/bin/chmod', <String>[
+          '640',
+          notesPath,
+        ]);
+        expect(result.exitCode, 0);
+      }
+      final contextPath = p.join(root.path, 'context.json');
+      final resultPath = p.join(root.path, 'result.json');
+      final observationPath = p.join(root.path, 'observation.json');
+      await File(contextPath).writeAsString(
+        jsonEncode(<String, Object?>{
+          'schemaVersion': 1,
+          'phase': 'before_create_pr',
+          'secretNames': <Object?>['TEST_API_KEY'],
+          'storeReleaseNotesFile': notesPath,
+          'iosRelease': <String, Object?>{
+            'nextVersion': '1.1.0',
+            'changes': <Object?>[
+              <String, Object?>{
+                'type': 'feat',
+                'scope': 'ios',
+                'description': 'Improve search',
+                'body': 'Show nearby work sooner.',
+              },
+            ],
+          },
+          'androidRelease': <String, Object?>{
+            'nextVersion': '2.0.0',
+            'changes': <Object?>[
+              <String, Object?>{
+                'type': 'fix',
+                'scope': 'android',
+                'description': 'Improve startup',
+                'body': null,
+              },
+            ],
+          },
+        }),
+      );
+      final process = await Process.run(
+        Platform.resolvedExecutable,
+        <String>[
+          'run',
+          'test/fixtures/write_store_release_notes_hook.dart',
+        ],
+        environment: <String, String>{
+          'SMF_HOOK_CONTEXT_PATH': contextPath,
+          'SMF_HOOK_RESULT_PATH': resultPath,
+          'SMF_HOOK_TEST_OBSERVATION_PATH': observationPath,
+          'TEST_API_KEY': 'configured-secret-value',
+          'UNLISTED_SECRET': 'must-not-be-exposed',
+        },
+      );
+      expect(process.exitCode, 0, reason: process.stderr as String);
+      final observation = jsonDecode(await File(observationPath).readAsString()) as Map<String, Object?>;
+      expect(observation, <String, Object?>{
+        'iosVersion': '1.1.0',
+        'iosCharacterLimit': 4000,
+        'changeType': 'feat',
+        'changeScope': 'ios',
+        'changeDescription': 'Improve search',
+        'changeBody': 'Show nearby work sooner.',
+        'androidVersion': '2.0.0',
+        'androidCharacterLimit': 500,
+        'androidDescription': 'Improve startup',
+        'configuredSecret': 'configured-secret-value',
+        'hasUnlistedSecret': false,
+      });
+      final notes = jsonDecode(await File(notesPath).readAsString()) as Map<String, Object?>;
+      expect(
+        ((notes['ios']! as Map<String, Object?>)['1.1.0']! as Map<String, Object?>)['pt-BR'],
+        'Novidades locais.',
+      );
+      expect(
+        ((notes['android']! as Map<String, Object?>)['2.0.0']! as Map<String, Object?>)['pt-BR'],
+        'Novidades locais no Android.',
+      );
+      expect(
+        ((notes['android']! as Map<String, Object?>)['1.0.0']! as Map<String, Object?>)['pt-BR'],
+        'Nota existente',
+      );
+      expect(jsonDecode(await File(resultPath).readAsString()), <String, Object?>{
+        'schemaVersion': 1,
+      });
+      expect(
+        Directory(p.dirname(notesPath)).listSync().where((entry) => entry.path.contains('.smf-write-')),
+        isEmpty,
+      );
+      if (!Platform.isWindows) {
+        expect((await File(notesPath).stat()).mode & 0x1ff, 0x1a0);
+      }
+    },
+  );
+
+  test('runCommand fails when the command exits unsuccessfully', () async {
     final root = await Directory.systemTemp.createTemp('smf-hooks-');
     addTearDown(() => root.delete(recursive: true));
     final contextPath = p.join(root.path, 'context.json');
@@ -23,54 +122,23 @@ void main() {
     await File(contextPath).writeAsString(
       jsonEncode(<String, Object?>{
         'schemaVersion': 1,
-        'phase': 'before_create_pr',
+        'phase': 'before_build',
         'repositoryRoot': root.path,
-        'appRoot': root.path,
-        'smfDirectory': p.join(root.path, 'smf'),
-        'configFile': p.join(root.path, 'smf', 'config.yaml'),
-        'changelogFile': p.join(root.path, 'smf', 'changelog.json'),
-        'storeReleaseNotesFile': p.join(root.path, 'smf', 'notes.json'),
-        'flavor': null,
-        'releasePlans': <Object?>[
-          <String, Object?>{
-            'platform': 'ios',
-            'currentVersion': '1.0.0',
-            'nextVersion': '1.1.0',
-            'bump': 'minor',
-            'baseSha': 'base',
-            'headSha': 'head',
-            'changes': <Object?>[],
-          },
-          <String, Object?>{
-            'platform': 'android',
-            'currentVersion': '2.0.0',
-            'nextVersion': '2.0.1',
-            'bump': 'patch',
-            'baseSha': 'base',
-            'headSha': 'head',
-            'changes': <Object?>[],
-          },
-        ],
       }),
     );
-    final hook = _Hook();
 
-    await runSmfHook(
-      hook,
+    final process = await Process.run(
+      Platform.resolvedExecutable,
+      <String>['run', 'test/fixtures/failing_before_build_hook.dart'],
       environment: <String, String>{
         'SMF_HOOK_CONTEXT_PATH': contextPath,
         'SMF_HOOK_RESULT_PATH': resultPath,
       },
     );
-
+    expect(process.exitCode, isNot(0));
     expect(
-      hook.received!.releasePlans.map((plan) => plan.platform),
-      <Platform>[Platform.ios, Platform.android],
+      await File(p.join(root.path, 'pwd.txt')).readAsString(),
+      '${await root.resolveSymbolicLinks()}\n',
     );
-    expect(hook.received!.releasePlans.first.nextVersion, '1.1.0');
-    expect(jsonDecode(await File(resultPath).readAsString()), <String, Object?>{
-      'schemaVersion': 1,
-      'commitChanges': true,
-    });
   });
 }

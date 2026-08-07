@@ -4,86 +4,103 @@ import 'package:smf_engine/src/conventional_commit.dart';
 import 'package:smf_engine/src/error.dart';
 import 'package:smf_engine/src/git.dart';
 import 'package:smf_engine/src/model.dart';
+import 'package:smf_engine/src/release_branch.dart';
 
-String releaseTag(Platform platform, String version) =>
-    '${platform.value}-v$version';
-
+/// Derives deterministic platform releases from Git history.
 final class ReleasePlanner {
-  const ReleasePlanner({required this.gitClient});
+  /// Creates a planner over [gitClient] for one SMF app.
+  ReleasePlanner({
+    required this.gitClient,
+    required this.appId,
+    List<String> releaseTriggerPaths = const <String>[],
+  }) : releaseTriggerPaths = List<String>.unmodifiable(releaseTriggerPaths);
 
-  final GitClient gitClient;
-
-  Future<bool> needsPromotion(SmfManifest manifest, Platform platform) async {
-    final state = manifest.forPlatform(platform);
-    if (!state.pendingRelease) return false;
-    return !(await gitClient.tagExists(releaseTag(platform, state.version)));
+  /// Creates a planner using the system Git process boundary.
+  factory ReleasePlanner.forRepository({
+    required String repositoryRoot,
+    required String appId,
+    List<String> releaseTriggerPaths = const <String>[],
+  }) {
+    return ReleasePlanner(
+      gitClient: GitClient(root: repositoryRoot),
+      appId: appId,
+      releaseTriggerPaths: releaseTriggerPaths,
+    );
   }
 
-  Future<ReleasePlan?> create(SmfManifest manifest, Platform platform) async {
+  /// Repository Git client used to inspect release history.
+  final GitClient gitClient;
+
+  /// App identifier used to derive platform tags.
+  final String appId;
+
+  /// Additional repository paths whose commits can trigger this app.
+  final List<String> releaseTriggerPaths;
+
+  /// Whether [platform] has a pending version without its immutable tag.
+  Future<bool> isPromotionNeeded({
+    required ManifestDto manifest,
+    required ReleasePlatform platform,
+    required String gitHubToken,
+  }) async {
     final state = manifest.forPlatform(platform);
-    final currentTag = releaseTag(platform, state.version);
-    final baseSha = await gitClient.tagExists(currentTag)
-        ? await gitClient.tagSha(currentTag)
-        : state.baselineSha;
-    final headSha = await gitClient.currentSha();
-    final commits = await gitClient.commitsBetween(baseSha, headSha);
+    if (!state.isReleasePending) return false;
+    return await gitClient.remoteTagCommitHash(
+          ReleaseReference.tag(appId, platform, state.version),
+          gitHubToken,
+        ) ==
+        null;
+  }
+
+  /// Creates the next release for [platform], or `null` when no change applies.
+  Future<ReleasePlanDto?> create({
+    required ManifestDto manifest,
+    required ReleasePlatform platform,
+    required String gitHubToken,
+  }) async {
+    final state = manifest.forPlatform(platform);
+    final currentTag = ReleaseReference.tag(
+      appId,
+      platform,
+      state.version,
+    );
+    final baseCommitHash = await gitClient.remoteTagCommitHash(currentTag, gitHubToken) ?? state.endCommitHash;
+    final endCommitHash = await gitClient.currentCommitHash();
+    final commits = await gitClient.commitsBetween(
+      baseCommitHash,
+      endCommitHash: endCommitHash,
+      paths: releaseTriggerPaths,
+    );
     final changes = commits
         .map(
-          (commit) => parseConventionalCommitForPlatform(
-            commit.sha,
-            commit.message,
-            platform,
-          ),
+          (commit) => ConventionalCommit.parse(commit.commitHash, commit.message),
         )
         .where(
-          (change) =>
-              change.platforms.contains(platform) &&
-              (change.bump != null || change.releaseAs != null),
+          (change) => change.platforms.contains(platform) && change.versionBumpType != null,
         )
         .toList(growable: false);
     if (changes.isEmpty) return null;
 
-    final releaseAsValues = changes
-        .map((change) => change.releaseAs)
-        .whereType<String>();
-    final releaseAs = releaseAsValues.isEmpty ? null : releaseAsValues.last;
-    final bump = highestBump(changes) ?? Bump.patch;
+    final versionBumpType = ConventionalCommit.highestVersionBumpType(changes) ?? VersionBumpType.patch;
     final currentVersion = Version.parse(state.version);
-    final nextVersion =
-        releaseAs ??
-        switch (bump) {
-          Bump.major => currentVersion.nextMajor.toString(),
-          Bump.minor => currentVersion.nextMinor.toString(),
-          Bump.patch => currentVersion.nextPatch.toString(),
-        };
-    invariant(
+    final nextVersion = switch (versionBumpType) {
+      VersionBumpType.major => currentVersion.nextMajor.toString(),
+      VersionBumpType.minor => currentVersion.nextMinor.toString(),
+      VersionBumpType.patch => currentVersion.nextPatch.toString(),
+    };
+    SmfError.check(
       Version.parse(nextVersion) > currentVersion,
       'Requested version $nextVersion must be greater than ${state.version}',
-      'SEMVER_ORDER',
+      SmfErrorCode.semverOrder,
     );
-    return ReleasePlan(
+    return ReleasePlanDto(
       platform: platform,
       currentVersion: state.version,
       nextVersion: nextVersion,
-      bump: bump,
-      baseSha: baseSha,
-      headSha: headSha,
+      versionBumpType: versionBumpType,
+      baseCommitHash: baseCommitHash,
+      endCommitHash: endCommitHash,
       changes: changes,
     );
   }
 }
-
-Future<bool> releaseNeedsPromotion(
-  String root,
-  SmfManifest manifest,
-  Platform platform,
-) => ReleasePlanner(
-  gitClient: GitClient(root: root),
-).needsPromotion(manifest, platform);
-
-Future<ReleasePlan?> createReleasePlan(
-  String root,
-  SmfManifest manifest,
-  Platform platform,
-) =>
-    ReleasePlanner(gitClient: GitClient(root: root)).create(manifest, platform);

@@ -36,13 +36,23 @@ jobs:
         run: dart pub get
 
       - name: Regenerate committed sources
-        run: dart run melos run generate --no-select
+        run: dart run melos run gen --no-select
 
       - name: Verify generated sources
-        run: git diff --exit-code -- packages
+        run: |
+          if [[ -n "$(git status --porcelain --untracked-files=all -- packages)" ]]; then
+            git status --short --untracked-files=all -- packages
+            git diff -- packages
+            exit 1
+          fi
 
       - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed .
+        if: matrix.sdk == 'stable'
+        run: dart run tool/check_dart_format.dart
+
+      - name: Verify documentation links
+        if: matrix.sdk == 'stable'
+        run: dart run tool/check_markdown_links.dart
 
       - name: Analyze
         run: dart analyze --fatal-infos

@@ -1,6 +1,6 @@
 name: smf_cli
 description: Command-line interface for SMF release automation.
-version: 0.1.0
+version: 1.1.0
 repository: https://github.com/Ventairy/smf
 issue_tracker: https://github.com/Ventairy/smf/issues
 topics:
@@ -11,6 +11,11 @@ topics:
 environment:
   sdk: ">=3.10.0 <4.0.0"
 
+platforms:
+  linux:
+  macos:
+  windows:
+
 resolution: workspace
 
 executables:
@@ -19,10 +24,12 @@ executables:
 dependencies:
   args: ^2.7.0
   path: ^1.9.1
-  smf_android: ^0.1.0
-  smf_apple: ^0.1.0
-  smf_engine: ^0.1.0
+  pub_semver: ^2.2.0
+  # Workspace resolution uses the local package; pub.dev consumers use this
+  # hosted constraint.
+  smf_engine: ^1.0.0
 
 dev_dependencies:
+  # Keep aligned with smf_engine; see its analyzer compatibility note.
   test: 1.30.0
   yaml: ^3.1.3

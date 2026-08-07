@@ -4,59 +4,134 @@ import 'package:path/path.dart' as p;
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
-Future<(Directory, String)> repository() async {
-  final directory = await Directory.systemTemp.createTemp('smf-plan-');
-  addTearDown(() => directory.delete(recursive: true));
-  await git(directory.path, const <String>['init', '-b', 'main']);
-  await git(directory.path, const <String>['config', 'user.name', 'Test']);
-  await git(directory.path, const <String>[
-    'config',
-    'user.email',
-    'test@example.com',
-  ]);
-  await File(p.join(directory.path, 'app.txt')).writeAsString('baseline\n');
-  await git(directory.path, const <String>['add', '.']);
-  await git(directory.path, const <String>['commit', '-m', 'chore: bootstrap']);
-  return (
-    directory,
-    await git(directory.path, const <String>['rev-parse', 'HEAD']),
-  );
-}
+final class _ReleasePlanFixture {
+  const _ReleasePlanFixture._();
 
-Future<void> commit(String root, String message, String content) async {
-  await File(p.join(root, 'app.txt')).writeAsString(content);
-  await git(root, const <String>['add', '.']);
-  await git(root, <String>['commit', '-m', message]);
-}
+  static Future<(Directory, String)> repository() async {
+    final directory = await Directory.systemTemp.createTemp('smf-plan-');
+    addTearDown(() => directory.delete(recursive: true));
+    final gitClient = GitClient(root: directory.path);
+    await gitClient.run(const <String>['init', '-b', 'main']);
+    await gitClient.run(const <String>['config', 'user.name', 'Test']);
+    await gitClient.run(const <String>[
+      'config',
+      'user.email',
+      'test@example.com',
+    ]);
+    await File(p.join(directory.path, 'app.txt')).writeAsString('baseline\n');
+    await gitClient.run(const <String>['add', '.']);
+    await gitClient.run(
+      const <String>['commit', '-m', 'chore: bootstrap'],
+    );
+    final remote = await Directory.systemTemp.createTemp('smf-plan-remote-');
+    addTearDown(() => remote.delete(recursive: true));
+    await GitClient(root: remote.path).run(const <String>['init', '--bare']);
+    await gitClient.run(<String>['remote', 'add', 'origin', remote.path]);
+    await gitClient.run(const <String>['push', '-u', 'origin', 'main']);
+    return (
+      directory,
+      await gitClient.run(const <String>['rev-parse', 'HEAD']),
+    );
+  }
 
-SmfManifest manifest(
-  String version,
-  String baselineSha, {
-  bool pendingRelease = false,
-}) => SmfManifest(
-  ios: PlatformManifest(
-    version: version,
-    baselineSha: baselineSha,
-    pendingRelease: pendingRelease,
-  ),
-);
+  static Future<void> commit(
+    String root,
+    String message,
+    String content,
+  ) async {
+    await File(p.join(root, 'app.txt')).writeAsString(content);
+    final gitClient = GitClient(root: root);
+    await gitClient.run(const <String>['add', '.']);
+    await gitClient.run(<String>['commit', '-m', message]);
+  }
+
+  static Future<void> commitPath(
+    String root,
+    String path,
+    String message,
+    String content,
+  ) async {
+    final file = File(p.join(root, path));
+    await file.parent.create(recursive: true);
+    await file.writeAsString(content);
+    final gitClient = GitClient(root: root);
+    await gitClient.run(const <String>['add', '.']);
+    await gitClient.run(<String>['commit', '-m', message]);
+  }
+
+  static ManifestDto manifest(
+    String version,
+    String endCommitHash, {
+    bool isReleasePending = false,
+  }) {
+    return ManifestDto(
+      schemaVersion: 1,
+      platforms: ManifestPlatformsDto(
+        ios: PlatformManifestDto(
+          version: version,
+          endCommitHash: endCommitHash,
+          isReleasePending: isReleasePending,
+        ),
+        android: PlatformManifestDto(
+          version: '0.0.0',
+          endCommitHash: endCommitHash,
+          isReleasePending: false,
+        ),
+      ),
+    );
+  }
+
+  static ReleasePlanner planner(
+    String repositoryRoot, {
+    String appId = 'example',
+    List<String> releaseTriggerPaths = const <String>[],
+  }) {
+    return ReleasePlanner.forRepository(
+      repositoryRoot: repositoryRoot,
+      appId: appId,
+      releaseTriggerPaths: releaseTriggerPaths,
+    );
+  }
+}
 
 void main() {
+  test(
+    'when release trigger paths are exposed, they should reject mutation',
+    () {
+      final planner = ReleasePlanner(
+        gitClient: const GitClient(root: '/tmp/repository'),
+        appId: 'example',
+        releaseTriggerPaths: <String>['apps/example'],
+      );
+
+      expect(
+        planner.releaseTriggerPaths.clear,
+        throwsUnsupportedError,
+      );
+    },
+  );
+
   group('release planning', () {
     test('bumps iOS independently and excludes Android-only changes', () async {
-      final (directory, baselineSha) = await repository();
-      await commit(directory.path, 'feat(ios): add widgets', 'ios\n');
-      await commit(
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
+      await _ReleasePlanFixture.commit(directory.path, 'feat(ios): add widgets', 'ios\n');
+      await _ReleasePlanFixture.commit(
         directory.path,
         'fix(android): repair back button',
         'android\n',
       );
 
-      final plan = await createReleasePlan(
-        directory.path,
-        manifest('1.2.3', baselineSha),
-        Platform.ios,
-      );
+      final plan =
+          await _ReleasePlanFixture.planner(
+            directory.path,
+          ).create(
+            manifest: _ReleasePlanFixture.manifest(
+              '1.2.3',
+              endCommitHash,
+            ),
+            platform: ReleasePlatform.ios,
+            gitHubToken: 'token',
+          );
 
       expect(plan?.nextVersion, '1.3.0');
       expect(
@@ -66,31 +141,35 @@ void main() {
     });
 
     test('plans iOS and Android independently from the same history', () async {
-      final (directory, baselineSha) = await repository();
-      await commit(directory.path, 'feat: shared capability', 'shared\n');
-      await commit(directory.path, 'fix(android): Android repair', 'android\n');
-      final state = SmfManifest(
-        ios: PlatformManifest(
-          version: '2.0.0',
-          baselineSha: baselineSha,
-          pendingRelease: false,
-        ),
-        android: PlatformManifest(
-          version: '1.4.2',
-          baselineSha: baselineSha,
-          pendingRelease: false,
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
+      await _ReleasePlanFixture.commit(directory.path, 'feat: shared capability', 'shared\n');
+      await _ReleasePlanFixture.commit(directory.path, 'fix(android): Android repair', 'android\n');
+      final state = ManifestDto(
+        schemaVersion: 1,
+        platforms: ManifestPlatformsDto(
+          ios: PlatformManifestDto(
+            version: '2.0.0',
+            endCommitHash: endCommitHash,
+            isReleasePending: false,
+          ),
+          android: PlatformManifestDto(
+            version: '1.4.2',
+            endCommitHash: endCommitHash,
+            isReleasePending: false,
+          ),
         ),
       );
 
-      final ios = await createReleasePlan(
-        directory.path,
-        state,
-        Platform.ios,
+      final planner = _ReleasePlanFixture.planner(directory.path);
+      final ios = await planner.create(
+        manifest: state,
+        platform: ReleasePlatform.ios,
+        gitHubToken: 'token',
       );
-      final android = await createReleasePlan(
-        directory.path,
-        state,
-        Platform.android,
+      final android = await planner.create(
+        manifest: state,
+        platform: ReleasePlatform.android,
+        gitHubToken: 'token',
       );
 
       expect(ios?.nextVersion, '2.1.0');
@@ -105,63 +184,178 @@ void main() {
     });
 
     test('uses the platform tag as the next release baseline', () async {
-      final (directory, baselineSha) = await repository();
-      await commit(directory.path, 'feat: already released', 'released\n');
-      await git(directory.path, <String>[
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
+      await _ReleasePlanFixture.commit(directory.path, 'feat: already released', 'released\n');
+      await GitClient(root: directory.path).run(<String>[
         'tag',
-        releaseTag(Platform.ios, '2.0.0'),
+        ReleaseReference.tag('example', ReleasePlatform.ios, '2.0.0'),
       ]);
-      await commit(directory.path, 'fix: new patch', 'patch\n');
-      final state = manifest('2.0.0', baselineSha, pendingRelease: true);
+      await GitClient(root: directory.path).run(const <String>[
+        'push',
+        'origin',
+        'example/ios-v2.0.0',
+      ]);
+      await GitClient(root: directory.path).run(const <String>[
+        'tag',
+        '--delete',
+        'example/ios-v2.0.0',
+      ]);
+      await _ReleasePlanFixture.commit(directory.path, 'fix: new patch', 'patch\n');
+      final state = _ReleasePlanFixture.manifest(
+        '2.0.0',
+        endCommitHash,
+        isReleasePending: true,
+      );
 
-      final plan = await createReleasePlan(directory.path, state, Platform.ios);
+      final planner = _ReleasePlanFixture.planner(directory.path);
+      final plan = await planner.create(
+        manifest: state,
+        platform: ReleasePlatform.ios,
+        gitHubToken: 'token',
+      );
 
       expect(plan?.nextVersion, '2.0.1');
       expect(plan?.changes, hasLength(1));
       expect(
-        await releaseNeedsPromotion(directory.path, state, Platform.ios),
+        await planner.isPromotionNeeded(
+          manifest: state,
+          platform: ReleasePlatform.ios,
+          gitHubToken: 'token',
+        ),
         isFalse,
       );
     });
 
     test('recognizes a merged pending release without a tag', () async {
-      final (directory, baselineSha) = await repository();
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
       expect(
-        await releaseNeedsPromotion(
+        await _ReleasePlanFixture.planner(
           directory.path,
-          manifest('1.0.0', baselineSha, pendingRelease: true),
-          Platform.ios,
+        ).isPromotionNeeded(
+          manifest: _ReleasePlanFixture.manifest(
+            '1.0.0',
+            endCommitHash,
+            isReleasePending: true,
+          ),
+          platform: ReleasePlatform.ios,
+          gitHubToken: 'token',
         ),
         isTrue,
       );
     });
 
     test('returns no plan for non-releasable commits', () async {
-      final (directory, baselineSha) = await repository();
-      await commit(directory.path, 'chore: update tooling', 'tooling\n');
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
+      await _ReleasePlanFixture.commit(directory.path, 'chore: update tooling', 'tooling\n');
       expect(
-        await createReleasePlan(
+        await _ReleasePlanFixture.planner(
           directory.path,
-          manifest('1.0.0', baselineSha),
-          Platform.ios,
+        ).create(
+          manifest: _ReleasePlanFixture.manifest(
+            '1.0.0',
+            endCommitHash,
+          ),
+          platform: ReleasePlatform.ios,
+          gitHubToken: 'token',
         ),
         isNull,
       );
     });
 
-    test('honors an explicit Release-As version', () async {
-      final (directory, baselineSha) = await repository();
-      await commit(
+    test('does not allow a commit footer to override the version', () async {
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
+      await _ReleasePlanFixture.commit(
         directory.path,
-        'chore(ios): prepare migration\n\nRelease-As-ios: 4.0.0',
+        'feat(android): prepare migration\n\nRelease-As-android: 4.0.0',
         'migration\n',
       );
-      final plan = await createReleasePlan(
+      final plan =
+          await _ReleasePlanFixture.planner(
+            directory.path,
+          ).create(
+            manifest:
+                _ReleasePlanFixture.manifest(
+                  '1.2.3',
+                  endCommitHash,
+                ).copyWith(
+                  platforms: ManifestPlatformsDto(
+                    ios: PlatformManifestDto(
+                      version: '1.2.3',
+                      endCommitHash: endCommitHash,
+                      isReleasePending: false,
+                    ),
+                    android: PlatformManifestDto(
+                      version: '1.2.3',
+                      endCommitHash: endCommitHash,
+                      isReleasePending: false,
+                    ),
+                  ),
+                ),
+            platform: ReleasePlatform.android,
+            gitHubToken: 'token',
+          );
+      expect(plan?.nextVersion, '1.3.0');
+    });
+
+    test('isolates app commits and includes configured shared paths', () async {
+      final (directory, endCommitHash) = await _ReleasePlanFixture.repository();
+      await _ReleasePlanFixture.commitPath(
         directory.path,
-        manifest('1.0.0', baselineSha),
-        Platform.ios,
+        'apps/customer/lib/main.dart',
+        'feat: improve customer search',
+        'customer\n',
       );
-      expect(plan?.nextVersion, '4.0.0');
+      await _ReleasePlanFixture.commitPath(
+        directory.path,
+        'apps/driver/lib/main.dart',
+        'feat: improve driver routing',
+        'driver\n',
+      );
+      await _ReleasePlanFixture.commitPath(
+        directory.path,
+        'packages/shared_models/lib/model.dart',
+        'fix: repair shared model',
+        'shared\n',
+      );
+
+      final customerPlanner = _ReleasePlanFixture.planner(
+        directory.path,
+        appId: 'customer',
+        releaseTriggerPaths: const <String>['apps/customer'],
+      );
+      final customer = await customerPlanner.create(
+        manifest: _ReleasePlanFixture.manifest(
+          '1.0.0',
+          endCommitHash,
+        ),
+        platform: ReleasePlatform.ios,
+        gitHubToken: 'token',
+      );
+      final customerWithShared =
+          await _ReleasePlanFixture.planner(
+            directory.path,
+            appId: 'customer',
+            releaseTriggerPaths: const <String>[
+              'apps/customer',
+              'packages/shared_models/**',
+            ],
+          ).create(
+            manifest: _ReleasePlanFixture.manifest(
+              '1.0.0',
+              endCommitHash,
+            ),
+            platform: ReleasePlatform.ios,
+            gitHubToken: 'token',
+          );
+
+      expect(
+        customer?.changes.map((change) => change.description),
+        <String>['improve customer search'],
+      );
+      expect(
+        customerWithShared?.changes.map((change) => change.description),
+        <String>['improve customer search', 'repair shared model'],
+      );
     });
   });
 }

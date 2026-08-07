@@ -5,121 +5,139 @@ import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
 String configYaml({
+  String appId = 'example',
   String buildCommand = 'flutter build ipa --release',
   String? flavor,
   List<String> groups = const <String>[],
-  String mode = 'upload',
+  List<String> releaseTriggerPaths = const <String>[],
+  String? shipTarget,
 }) =>
     '''
 schema_version: 1
-${flavor == null ? '' : 'flavor: $flavor\n'}platforms:
+app_id: $appId
+${flavor == null ? '' : 'flavor: $flavor\n'}${releaseTriggerPaths.isEmpty ? '' : 'release_trigger_paths:\n${releaseTriggerPaths.map((path) => '  - $path').join('\n')}\n'}platforms:
   ios:
     bundle_id: dev.example.app
     build_command: "$buildCommand"
     ipa_output_path: build/ios/ipa
-    testflight:
-      groups:
-${groups.map((value) => '        - "$value"').join('\n')}
     app_store:
-      mode: $mode
+      release_candidate:
+        target: internal-testing
+        groups:
+${groups.map((value) => '          - "$value"').join('\n')}
+        wait_timeout_minutes: 45
+${shipTarget == null ? '' : '      ship:\n        target: $shipTarget\n'}
 ''';
 
 void main() {
-  group('candidate source fingerprint', () {
+  group('release candidate source fingerprint', () {
     test('requires an initialized SMF app', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
-      await git(root.path, const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
       await File(
         p.join(root.path, 'lib.dart'),
       ).writeAsString('void main() {}\n');
-      await git(root.path, const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['add', '.']);
       await expectLater(
-        sourceFingerprint(root.path),
+        SourceFingerprint.calculate(root.path),
         throwsA(
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'SMF_NOT_FOUND',
+            SmfErrorCode.smfNotFound,
           ),
         ),
       );
     });
 
-    test('ignores human-editable notes and candidate receipts', () async {
+    test('ignores human-editable notes and release candidate receipts', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
-      await git(root.path, const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
       final smf = Directory(p.join(root.path, 'smf'));
       await smf.create();
       await File(p.join(smf.path, 'config.yaml')).writeAsString(configYaml());
-      final paths = resolveSmfPaths(root.path);
-      await Directory(paths.candidates).create();
+      final paths = SmfPaths.resolve(root.path);
+      await Directory(paths.releaseCandidates).create();
       await File(
         p.join(root.path, 'lib.dart'),
       ).writeAsString('void main() {}\n');
       await File(paths.storeReleaseNotes).writeAsString('{}\n');
-      final receipt = File(candidatePath(root.path, Platform.ios, '1.0.0'));
+      final receipt = File(
+        paths.releaseCandidateReceiptPath(platform: ReleasePlatform.ios, version: '1.0.0'),
+      );
+      final intent = File(
+        paths.releaseCandidateIntentPath(
+          platform: ReleasePlatform.ios,
+          version: '1.0.0',
+        ),
+      );
       await receipt.writeAsString('{}\n');
-      await git(root.path, const <String>['add', '.']);
+      await intent.writeAsString('{}\n');
+      await GitClient(root: root.path).run(const <String>['add', '.']);
 
-      final before = await sourceFingerprint(root.path);
+      final before = await SourceFingerprint.calculate(root.path);
       await File(paths.storeReleaseNotes).writeAsString('{"ios":{}}\n');
       await receipt.writeAsString('{"build":"1"}\n');
+      await intent.writeAsString('{"build":"2"}\n');
       await File(paths.config).writeAsString(
-        configYaml(groups: const <String>['Internal'], mode: 'auto'),
+        configYaml(
+          groups: const <String>['Internal'],
+          shipTarget: 'production',
+        ),
       );
-      expect(await sourceFingerprint(root.path), before);
+      expect(await SourceFingerprint.calculate(root.path), before);
 
       await File(
         paths.config,
       ).writeAsString(configYaml(buildCommand: 'fvm flutter build ipa'));
-      expect(await sourceFingerprint(root.path), isNot(before));
+      expect(await SourceFingerprint.calculate(root.path), isNot(before));
 
       await File(paths.config).writeAsString(configYaml(flavor: 'production'));
-      expect(await sourceFingerprint(root.path), isNot(before));
+      expect(await SourceFingerprint.calculate(root.path), isNot(before));
 
       await File(
         p.join(root.path, 'lib.dart'),
       ).writeAsString('void main() => run();\n');
-      expect(await sourceFingerprint(root.path), isNot(before));
+      expect(await SourceFingerprint.calculate(root.path), isNot(before));
     });
 
     test('normalizes omitted IPA output defaults', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
-      await git(root.path, const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
       final smf = Directory(p.join(root.path, 'smf'));
       await smf.create();
       await File(p.join(smf.path, 'config.yaml')).writeAsString(configYaml());
-      final paths = resolveSmfPaths(root.path);
+      final paths = SmfPaths.resolve(root.path);
       await File(
         p.join(root.path, 'lib.dart'),
       ).writeAsString('void main() {}\n');
-      await git(root.path, const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['add', '.']);
 
-      final explicitDefaults = await sourceFingerprint(root.path);
+      final explicitDefaults = await SourceFingerprint.calculate(root.path);
       await File(paths.config).writeAsString(
         configYaml().replaceFirst('    ipa_output_path: build/ios/ipa\n', ''),
       );
 
-      expect(await sourceFingerprint(root.path), explicitDefaults);
+      expect(await SourceFingerprint.calculate(root.path), explicitDefaults);
     });
 
     test('distinguishes automatic and explicit build commands', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
-      await git(root.path, const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
       final smf = Directory(p.join(root.path, 'smf'));
       await smf.create();
       await File(p.join(smf.path, 'config.yaml')).writeAsString(configYaml());
-      final paths = resolveSmfPaths(root.path);
+      final paths = SmfPaths.resolve(root.path);
       await File(
         p.join(root.path, 'lib.dart'),
       ).writeAsString('void main() {}\n');
-      await git(root.path, const <String>['add', '.']);
+      await GitClient(root: root.path).run(const <String>['add', '.']);
 
-      final explicitCommand = await sourceFingerprint(root.path);
+      final explicitCommand = await SourceFingerprint.calculate(root.path);
       await File(paths.config).writeAsString(
         configYaml().replaceFirst(
           '    build_command: "flutter build ipa --release"\n',
@@ -127,7 +145,7 @@ void main() {
         ),
       );
 
-      expect(await sourceFingerprint(root.path), isNot(explicitCommand));
+      expect(await SourceFingerprint.calculate(root.path), isNot(explicitCommand));
     });
 
     test('rejects tracked symlinks to hidden build inputs', () async {
@@ -139,22 +157,22 @@ void main() {
         await root.delete(recursive: true);
         await outside.delete(recursive: true);
       });
-      await git(root.path, const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
       final smf = Directory(p.join(root.path, 'smf'));
       await smf.create();
       await File(p.join(smf.path, 'config.yaml')).writeAsString(configYaml());
       final externalTarget = p.join(outside.path, 'external.dart');
       await File(externalTarget).writeAsString('external\n');
       await Link(p.join(root.path, 'external.dart')).create(externalTarget);
-      await git(root.path, const <String>['add', 'external.dart']);
+      await GitClient(root: root.path).run(const <String>['add', 'external.dart']);
 
       await expectLater(
-        sourceFingerprint(root.path),
+        SourceFingerprint.calculate(root.path),
         throwsA(
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'SOURCE_SYMLINK_ESCAPE',
+            SmfErrorCode.sourceSymlinkEscape,
           ),
         ),
       );
@@ -166,19 +184,19 @@ void main() {
         p.join(root.path, '.gitignore'),
       ).writeAsString('generated.dart\n');
       await Link(p.join(root.path, 'external.dart')).create('generated.dart');
-      await git(root.path, const <String>[
+      await GitClient(root: root.path).run(const <String>[
         'add',
         '.gitignore',
         'external.dart',
       ]);
 
       await expectLater(
-        sourceFingerprint(root.path),
+        SourceFingerprint.calculate(root.path),
         throwsA(
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'SOURCE_SYMLINK_UNTRACKED',
+            SmfErrorCode.sourceSymlinkUntracked,
           ),
         ),
       );
@@ -187,28 +205,73 @@ void main() {
     test('accepts a tracked symlink to another tracked file', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
-      await git(root.path, const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
       final smf = Directory(p.join(root.path, 'smf'));
       await smf.create();
       await File(p.join(smf.path, 'config.yaml')).writeAsString(configYaml());
       await File(p.join(root.path, 'target.dart')).writeAsString('tracked\n');
       await Link(p.join(root.path, 'link.dart')).create('target.dart');
-      await git(root.path, const <String>['add', 'target.dart', 'link.dart']);
+      await GitClient(root: root.path).run(const <String>['add', 'target.dart', 'link.dart']);
 
-      expect(await sourceFingerprint(root.path), matches(r'^[a-f0-9]{64}$'));
+      expect(await SourceFingerprint.calculate(root.path), matches(r'^[a-f0-9]{64}$'));
     });
+
+    test(
+      'isolates sibling apps and includes configured shared inputs',
+      () async {
+        final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
+        addTearDown(() => root.delete(recursive: true));
+        await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
+        final customer = p.join(root.path, 'apps', 'customer');
+        final driver = p.join(root.path, 'apps', 'driver');
+        final shared = p.join(root.path, 'packages', 'shared_models');
+        await Directory(p.join(customer, 'smf')).create(recursive: true);
+        await Directory(driver).create(recursive: true);
+        await Directory(shared).create(recursive: true);
+        await File(
+          p.join(customer, 'smf', 'config.yaml'),
+        ).writeAsString(
+          configYaml(
+            appId: 'customer',
+            releaseTriggerPaths: const <String>['packages/shared_models/**'],
+          ),
+        );
+        final customerSource = File(p.join(customer, 'lib', 'main.dart'));
+        await customerSource.parent.create(recursive: true);
+        await customerSource.writeAsString('customer\n');
+        final driverSource = File(p.join(driver, 'lib', 'main.dart'));
+        await driverSource.parent.create(recursive: true);
+        await driverSource.writeAsString('driver\n');
+        final sharedSource = File(p.join(shared, 'lib', 'model.dart'));
+        await sharedSource.parent.create(recursive: true);
+        await sharedSource.writeAsString('shared\n');
+        await GitClient(root: root.path).run(const <String>['add', '.']);
+
+        final initial = await SourceFingerprint.calculate(
+          p.join(customer, 'smf'),
+        );
+        await driverSource.writeAsString('changed driver\n');
+        expect(await SourceFingerprint.calculate(p.join(customer, 'smf')), initial);
+
+        await sharedSource.writeAsString('changed shared\n');
+        expect(
+          await SourceFingerprint.calculate(p.join(customer, 'smf')),
+          isNot(initial),
+        );
+      },
+    );
 
     test('preserves leading whitespace in tracked file names', () async {
       final root = await Directory.systemTemp.createTemp('smf-fingerprint-');
       addTearDown(() => root.delete(recursive: true));
-      await git(root.path, const <String>['init', '-b', 'main']);
+      await GitClient(root: root.path).run(const <String>['init', '-b', 'main']);
       final smf = Directory(p.join(root.path, 'smf'));
       await smf.create();
       await File(p.join(smf.path, 'config.yaml')).writeAsString(configYaml());
       await File(p.join(root.path, ' leading.dart')).writeAsString('tracked\n');
-      await git(root.path, const <String>['add', ' leading.dart']);
+      await GitClient(root: root.path).run(const <String>['add', ' leading.dart']);
 
-      expect(await sourceFingerprint(root.path), matches(r'^[a-f0-9]{64}$'));
+      expect(await SourceFingerprint.calculate(root.path), matches(r'^[a-f0-9]{64}$'));
     });
   });
 }

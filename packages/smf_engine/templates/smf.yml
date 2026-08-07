@@ -1,17 +1,18 @@
-name: SMF
+name: SMF (example)
 
 on:
   push:
   workflow_dispatch:
 
 env:
+  SMF_APP_ID: example
   SMF_PATH: "smf"
 
 permissions:
   contents: read
 
 concurrency:
-  group: smf-${{ github.repository }}
+  group: smf-${{ github.repository }}-${{ env.SMF_APP_ID }}
   cancel-in-progress: false
 
 jobs:
@@ -23,9 +24,9 @@ jobs:
       pull-requests: write
       issues: write
     outputs:
-      phase: ${{ steps.smf.outputs.phase }}
-      branch: ${{ steps.smf.outputs.branch }}
-      releases: ${{ steps.smf.outputs.releases }}
+      next-phase: ${{ steps.smf.outputs.next-phase }}
+      release-branch: ${{ steps.smf.outputs.release-branch }}
+      targets: ${{ steps.smf.outputs.targets }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -50,19 +51,20 @@ jobs:
   release_candidate:
     name: release-candidate (${{ matrix.platform }})
     needs: pull_request
-    if: needs.pull_request.outputs.phase == 'release-candidate'
+    if: needs.pull_request.outputs.next-phase == 'release-candidate'
+    environment: smf-example
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
-        include: ${{ fromJSON(needs.pull_request.outputs.releases) }}
+        include: ${{ fromJSON(needs.pull_request.outputs.targets) }}
     runs-on: ${{ matrix.platform == 'ios' && 'macos-26' || 'ubuntu-latest' }}
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ needs.pull_request.outputs.branch }}
+          ref: ${{ needs.pull_request.outputs.release-branch }}
           fetch-depth: 0
           persist-credentials: false
       - id: project
@@ -79,26 +81,26 @@ jobs:
           phase: release-candidate
           platform: ${{ matrix.platform }}
           smf-path: ${{ env.SMF_PATH }}
-          app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          app-store-connect-private-key-base64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
-          ios-certificate-base64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          ios-certificate-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          ios-provisioning-profiles-base64: ${{ secrets.IOS_PROVISIONING_PROFILES_BASE64 }}
-          google-play-service-account-json-base64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
-          android-keystore-base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          android-key-alias: ${{ secrets.ANDROID_KEY_ALIAS }}
-          android-keystore-password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          android-key-password: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          app-store-connect-key-id: ${{ secrets.SMF_APP_STORE_CONNECT_KEY_ID }}
+          app-store-connect-issuer-id: ${{ secrets.SMF_APP_STORE_CONNECT_ISSUER_ID }}
+          app-store-connect-auth-key-base64: ${{ secrets.SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
+          ios-certificate-base64: ${{ secrets.SMF_IOS_CERTIFICATE_BASE64 }}
+          ios-certificate-password: ${{ secrets.SMF_IOS_CERTIFICATE_PASSWORD }}
+          google-play-service-account-json: ${{ secrets.SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          android-keystore-base64: ${{ secrets.SMF_ANDROID_KEYSTORE_BASE64 }}
+          android-key-alias: ${{ secrets.SMF_ANDROID_KEY_ALIAS }}
+          android-keystore-password: ${{ secrets.SMF_ANDROID_KEYSTORE_PASSWORD }}
+          android-key-password: ${{ secrets.SMF_ANDROID_KEY_PASSWORD }}
 
   ship:
     name: ship (${{ matrix.platform }})
     needs: pull_request
-    if: needs.pull_request.outputs.phase == 'ship'
+    if: needs.pull_request.outputs.next-phase == 'ship'
+    environment: smf-example
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.pull_request.outputs.releases) }}
+        include: ${{ fromJSON(needs.pull_request.outputs.targets) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -112,7 +114,7 @@ jobs:
           phase: ship
           platform: ${{ matrix.platform }}
           smf-path: ${{ env.SMF_PATH }}
-          app-store-connect-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          app-store-connect-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          app-store-connect-private-key-base64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
-          google-play-service-account-json-base64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+          app-store-connect-key-id: ${{ secrets.SMF_APP_STORE_CONNECT_KEY_ID }}
+          app-store-connect-issuer-id: ${{ secrets.SMF_APP_STORE_CONNECT_ISSUER_ID }}
+          app-store-connect-auth-key-base64: ${{ secrets.SMF_APP_STORE_CONNECT_AUTH_KEY_BASE64 }}
+          google-play-service-account-json: ${{ secrets.SMF_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}

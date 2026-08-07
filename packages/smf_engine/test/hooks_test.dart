@@ -3,22 +3,9 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:smf_engine/smf_engine.dart';
-import 'package:smf_hooks/smf_hooks.dart' as hooks;
 import 'package:test/test.dart';
 
 import 'support/recording_process.dart';
-
-final class _BeforeCreateHook extends hooks.SmfHook {
-  hooks.SmfBeforeCreatePrContext? received;
-
-  @override
-  bool get commitChanges => false;
-
-  @override
-  Future<void> run(hooks.SmfBeforeCreatePrContext context) async {
-    received = context;
-  }
-}
 
 Future<void> _writeJson(String path, Object? value) async {
   final file = File(path);
@@ -26,61 +13,71 @@ Future<void> _writeJson(String path, Object? value) async {
   await file.writeAsString(jsonEncode(value));
 }
 
+Future<({Directory repository, SmfPaths paths})> _hookRepository({
+  String? ignoredPath,
+  String? trackedPath,
+}) async {
+  final repository = await Directory.systemTemp.createTemp('smf-hook-secret-');
+  addTearDown(() => repository.delete(recursive: true));
+  await Directory(p.join(repository.path, 'ios')).create();
+  await File(
+    p.join(repository.path, 'pubspec.yaml'),
+  ).writeAsString('name: example\nversion: 1.0.0+1\n');
+  await GitClient(root: repository.path).run(const <String>['init', '-b', 'main']);
+  await GitClient(root: repository.path).run(const <String>[
+    'config',
+    'user.email',
+    'test@example.com',
+  ]);
+  await GitClient(root: repository.path).run(const <String>[
+    'config',
+    'user.name',
+    'Test',
+  ]);
+  await RepositoryInitializer.initialize(InitOptions(appRoot: repository.path));
+  final paths = SmfPaths.resolve(repository.path);
+  final config = await File(paths.config).readAsString();
+  await File(paths.config).writeAsString(
+    config.replaceFirst(
+      'platforms:',
+      'hooks:\n'
+          '  before_build:\n'
+          '    secrets:\n'
+          '      - GOOGLE_MAPS_API_KEY\n'
+          'platforms:',
+    ),
+  );
+  await File(paths.beforeBuildHook).parent.create(recursive: true);
+  await File(paths.beforeBuildHook).writeAsString('Future<void> main() async {}\n');
+  if (ignoredPath != null) {
+    await File(p.join(repository.path, '.gitignore')).writeAsString('$ignoredPath\n');
+  }
+  if (trackedPath != null) {
+    await File(p.join(repository.path, trackedPath)).writeAsString('safe\n');
+  }
+  await GitClient(root: repository.path).run(const <String>['add', '.']);
+  await GitClient(root: repository.path).run(const <String>[
+    'commit',
+    '-m',
+    'chore: setup hook',
+  ]);
+  return (repository: repository, paths: paths);
+}
+
+RecordingProcessRunner _successfulHookRunner(
+  Future<void> Function(ProcessInvocation invocation) beforeResult,
+) => RecordingProcessRunner(
+  handler: (invocation) async {
+    await beforeResult(invocation);
+    await _writeJson(
+      invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
+      <String, Object?>{'schemaVersion': 1},
+    );
+    return const RunResult(stdout: '', stderr: '', exitCode: 0);
+  },
+);
+
 void main() {
-  test('runSmfHook exposes a typed before-create-PR context', () async {
-    final root = await Directory.systemTemp.createTemp('smf-hook-context-');
-    addTearDown(() => root.delete(recursive: true));
-    final contextPath = p.join(root.path, 'context.json');
-    final resultPath = p.join(root.path, 'result.json');
-    const plan = ReleasePlan(
-      platform: Platform.ios,
-      currentVersion: '1.0.0',
-      nextVersion: '1.1.0',
-      bump: Bump.minor,
-      baseSha: 'base',
-      headSha: 'head',
-      changes: <ConventionalChange>[],
-    );
-    await _writeJson(contextPath, <String, Object?>{
-      'schemaVersion': 1,
-      'phase': 'before_create_pr',
-      'repositoryRoot': root.path,
-      'appRoot': p.join(root.path, 'app'),
-      'smfDirectory': p.join(root.path, 'app', 'smf'),
-      'configFile': p.join(root.path, 'app', 'smf', 'config.yaml'),
-      'changelogFile': p.join(root.path, 'app', 'smf', 'changelog.json'),
-      'storeReleaseNotesFile': p.join(
-        root.path,
-        'app',
-        'smf',
-        'store-release-notes.json',
-      ),
-      'flavor': 'production',
-      'releasePlans': <Object?>[plan.toJson()],
-    });
-    final hook = _BeforeCreateHook();
-
-    await hooks.runSmfHook(
-      hook,
-      environment: <String, String>{
-        'SMF_HOOK_CONTEXT_PATH': contextPath,
-        'SMF_HOOK_RESULT_PATH': resultPath,
-      },
-    );
-
-    expect(hook.received, isNotNull);
-    expect(hook.received!.releasePlans.single.platform, hooks.Platform.ios);
-    expect(
-      hook.received!.releasePlans.single.nextVersion,
-      plan.nextVersion,
-    );
-    expect(hook.received!.flavor, 'production');
-    expect(jsonDecode(await File(resultPath).readAsString()), <String, Object?>{
-      'schemaVersion': 1,
-      'commitChanges': false,
-    });
-  });
-
   test('discovers and runs the tracked hook from the Flutter app', () async {
     final repository = await Directory.systemTemp.createTemp('smf-hook-run-');
     addTearDown(() => repository.delete(recursive: true));
@@ -89,62 +86,123 @@ void main() {
     await File(
       p.join(app.path, 'pubspec.yaml'),
     ).writeAsString('name: example\nversion: 1.0.0+1\n');
-    await git(repository.path, const <String>['init', '-b', 'main']);
-    await git(repository.path, const <String>[
+    await GitClient(root: repository.path).run(const <String>['init', '-b', 'main']);
+    await GitClient(root: repository.path).run(const <String>[
       'config',
       'user.email',
       'test@example.com',
     ]);
-    await git(repository.path, const <String>['config', 'user.name', 'Test']);
-    await initialize(
-      InitOptions(appRoot: app.path, bundleId: 'dev.example.app'),
+    await GitClient(root: repository.path).run(const <String>['config', 'user.name', 'Test']);
+    await RepositoryInitializer.initialize(
+      InitOptions(appRoot: app.path, iosBundleId: 'dev.example.app'),
     );
-    final paths = resolveSmfPaths(repository.path);
+    final paths = SmfPaths.resolve(repository.path);
     await File(paths.beforeCreatePrHook).parent.create(recursive: true);
     await File(
       paths.beforeCreatePrHook,
     ).writeAsString('Future<void> main() async {}\n');
-    await git(repository.path, const <String>['add', '.']);
-    await git(repository.path, const <String>['commit', '-m', 'chore: setup']);
+    await File(
+      paths.beforeBuildHook,
+    ).writeAsString('Future<void> main() async {}\n');
+    await GitClient(root: repository.path).run(const <String>['add', '.']);
+    await GitClient(root: repository.path).run(const <String>['commit', '-m', 'chore: setup']);
+    final hookContexts = <Map<String, Object?>>[];
     final runner = RecordingProcessRunner(
       handler: (invocation) async {
+        hookContexts.add(
+          jsonDecode(
+                await File(
+                  invocation.options.environment['SMF_HOOK_CONTEXT_PATH']!,
+                ).readAsString(),
+              )
+              as Map<String, Object?>,
+        );
         await _writeJson(
           invocation.options.environment['SMF_HOOK_RESULT_PATH']!,
-          <String, Object?>{'schemaVersion': 1, 'commitChanges': true},
+          <String, Object?>{'schemaVersion': 1},
         );
         return const RunResult(stdout: '', stderr: '', exitCode: 0);
       },
     );
-    const plan = ReleasePlan(
-      platform: Platform.ios,
+    const plan = ReleasePlanDto(
+      platform: ReleasePlatform.ios,
       currentVersion: '1.0.0',
       nextVersion: '1.1.0',
-      bump: Bump.minor,
-      baseSha: 'base',
-      headSha: 'head',
-      changes: <ConventionalChange>[],
+      versionBumpType: VersionBumpType.minor,
+      baseCommitHash: 'base',
+      endCommitHash: 'head',
+      changes: <ConventionalChangeDto>[
+        ConventionalChangeDto(
+          commitHash: 'commit',
+          type: 'feat',
+          scope: 'ios',
+          description: 'Improve search',
+          body: 'Show nearby work sooner.',
+          isBreaking: false,
+          versionBumpType: VersionBumpType.minor,
+          platforms: <ReleasePlatform>[ReleasePlatform.ios],
+        ),
+      ],
     );
 
-    final commit = await runBeforeCreatePrHook(
-      repository.path,
-      await loadConfig(paths.directory),
-      <ReleasePlan>[plan],
+    final commit = await RepositoryHooks.beforeCreatePullRequest(
+      workingDirectory: repository.path,
+      plans: <ReleasePlanDto>[plan],
       processRunner: runner,
     );
 
     expect(commit, isTrue);
-    final invocation = runner.invocations.single;
+    final invocation = runner.invocations.first;
     expect(invocation.executable, 'dart');
     expect(invocation.arguments, <String>['run', paths.beforeCreatePrHook]);
     expect(invocation.options.workingDirectory, app.path);
     expect(
-      invocation.options.environment,
-      isNot(contains('SMF_PLATFORM_VERSION')),
+      invocation.options.environment.keys,
+      unorderedEquals(<String>[
+        'SMF_HOOK_CONTEXT_PATH',
+        'SMF_HOOK_RESULT_PATH',
+      ]),
     );
     expect(
-      invocation.options.environment,
-      containsPair('SMF_APP_ROOT', app.path),
+      hookContexts.first.keys,
+      unorderedEquals(<String>[
+        'schemaVersion',
+        'phase',
+        'secretNames',
+        'storeReleaseNotesFile',
+        'iosRelease',
+        'androidRelease',
+      ]),
     );
+    expect(hookContexts.first['androidRelease'], isNull);
+    expect(
+      (hookContexts.first['iosRelease']! as Map<String, Object?>).keys,
+      unorderedEquals(<String>['nextVersion', 'changes']),
+    );
+    final iosRelease = hookContexts.first['iosRelease']! as Map<String, Object?>;
+    final change = (iosRelease['changes']! as List<Object?>).single! as Map<String, Object?>;
+    expect(
+      change.keys,
+      unorderedEquals(<String>['type', 'scope', 'description', 'body']),
+    );
+
+    expect(
+      await RepositoryHooks.beforeBuild(
+        workingDirectory: paths.directory,
+        processRunner: runner,
+      ),
+      isTrue,
+    );
+    expect(
+      hookContexts.last.keys,
+      unorderedEquals(<String>[
+        'schemaVersion',
+        'phase',
+        'secretNames',
+        'repositoryRoot',
+      ]),
+    );
+    expect(hookContexts.last['phase'], 'before_build');
   });
 
   test('skips an absent hook', () async {
@@ -154,27 +212,227 @@ void main() {
     await File(
       p.join(repository.path, 'pubspec.yaml'),
     ).writeAsString('name: example\n');
-    await git(repository.path, const <String>['init', '-b', 'main']);
-    await initialize(InitOptions(appRoot: repository.path));
-    final paths = resolveSmfPaths(repository.path);
+    await GitClient(root: repository.path).run(const <String>['init', '-b', 'main']);
+    await RepositoryInitializer.initialize(InitOptions(appRoot: repository.path));
+    final paths = SmfPaths.resolve(repository.path);
 
     expect(
-      await runBeforeCreatePrHook(
-        paths.directory,
-        await loadConfig(paths.directory),
-        const <ReleasePlan>[
-          ReleasePlan(
-            platform: Platform.ios,
+      await RepositoryHooks.beforeCreatePullRequest(
+        workingDirectory: paths.directory,
+        plans: const <ReleasePlanDto>[
+          ReleasePlanDto(
+            platform: ReleasePlatform.ios,
             currentVersion: '0.0.0',
             nextVersion: '0.0.1',
-            bump: Bump.patch,
-            baseSha: 'base',
-            headSha: 'head',
-            changes: <ConventionalChange>[],
+            versionBumpType: VersionBumpType.patch,
+            baseCommitHash: 'base',
+            endCommitHash: 'head',
+            changes: <ConventionalChangeDto>[],
           ),
         ],
       ),
-      isNull,
+      isFalse,
+    );
+  });
+
+  test('passes configured hook secrets through the explicit environment', () async {
+    final fixture = await _hookRepository();
+    Map<String, Object?>? contextJson;
+    final runner = _successfulHookRunner((invocation) async {
+      contextJson =
+          jsonDecode(
+                await File(
+                  invocation.options.environment['SMF_HOOK_CONTEXT_PATH']!,
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
+    });
+
+    await RepositoryHooks.beforeBuild(
+      workingDirectory: fixture.paths.directory,
+      processRunner: runner,
+      environment: const <String, String>{
+        'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+      },
+    );
+
+    final options = runner.invocations.single.options;
+    expect(
+      (
+        options.environment['GOOGLE_MAPS_API_KEY'],
+        options.sensitiveValues.join(','),
+        (contextJson!['secretNames']! as List<Object?>).join(','),
+        jsonEncode(contextJson).contains('google-maps-secret-value'),
+      ),
+      (
+        'google-maps-secret-value',
+        'google-maps-secret-value',
+        'GOOGLE_MAPS_API_KEY',
+        false,
+      ),
+    );
+  });
+
+  test('rejects a missing configured hook secret before execution', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {});
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{},
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretMissing,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a configured hook secret shorter than eight characters', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {});
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{'GOOGLE_MAPS_API_KEY': 'short'},
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretValueTooShort,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a raw hook secret in an unignored output file', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'generated.properties'),
+      ).writeAsString('key=google-maps-secret-value\n');
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a raw hook secret in a tracked output file', () async {
+    final fixture = await _hookRepository(trackedPath: 'generated.properties');
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'generated.properties'),
+      ).writeAsString('key=google-maps-secret-value\n');
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
+    );
+  });
+
+  test('rejects a raw hook secret in an unignored output filename', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'google-maps-secret-value.txt'),
+      ).writeAsString('safe\n');
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
+    );
+  });
+
+  test('allows a raw hook secret in an ignored build input file', () async {
+    final fixture = await _hookRepository(ignoredPath: 'generated.properties');
+    final runner = _successfulHookRunner((_) async {
+      await File(
+        p.join(fixture.repository.path, 'generated.properties'),
+      ).writeAsString('key=google-maps-secret-value\n');
+    });
+
+    final didRun = await RepositoryHooks.beforeBuild(
+      workingDirectory: fixture.paths.directory,
+      processRunner: runner,
+      environment: const <String, String>{
+        'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+      },
+    );
+
+    expect(didRun, isTrue);
+  });
+
+  test('rejects a raw hook secret in an unignored symlink target', () async {
+    final fixture = await _hookRepository();
+    final runner = _successfulHookRunner((_) async {
+      await Link(p.join(fixture.repository.path, 'generated-link')).create(
+        'google-maps-secret-value',
+      );
+    });
+
+    await expectLater(
+      RepositoryHooks.beforeBuild(
+        workingDirectory: fixture.paths.directory,
+        processRunner: runner,
+        environment: const <String, String>{
+          'GOOGLE_MAPS_API_KEY': 'google-maps-secret-value',
+        },
+      ),
+      throwsA(
+        isA<SmfError>().having(
+          (error) => error.code,
+          'code',
+          SmfErrorCode.hookSecretLeak,
+        ),
+      ),
     );
   });
 }

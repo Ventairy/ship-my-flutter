@@ -1,12 +1,14 @@
 /// Typed repository hooks for SMF release automation.
 library;
 
-export 'src/models.dart';
-export 'src/smf_hook.dart'
+export 'src/smf_hooks_sdk.dart'
     show
+        ConventionalChange,
+        PlannedReleases,
+        PlatformRelease,
         SmfBeforeBuildContext,
         SmfBeforeCreatePrContext,
         SmfHook,
         SmfHookContext,
-        SmfHookPhase,
+        StoreReleaseNotes,
         runSmfHook;

@@ -4,13 +4,15 @@
 
 ## Verification
 
-- [ ] `dart format --output=none --set-exit-if-changed .`
-- [ ] `dart analyze --fatal-infos`
-- [ ] `dart test`
-- [ ] `dart pub publish --dry-run`
+- [ ] `dart run melos run gen --no-select`
+- [ ] `dart run melos run format:check`
+- [ ] `dart run melos run docs:check`
+- [ ] `dart run melos run analyze`
+- [ ] `dart run melos run test --no-select`
+- [ ] `dart run melos run publish:dry-run --no-select`
 - [ ] Configuration/schema changes are documented
 - [ ] No credentials or production Apple identifiers are included
 
-## Apple validation
+## Store validation
 
-<!-- State whether this was exercised with mocked responses, a disposable app, or a real TestFlight build. -->
+<!-- State whether this was exercised with mocks, disposable apps, or real store builds. -->

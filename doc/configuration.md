@@ -14,47 +14,85 @@ Run `smf validate` after every change.
 
 ```yaml
 schema_version: 1
+app_id: my_app
 target_branch: main
 flavor: production
+release_trigger_paths:
+  - packages/shared_models/**
+hooks:
+  before_build:
+    secrets:
+      - GOOGLE_MAPS_API_KEY
 
 platforms:
   ios:
     enabled: true
     initial_version: 2.4.0
     bundle_id: com.example.myapp
-    testflight:
-      groups:
-        - Internal
-      wait_timeout_minutes: 45
     app_store:
-      mode: upload
+      release_candidate:
+        target: internal-testing
+        groups:
+          - Internal
+        wait_timeout_minutes: 45
+      ship:
+        target: submit-for-review
 
   android:
     enabled: true
     initial_version: 2.3.1
     package_name: com.example.myapp
     google_play:
-      testing_track: internal
-      production_track: production
-      mode: upload
+      release_candidate:
+        target: internal-testing
+      ship:
+        target: production
 ```
 
 iOS and Android versions are intentionally independent.
 
 ## Global fields
 
-| Field | Required/default | Meaning |
-| --- | --- | --- |
-| `schema_version` | required, currently `1` | Configuration format |
-| `target_branch` | required | Branch containing normal application work |
-| `flavor` | optional | One Flutter flavor passed to enabled platform builds |
-| `platforms` | required | iOS and Android configuration |
+| Field                   | Required/default        | Meaning                                                                |
+| ----------------------- | ----------------------- | ---------------------------------------------------------------------- |
+| `schema_version`        | required, currently `1` | Configuration format                                                   |
+| `app_id`                | required, generated     | Stable identity for this app's release resources                       |
+| `target_branch`         | `main`                  | Branch containing normal application work                              |
+| `flavor`                | optional                | One Flutter flavor passed to enabled platform builds                   |
+| `release_trigger_paths` | `[]`                    | Additional repository paths whose qualifying commits apply to this app |
+| `hooks`                 | `{}`                    | Phase-scoped secret names for trusted repository hooks                  |
+| `platforms`             | required                | iOS and Android configuration                                          |
 
 At least one supported platform must be enabled.
 
-One Git repository currently supports one independently released SMF app.
-`--smf-path` selects a nested app but does not create separate branch/tag
-namespaces for sibling apps.
+`app_id` defaults to the Flutter package name during initialization. It must be
+unique within the Git repository and remain unchanged if the app directory or
+display name changes. Pass `--app-id` during initialization only when the
+package name is unsuitable or already used by another initialized app.
+
+For a nested app, every qualifying commit that changes its app directory
+applies to that app automatically. Use `release_trigger_paths` for shared code
+outside the app:
+
+```yaml
+release_trigger_paths:
+  - packages/shared_models/**
+  - packages/design_system/**
+```
+
+Paths and glob patterns are relative to the Git repository. They cannot be
+absolute, escape through `..`, or use Git pathspec magic. A qualifying commit
+that changes a shared path applies independently to every app that lists that
+path. A root-level Flutter app observes the entire repository, so it does not
+need additional trigger paths.
+
+Each app gets its own:
+
+- `.github/workflows/smf-<app-id>.yml`;
+- `smf/<app-id>/release` branch and pull request;
+- `<app-id>/<platform>-v<version>` tags and GitHub Releases;
+- `smf-<app-id>` GitHub Environment; and
+- release registry under that app's `smf/` directory.
 
 ## iOS
 
@@ -66,32 +104,60 @@ platforms:
     bundle_id: com.example.myapp
     build_command: flutter build ipa --release
     ipa_output_path: build/ios/ipa
-    testflight:
-      groups: [Internal]
-      wait_timeout_minutes: 45
     app_store:
-      mode: upload
+      release_candidate:
+        target: internal-testing
+        groups: [Internal]
+        wait_timeout_minutes: 45
+      ship:
+        target: submit-for-review
 ```
 
-| Field | Default | Meaning |
-| --- | --- | --- |
-| `enabled` | `true` when `ios/` exists at initialization | Include iOS |
-| `initial_version` | initializer version | Existing iOS release baseline |
-| `bundle_id` | detected when possible | Exact App Store bundle ID |
-| `build_command` | FVM-aware Flutter IPA command | Trusted project build command |
-| `ipa_output_path` | `build/ios/ipa` | App-contained IPA file or directory |
-| `testflight.groups` | `[]` | Exact existing internal group names |
-| `testflight.wait_timeout_minutes` | `45` | Processing wait, 5–180 |
-| `app_store.mode` | `upload` | Post-merge App Store behavior |
+| Field                                              | Default                                     | Meaning                                           |
+| -------------------------------------------------- | ------------------------------------------- | ------------------------------------------------- |
+| `enabled`                                          | `true` when `ios/` exists at initialization | Include iOS                                       |
+| `initial_version`                                  | initializer version                         | Existing iOS release baseline                     |
+| `bundle_id`                                        | resolved at release candidate time when possible    | Exact App Store bundle ID                         |
+| `build_command`                                    | FVM-aware Flutter IPA command               | Trusted project build command                     |
+| `ipa_output_path`                                  | `build/ios/ipa`                             | App-contained IPA file or directory               |
+| `app_store.release_candidate.target`               | `internal-testing`                          | TestFlight audience before merge                  |
+| `app_store.release_candidate.groups`               | `[]`                                        | Existing groups matching the release candidate target     |
+| `app_store.release_candidate.wait_timeout_minutes` | `45`                                        | Processing wait, 5–180 minutes                    |
+| `app_store.ship`                                   | omitted                                     | Leave the approved release candidate in its testing state |
+| `app_store.ship.target`                            | required when `ship` exists                 | [Apple ship destination](#apple-targets)          |
+| `app_store.ship.groups`                            | `[]`                                        | Existing external groups for `external-testing`   |
 
 The bundle ID must match the production Xcode target, App ID, provisioning
-profile, and App Store Connect app.
+profile, and App Store Connect app. Set it explicitly when you want the
+generated configuration and `smf validate` review to show the identity.
+Otherwise, the macOS release candidate phase resolves it from the Release scheme;
+local validation does not prove that later resolution.
 
-App Store modes:
+### Apple targets
 
-- `upload`: verify the tested build only; do not submit App Review.
-- `review`: submit and wait for manual release after approval.
-- `auto`: submit and allow automatic release after approval.
+`release_candidate` controls who receives the exact build while the release PR
+is open:
+
+| Target             | What SMF does                                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `internal-testing` | Uploads the build and assigns it to the listed internal TestFlight groups. An empty list is upload-only and cannot prove installability. |
+| `external-testing` | Assigns the build to the listed external groups and submits it to TestFlight Beta App Review. At least one group is required. |
+
+App Store Connect identifies every group as internal or external. SMF resolves
+the configured names and fails before assigning the build if a group does not
+match the selected target.
+
+`ship` is optional. When present, it controls the Apple action after the
+release PR is merged:
+
+| Target              | What SMF does                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| `external-testing`  | Assigns the same build to `ship.groups` and submits it to TestFlight Beta App Review.           |
+| `submit-for-review` | Submits the same build to App Review with manual release. After approval, a person releases it. |
+| `production`        | Submits the same build to App Review with automatic release after approval.                     |
+
+TestFlight Beta App Review and App Review are different reviews.
+`external-testing` never submits the app for public App Store distribution.
 
 ## Android
 
@@ -104,41 +170,84 @@ platforms:
     build_command: flutter build appbundle --release
     aab_output_path: build/app/outputs/bundle/release
     google_play:
-      testing_track: internal
-      production_track: production
-      mode: upload
+      release_candidate:
+        target: closed-testing
+        tracks:
+          - internal-qa
+          - trusted-users
+      ship:
+        target: production
 ```
 
-| Field | Default | Meaning |
-| --- | --- | --- |
-| `enabled` | `true` when `android/` exists at initialization | Include Android |
-| `initial_version` | initializer version | Existing Android release baseline |
-| `package_name` | detected for simple apps | Exact Google Play package name |
-| `build_command` | FVM-aware Flutter AAB command | Trusted project build command |
-| `aab_output_path` | standard release bundle directory | App-contained AAB file or directory |
-| `google_play.testing_track` | `internal` | Existing candidate track |
-| `google_play.production_track` | `production` | Destination track after approval |
-| `google_play.mode` | `upload` | Post-merge Google Play behavior |
+| Field                                  | Default                                         | Meaning                                              |
+| -------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- |
+| `enabled`                              | `true` when `android/` exists at initialization | Include Android                                      |
+| `initial_version`                      | initializer version                             | Existing Android release baseline                    |
+| `package_name`                         | resolved at release candidate time for simple apps      | Exact Google Play package name                       |
+| `build_command`                        | FVM-aware Flutter AAB command                   | Trusted project build command                        |
+| `aab_output_path`                      | standard release bundle directory               | App-contained AAB file or directory                  |
+| `google_play.release_candidate.target` | `internal-testing`                              | Play destination before merge                        |
+| `google_play.release_candidate.tracks` | `[]`                                            | Existing tracks for `closed-testing`                 |
+| `google_play.ship`                     | omitted                                         | Leave the approved release candidate on its testing tracks   |
+| `google_play.ship.target`              | required when `ship` exists                     | [Google Play ship destination](#google-play-targets) |
+| `google_play.ship.tracks`              | `[]`                                            | Existing tracks for `closed-testing`                 |
 
 Set `package_name` explicitly for flavors, suffixes, or computed Gradle
-application IDs.
+application IDs. When it is omitted, the release candidate phase reads a literal
+`applicationId` from `android/app/build.gradle.kts` or `build.gradle`; local
+validation does not prove that later resolution.
 
 SMF chooses the next available Play `versionCode`, passes it as Flutter’s
 `--build-number`, signs the resulting AAB with the configured upload key, and
-records that same integer as the candidate `artifactId`.
+records that same integer as the release candidate `artifactId`.
 
-Google Play modes:
+### Google Play targets
 
-- `upload`: keep the exact bundle on the testing track; do not update
-  production.
-- `review`: move the exact `versionCode` to production and send it for review;
-  **Managed Publishing must already be enabled** so a person controls final
-  publication.
-- `auto`: move the exact `versionCode` to production and allow normal
-  publication after Play review.
+`release_candidate.target` accepts:
 
-`testing_track` and `production_track` must be different. SMF will not replace
-a production track with an unfinished release.
+| Target             | What SMF does                                          |
+| ------------------ | ------------------------------------------------------ |
+| `internal-testing` | Assigns the release candidate to Google Play internal testing. |
+| `closed-testing`   | Assigns it to every existing custom track in `tracks`. |
+| `open-testing`     | Assigns it to Google Play open testing.                |
+
+`tracks` is required and must be nonempty only for `closed-testing`. Google
+Play supports multiple closed tests, so one release candidate can be assigned to
+several named tracks without rebuilding it.
+
+`ship` is optional. When present, `ship.target` accepts:
+
+| Target           | What SMF does after merge                                              |
+| ---------------- | ---------------------------------------------------------------------- |
+| `closed-testing` | Assigns the release candidate to every existing custom track in `ship.tracks`. |
+| `open-testing`   | Moves the release candidate to Google Play open testing.                       |
+| `production`     | Moves the release candidate to production and sends the change for review.     |
+
+Google Play does not provide a per-release API choice between “publish after
+approval” and “wait after approval.” That behavior belongs to the app-wide
+**Managed publishing** setting in Play Console:
+
+- when Managed publishing is off, an approved production change publishes
+  automatically;
+- when Managed publishing is on, the approved change waits for a person to
+  publish it from Play Console; and
+- SMF cannot enable, disable, verify, or bypass Managed publishing through the
+  Google Play Developer API.
+
+SMF will not replace a destination track containing an unfinished release.
+Finish or halt that release in Play Console first.
+
+## Release-candidate-only default
+
+The initializer creates a `release_candidate` for each enabled platform and
+omits `ship`. This is the safest first run: merging still revalidates the exact
+release candidate and creates the platform tag and GitHub Release, but does not move
+the store artifact beyond its release-candidate testing destination.
+
+Add `ship` independently for each platform only after the complete
+release-candidate-only workflow succeeds. A ship-only configuration change can reuse
+an existing release candidate after SMF revalidates its source, identity, and store
+artifact.
 
 ## Custom build commands
 
@@ -190,67 +299,71 @@ Example:
 ```
 
 Use store-supported locale identifiers. The file can be written by a release
-owner or a hook. It remains absent when there are no notes.
+owner or a hook. It remains absent when there are no notes. Follow
+[Store release notes](store-release-notes.md) for platform behavior,
+localization, deterministic generation, and AI-assisted drafting.
 
 ## Commit routing
 
-Recognized platform scopes are `ios` and `android`. Other known ecosystem
-scopes (`web`, `macos`, `windows`, `linux`) are excluded from these platforms.
-Feature scopes such as `auth` apply to all enabled platforms.
+The mobile platform scopes are `ios` and `android`. An unscoped commit or an
+unknown/domain scope such as `auth` applies to every enabled platform. Known
+non-mobile platform scopes (`macos`, `windows`, `linux`, and `web`) do not
+release iOS or Android. In a multi-scope commit, the presence of any recognized
+platform scope makes routing explicit; only `ios` and/or `android` named in
+that list are released.
 
-| Commit | Platforms | Bump |
-| --- | --- | --- |
-| `fix: prevent crash` | all enabled | patch |
-| `feat(auth): add passkeys` | all enabled | minor |
-| `fix(ios): repair entitlement` | iOS | patch |
-| `fix(android): repair navigation` | Android | patch |
-| `perf(ios,android): speed startup` | both | patch |
-| `chore: update docs` | none | none |
+| Commit                             | Platforms   | Bump  |
+| ---------------------------------- | ----------- | ----- |
+| `fix: prevent crash`               | all enabled | patch |
+| `deps: update networking`          | all enabled | patch |
+| `feat(auth): add passkeys`         | all enabled | minor |
+| `feat!: replace account model`     | all enabled | major |
+| `fix(ios): repair entitlement`     | iOS         | patch |
+| `fix(android): repair navigation`  | Android     | patch |
+| `perf(ios,android): speed startup` | both        | patch |
+| `chore: update docs`               | none        | none  |
 
-Explicit stable versions:
-
-```text
-Release-As-ios: 3.0.0
-Release-As-android: 2.8.0
-```
-
-Prerelease/build metadata values are rejected.
+`initial_version` is the only manual version baseline for a platform. After
+initialization, SMF calculates later versions from that baseline and qualifying
+Conventional Commits. Commit messages cannot override the next version.
 
 ## Hooks
 
-Add the lightweight SDK only when hooks are needed:
+Hooks are optional Dart files discovered at
+`smf/hooks`. Their source paths are fixed; optional secret environment names
+are configured by phase:
 
-```bash
-dart pub add --dev smf_hooks
+```yaml
+hooks:
+  before_create_pr:
+    secrets:
+      - RELEASE_NOTES_API_TOKEN
+  before_build:
+    secrets:
+      - GOOGLE_MAPS_API_KEY
 ```
 
-Supported files:
+Names use uppercase letters, numbers, and underscores. Values remain outside
+the configuration and must contain at least eight characters. Run
+`smf init --github-actions` after changing these lists to regenerate the
+app-scoped workflow.
 
-```text
-smf/hooks/before_create_pr.dart
-smf/hooks/before_build.dart
-```
-
-`before_create_pr` receives every platform plan included in the shared PR.
-`before_build` runs once per candidate with its platform and version.
-
-Return `commit: true` only for deterministic files that belong in the release
-PR, such as generated release notes. Return `commit: false` only when all
-changes are ignored/untracked build outputs; tracked changes cause a hard stop.
-
-Hooks and custom build commands are trusted deployment code. Review them before
-they run with release permissions.
+Use the complete [Typed hooks guide](hooks.md) to install `smf_hooks`, choose a
+phase, supply secrets from GitHub or another provider, implement the typed
+context, and recover from a failure.
 
 ## Machine-owned files
 
 SMF creates these only when needed:
 
-| Path | What users do |
-| --- | --- |
-| `manifest.json` | Review; never edit manually |
-| `changelog.json` | Review; never edit manually |
-| `candidates/ios-X.Y.Z.json` | Match to TestFlight; never edit |
-| `candidates/android-X.Y.Z.json` | Match to Play `versionCode`; never edit |
+| Path                            | What users do                           |
+| ------------------------------- | --------------------------------------- |
+| `manifest.json`                 | Review; never edit manually             |
+| `changelog.json`                | Review; never edit manually             |
+| `release_candidates/ios-X.Y.Z.json`     | Match to TestFlight; never edit         |
+| `release_candidates/android-X.Y.Z.json` | Match to Play `versionCode`; never edit |
+| `release_candidates/*.intent.json`      | Leave intact during a failed upload     |
 
 Use [How releases work](how-it-works.md) for the integrity boundary and
 [Operations](operations.md) before resolving conflicts or retrying a release.
+Never edit these machine-owned files by hand.

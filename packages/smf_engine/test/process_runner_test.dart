@@ -12,7 +12,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'COMMAND_FAILED',
+          SmfErrorCode.commandFailed,
         ),
       ),
     );
@@ -27,18 +27,37 @@ void main() {
             'PATH': '/usr/bin:/bin',
             'GITHUB_TOKEN': 'github-secret',
             'SMF_IOS_CERTIFICATE_PASSWORD': 'certificate-secret',
-            'SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH': '/private/key.p8',
           },
         );
         const command =
-            r'printf "%s|%s|%s" "$GITHUB_TOKEN" '
-            r'"$SMF_IOS_CERTIFICATE_PASSWORD" '
-            r'"$SMF_APP_STORE_CONNECT_PRIVATE_KEY_PATH"';
+            r'printf "%s|%s" "$GITHUB_TOKEN" '
+            r'"$SMF_IOS_CERTIFICATE_PASSWORD"';
         final result = await runner.run('/bin/sh', const <String>[
           '-c',
           command,
         ]);
-        expect(result.stdout, '||');
+        expect(result.stdout, '|');
+      },
+    );
+
+    test(
+      'preserves explicitly supplied project-specific credentials',
+      () async {
+        const runner = SystemProcessRunner(
+          parentEnvironment: <String, String>{
+            'PATH': '/usr/bin:/bin',
+            'CATAQUI_RELEASE_NOTES_TOKEN': 'project-secret',
+            'SMF_IOS_CERTIFICATE_PASSWORD': 'signing-secret',
+          },
+        );
+        const command =
+            r'printf "%s|%s" "$CATAQUI_RELEASE_NOTES_TOKEN" '
+            r'"$SMF_IOS_CERTIFICATE_PASSWORD"';
+        final result = await runner.run('/bin/sh', const <String>[
+          '-c',
+          command,
+        ]);
+        expect(result.stdout, 'project-secret|');
       },
     );
 
@@ -70,6 +89,43 @@ void main() {
             (error) => error.message,
             'message',
             contains('build failed safely'),
+          ),
+        ),
+      );
+    });
+
+    test('redacts configured values from successful process output', () async {
+      final result = await const SystemProcessRunner().run(
+        '/bin/sh',
+        const <String>['-c', 'printf "visible-super-secret-value"'],
+        options: const RunOptions(
+          sensitiveValues: <String>['super-secret-value'],
+        ),
+      );
+
+      expect(result.stdout, 'visible-[REDACTED]');
+    });
+
+    test('redacts configured values from failure diagnostics', () async {
+      await expectLater(
+        const SystemProcessRunner().run(
+          '/bin/sh',
+          const <String>[
+            '-c',
+            'printf "failed super-secret-value" >&2; exit 1',
+          ],
+          options: const RunOptions(
+            sensitiveValues: <String>['super-secret-value'],
+          ),
+        ),
+        throwsA(
+          isA<SmfError>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('failed [REDACTED]'),
+              isNot(contains('super-secret-value')),
+            ),
           ),
         ),
       );

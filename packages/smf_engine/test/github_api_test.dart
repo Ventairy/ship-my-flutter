@@ -5,17 +5,42 @@ import 'package:http/testing.dart';
 import 'package:smf_engine/smf_engine.dart';
 import 'package:test/test.dart';
 
+final class _TrackingClient extends http.BaseClient {
+  bool isClosed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(const Stream<List<int>>.empty(), 204);
+  }
+
+  @override
+  void close() {
+    isClosed = true;
+    super.close();
+  }
+}
+
 void main() {
+  test('when the GitHub client closes, it should close its transport', () {
+    final transport = _TrackingClient();
+    GitHubRestApi(
+      context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
+      client: transport,
+    ).close();
+
+    expect(transport.isClosed, isTrue);
+  });
+
   test(
     'GitHub REST client maps transport failures to a typed failure',
     () async {
       final api = GitHubRestApi(
         context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
         client: MockClient(
-          (request) async =>
-              throw http.ClientException('connection failed', request.url),
+          (request) async => throw http.ClientException('connection failed', request.url),
         ),
       );
+      addTearDown(api.close);
 
       await expectLater(
         api.listPullRequests(
@@ -28,7 +53,7 @@ void main() {
           isA<SmfError>().having(
             (error) => error.code,
             'code',
-            'GITHUB_API',
+            SmfErrorCode.githubApi,
           ),
         ),
       );
@@ -45,7 +70,8 @@ void main() {
         http.Response('', 204),
         http.Response('{"message":"Not Found"}', 404),
         http.Response(
-          '{"html_url":"https://github.com/o/r/releases/tag/ios-v1.0.0"}',
+          '{"html_url":"https://github.com/o/r/releases/tag/ios-v1.0.0",'
+          '"tag_name":"ios-v1.0.0","target_commitish":"commit-hash"}',
           201,
         ),
       ];
@@ -56,6 +82,7 @@ void main() {
           return responses.removeAt(0);
         }),
       );
+      addTearDown(api.close);
 
       expect(
         (await api.listPullRequests(
@@ -81,7 +108,7 @@ void main() {
         tag: 'ios-v1.0.0',
         name: 'iOS v1.0.0',
         body: 'notes',
-        targetCommitish: 'sha',
+        targetCommitish: 'commit-hash',
       );
       expect(release.htmlUrl, contains('ios-v1.0.0'));
 
@@ -99,6 +126,7 @@ void main() {
         (_) async => http.Response('{"message":"forbidden"}', 403),
       ),
     );
+    addTearDown(api.close);
     await expectLater(
       api.labelExists('pending'),
       throwsA(
@@ -122,6 +150,7 @@ void main() {
       context: const GitHubContext(owner: 'o', repo: 'r', token: 'secret'),
       client: MockClient((_) async => http.Response('{not-json', 200)),
     );
+    addTearDown(api.close);
 
     await expectLater(
       api.listPullRequests(
@@ -134,7 +163,7 @@ void main() {
         isA<SmfError>().having(
           (error) => error.code,
           'code',
-          'GITHUB_RESPONSE',
+          SmfErrorCode.githubResponse,
         ),
       ),
     );

@@ -1,6 +1,6 @@
 name: smf_hooks
 description: Lightweight typed hook SDK for SMF release automation.
-version: 0.1.0
+version: 1.1.0
 repository: https://github.com/Ventairy/smf
 issue_tracker: https://github.com/Ventairy/smf/issues
 topics:
@@ -11,11 +11,14 @@ topics:
 environment:
   sdk: ">=3.10.0 <4.0.0"
 
-resolution: workspace
+platforms:
+  linux:
+  macos:
+  windows:
 
-dependencies:
-  pub_semver: ^2.2.0
+resolution: workspace
 
 dev_dependencies:
   path: ^1.9.1
+  # Keep aligned with smf_engine; see its analyzer compatibility note.
   test: 1.30.0

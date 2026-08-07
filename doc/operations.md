@@ -1,16 +1,16 @@
 # Release operations and recovery
 
-Use this guide whenever `smf/release` is open, a workflow failed, or a release
-must be abandoned.
+Use this guide whenever an app's `smf/<app-id>/release` PR is open, a CLI or
+workflow operation failed, or a release must be abandoned.
 
 ## Before merging
 
 For every platform listed in the PR:
 
 1. `release-candidate (<platform>)` succeeded;
-2. `smf/candidates/<platform>-<version>.json` is committed;
+2. `smf/release_candidates/<platform>-<version>.json` is committed;
 3. the store shows the same `version`, `buildNumber`, and `artifactId`;
-4. the exact candidate was installed from the store testing destination;
+4. the exact release candidate was installed from the store testing destination;
 5. the release test passed;
 6. localized notes are correct; and
 7. the authorized release owner approved it.
@@ -18,12 +18,12 @@ For every platform listed in the PR:
 Do not merge if one included platform is unapproved. If it should not be in the
 release, fix the target-branch commit/configuration and let SMF update the PR.
 
-## Find the exact candidate
+## Find the exact release candidate
 
 In GitHub:
 
-1. Open the shared release PR.
-2. Open the platform receipt under `smf/candidates/`.
+1. Open the selected app's release PR.
+2. Open the platform receipt under `smf/release_candidates/`.
 3. Record `version`, `buildNumber`, `artifactId`, `artifactSha256`, and
    `testingDestinations`.
 4. Confirm the successful job outputs match.
@@ -46,35 +46,27 @@ Any mismatch is a hard stop.
 
 ## Choose what merge will do
 
-Check each platform mode in `smf/config.yaml`.
+Read the canonical [Apple targets](configuration.md#apple-targets) and
+[Google Play targets](configuration.md#google-play-targets), then check each
+platform's optional `ship` section in `smf/config.yaml`.
 
-### iOS `platforms.ios.app_store.mode`
-
-- `upload`: verify only.
-- `review`: submit and wait for manual release after Apple approval.
-- `auto`: submit and release automatically after Apple approval.
-
-### Android `platforms.android.google_play.mode`
-
-- `upload`: verify only; leave production untouched.
-- `review`: move the exact `versionCode` to production review; requires Managed
-  Publishing for manual final publication.
-- `auto`: move the exact `versionCode` to production and allow normal
-  publication after review.
-
-Changing a mode on the target branch refreshes the release PR. Wait for the
-candidate jobs and recheck every receipt before merge.
+Changing a release-candidate or ship target on the target branch refreshes the
+release PR. Wait for the release candidate jobs and recheck every receipt before merge.
 
 ## While the release PR is open
 
-New target-branch commits update the same `smf/release` PR.
+New qualifying target-branch commits for the app update the same
+`smf/<app-id>/release` PR.
 
-- Unscoped/feature commits apply to all enabled platforms.
-- `ios` and `android` scopes apply selectively.
-- A change scoped away from one platform can still invalidate its candidate if
+- Unscoped commits and unknown/domain scopes apply to all enabled platforms.
+- `ios` and `android` scopes apply selectively; known non-mobile platform
+  scopes do not release iOS or Android.
+- A nested app only considers commits that change its directory or one of its
+  configured `release_trigger_paths`.
+- A change scoped away from one platform can still invalidate its release candidate if
   it modifies a tracked build input used by that platform.
 
-Candidate jobs are serialized when both platforms release so their receipt
+Release candidate jobs are serialized when both platforms release so their receipt
 commits do not race.
 
 ## Merge strategy
@@ -83,18 +75,28 @@ Conventional Commit messages on the target branch determine release versions.
 When squashing a feature PR, give the final commit a qualifying title.
 
 Merge commit, squash, and rebase are supported if the target branch receives
-all release PR contents, including every candidate receipt. Never discard or
+all release PR contents, including every release candidate receipt. Never discard or
 hand-edit machine-owned files while resolving conflicts.
 
 After merge:
 
-- watch `ship (ios)` and/or `ship (android)`;
-- confirm `ios-vX.Y.Z` and/or `android-vX.Y.Z`;
+- with automation, watch `ship (ios)` and/or `ship (android)`;
+- without automation, run `smf release --phase ship` from anywhere inside the
+  repository;
+- confirm `<app-id>/ios-vX.Y.Z` and/or
+  `<app-id>/android-vX.Y.Z`;
 - confirm the store status matches the configured mode.
+
+The `pull-request` and `ship` phases clone the remote repository into a
+temporary directory and treat the configured remote target branch as their
+only release source. The release candidate phase similarly uses the remote release
+branch. Local manifests, receipts, branches, tags, uncommitted files, and
+unpushed commits cannot change their decisions. If a release is not committed
+to the required remote branch, SMF does not process it.
 
 ## GitHub checks and branch protection
 
-The default `GITHUB_TOKEN` can update the shared branch and start candidate
+The default `GITHUB_TOKEN` can update the shared branch and start release candidate
 jobs in the same workflow. It may not trigger unrelated `pull_request`
 workflows for the PR it created.
 
@@ -103,8 +105,8 @@ independent PR checks must trigger. See
 [GitHub permissions](security.md#github-permissions).
 
 Protect the target branch with normal reviews/checks. Do not create a ruleset
-that prevents the workflow from updating `smf/release`; the candidate receipt
-must be committed there.
+that prevents the workflow from updating `smf/<app-id>/release`; the release candidate
+receipt must be committed there.
 
 ## Test audiences
 
@@ -114,26 +116,39 @@ testers are.
 - TestFlight group names must already exist and match exactly.
 - The Google Play testing track and tester list must already exist/be
   configured.
-- An empty iOS group list leaves the build unassigned.
-- Google Play `internal` uses the Play testing opt-in URL.
+- An empty iOS group list leaves the build unassigned. Use it only to diagnose
+  upload/processing, not as release acceptance.
+- Google Play `internal-testing` uses the Play testing opt-in URL.
 
 ## Retry and recovery
 
+In a monorepo with multiple initialized apps, append
+`--smf-path apps/<app>/smf` to every CLI release command below. Keep the same
+app selector throughout the pull-request, release candidate, and ship phases.
+
 ### No release PR opened
 
-1. Open the failed `pull-request` job.
+1. Read the failed `smf release --phase pull-request` output or open the failed
+   `pull-request` job.
 2. Fix the reported config, permission, or commit-message issue on the target
    branch.
 3. Run `smf validate`.
-4. Push or rerun.
+4. Rerun `smf release --phase pull-request` or the wrapper job.
 
-If the result is `noop`, confirm the commit qualifies for at least one enabled
-platform and the workflow ran on the configured target branch.
+If the result is `noop`, confirm a qualifying commit for at least one enabled
+platform is present on the configured remote target branch and affects this
+app or one of its `release_trigger_paths`.
 
-### Candidate build failed
+### Release candidate build failed
 
-Fix the named source/toolchain/build/signing issue on the target branch. SMF
-updates the PR and generates a new candidate when tracked inputs change.
+For a source, build-configuration, or hook failure, commit and push the fix to
+the target branch so SMF can update the release PR. For a credential, runner,
+or toolchain failure, fix the environment that executes SMF. Tracked source or
+build-input changes cause SMF to generate a new release candidate.
+
+For a CLI-only retry, run `smf release --phase release-candidate` again. SMF
+uses the remote release branch in an isolated checkout. Use `--platform ios`
+or `--platform android` when only one release candidate needs its platform toolchain.
 
 Do not manually invent a receipt.
 
@@ -142,21 +157,34 @@ Do not manually invent a receipt.
 Confirm:
 
 - the job has `contents: write`;
-- `smf/release` still exists;
+- `smf/<app-id>/release` still exists;
 - repository rules allow the workflow identity to update it; and
 - the store artifact still matches the source/identity.
 
-Fix the GitHub permission/ruleset and rerun. SMF can reuse a valid matching
-artifact.
+Do not delete or edit
+`smf/release_candidates/<platform>-<version>.intent.json`. It is the committed identity
+of the upload attempt, not a receipt or a file you need to complete.
+
+Fix the GitHub permission/ruleset and rerun the failed release candidate job or
+`smf release --phase release-candidate --platform <platform>`. A fresh runner reads the intent,
+looks up that exact build in the store, completes any unfinished testing
+assignment, and replaces the intent with the final receipt. It never selects
+the newest unrelated store build.
+
+The retry is complete only when the intent is gone and
+`smf/release_candidates/<platform>-<version>.json` is committed on the release branch.
+If SMF reports an identity, fingerprint, or Android checksum mismatch, stop:
+the preserved store artifact is not valid evidence for this release.
 
 ### iOS processing or TestFlight failed
 
 - Copy group names exactly from App Store Connect.
-- Confirm API-key role and app access.
+- Confirm API-key role, app access, and Certificates, Identifiers & Profiles
+  access.
 - Read Apple’s processing/compliance message.
 - Fix certificate, profile, entitlement, metadata, or source issues.
 
-A corrected IPA needs a new build number/candidate.
+A corrected IPA needs a new build number/release candidate.
 
 ### Google Play authentication or permission failed
 
@@ -168,7 +196,8 @@ Confirm:
 - it has **View app information** and **Release apps to testing tracks**; and
 - production permission exists only when `review`/`auto` needs it.
 
-Replace the GitHub secret after creating a new service-account key.
+Replace the value in the active credential source after creating a new
+service-account key.
 
 ### Google Play rejected the upload key
 
@@ -185,20 +214,22 @@ Do not create a new app or change the package name.
 
 SMF reads all bundles visible to Google Play and chooses the next integer.
 This error usually means another release uploaded concurrently or a stale edit.
-Rerun after the other upload finishes. Never reuse a `versionCode`.
+Rerun the release-candidate phase after the other upload finishes. Never reuse
+a `versionCode`.
 
 ### Android production release already in progress
 
 SMF refuses to replace a production track containing an unfinished release.
 Open Play Console and finish or halt that release, obtain release-owner
-approval, then rerun `ship`.
+approval, then rerun `smf release --phase ship`.
 
-### Android `review` published automatically
+### Google Play production published automatically
 
-`review` depends on Play Console Managed Publishing. If it was not enabled,
-Google can publish after approval. Stop further releases, verify the current
-store state, enable Managed Publishing if the team requires a manual hold, and
-review [Android setup](android-bootstrap.md#10-decide-how-production-will-work-later).
+`ship.target: production` follows the app-wide Play Console Managed publishing
+setting. If it was off, Google can publish after approval. Stop further
+releases, verify the current store state, enable Managed publishing if the team
+requires a manual hold, and review
+[Google Play targets](configuration.md#google-play-targets) before retrying.
 
 ### Fingerprint or app identity mismatch
 
@@ -211,20 +242,22 @@ Confirm:
 - the release PR receipt is the one actually tested; and
 - no tracked build input changed afterward.
 
-Restore the expected source or produce and retest a new candidate.
+Restore the expected source or produce and retest a new release candidate.
 
 ### Ship failed after merge
 
 Preserve the merged receipt and tag state. Fix the named store/GitHub
-permission or external metadata issue and rerun the failed platform job. SMF
-reuses matching store and GitHub resources.
+permission or external metadata issue and rerun `smf release --phase ship` or the
+failed platform job. Use `smf release --phase ship --platform <platform>` for a
+targeted manual retry.
+SMF reuses matching store and GitHub resources.
 
 Do not create a manual tag/Release to hide a failed ship.
 
 ### Abandon a release
 
-1. Close the shared release PR.
-2. Delete branch `smf/release`.
+1. Close the app's release PR.
+2. Delete branch `smf/<app-id>/release`.
 3. Decide what to do with already uploaded TestFlight/Play testing artifacts.
 
 The next qualifying target-branch push creates a fresh PR from current state.
@@ -234,10 +267,10 @@ Deleting the branch does not remove store artifacts or tester access.
 
 While investigating, keep:
 
-- `smf/release`;
+- `smf/<app-id>/release`;
 - workflow logs;
-- candidate receipts;
-- exact commit SHAs;
+- release candidate receipts;
+- exact commit hashes;
 - Apple build ID/build number; and
 - Google Play `versionCode` and track.
 

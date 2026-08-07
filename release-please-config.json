@@ -6,21 +6,47 @@
   "release-type": "dart",
   "separate-pull-requests": false,
   "group-pull-request-title-pattern": "chore: release ${branch}",
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "SMF",
+      "components": [
+        "smf_hooks",
+        "smf_engine",
+        "smf_cli"
+      ]
+    }
+  ],
   "packages": {
     "packages/smf_hooks": {
-      "component": "smf_hooks"
+      "component": "smf_hooks",
+      "include-paths": [
+        "packages/smf_hooks"
+      ]
     },
     "packages/smf_engine": {
-      "component": "smf_engine"
-    },
-    "packages/smf_apple": {
-      "component": "smf_apple"
-    },
-    "packages/smf_android": {
-      "component": "smf_android"
+      "component": "smf_engine",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "lib/src/templates.dart"
+        }
+      ],
+      "include-paths": [
+        "packages/smf_engine"
+      ]
     },
     "packages/smf_cli": {
-      "component": "smf_cli"
+      "component": "smf_cli",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "lib/src/upgrade.dart"
+        }
+      ],
+      "include-paths": [
+        "packages/smf_cli"
+      ]
     }
   }
 }
